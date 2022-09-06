@@ -46,8 +46,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   await (await mcsRelay.setTokenOtherChainDecimals(mapcoin, 212, 18)).wait();
   await (await mcsRelay.setTokenOtherChainDecimals(wcoin, 212, 18)).wait();
   await (await mcsRelay.setTokenOtherChainDecimals("0x7F3e86D38Eb0281a3Acc0Fa5Fe09a420ccE519aD", 212, 18)).wait();
+  await (await mcsRelay.setTokenOtherChainDecimals(mapcoin, 34434, 18)).wait();
+
   await (await mcsRelay.setVaultBalance(34434, mapcoin, "100000000000000000000000000000")).wait();
   await (await mcsRelay.setVaultBalance(34434, wcoin, "100000000000000000000000000000")).wait();
+  await (await mcsRelay.setBridgeAddress(34434, "0x27A51306c2b727d068c1B6E9895c6d160Edd21B3")).wait();
+  // await (await mcsRelay.setIdTable(1, 1313161556)).wait();
 
   await (await feeCenter.setChainTokenGasFee(34434, wcoin, "10000000000000000","10000000000000000000",200)).wait();
   await (await feeCenter.setDistributeRate(0, deployer, 100)).wait();
@@ -58,6 +62,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     "0xE1b2b81B66150F9EF5A89dC346a7A8B8df05d847",
     "0x0000000000000000000000000000000000000000"
   )).wait();
+
 }
 
 

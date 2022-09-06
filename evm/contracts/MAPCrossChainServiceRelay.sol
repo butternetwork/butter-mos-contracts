@@ -130,7 +130,7 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Role, Initializable, Paus
         lightClientManager = ILightClientManager(_managerAddress);
     }
 
-    function setBridageAddress(uint256 _chainId, bytes memory _addr) external onlyManager {
+    function setBridgeAddress(uint256 _chainId, bytes memory _addr) external onlyManager {
         bridgeAddress[_addr] = _chainId;
     }
 
