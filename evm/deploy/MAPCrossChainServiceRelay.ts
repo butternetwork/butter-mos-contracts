@@ -62,9 +62,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     "0xE1b2b81B66150F9EF5A89dC346a7A8B8df05d847",
     "0x0000000000000000000000000000000000000000"
   )).wait();
-
 }
-
 
 func.tags = ['MCSRelay'];
 export default func;
