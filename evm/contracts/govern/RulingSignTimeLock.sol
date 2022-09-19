@@ -78,10 +78,10 @@ contract RulingSignTimeLock is TimelockController {
     }
 
     modifier validRequirement(uint ProposerCount, uint _required) {
-        require(Proposer <= MAX_PROPOSER_COUNT
-        && _required <= Proposer
+        require(ProposerCount <= MAX_PROPOSER_COUNT
+        && _required <= ProposerCount
         && _required > 0
-            && Proposer > 0, "validRequirement error");
+            && ProposerCount > 0, "validRequirement error");
         _;
     }
 
@@ -201,7 +201,7 @@ contract RulingSignTimeLock is TimelockController {
         emit RequirementChange(_required);
     }
 
-    function submitTransactionCall(address destination, uint value, uint tType, bytes memory data) public
+    function submitTransactionCall(address destination, uint value, uint8 tType, bytes memory data) public
     returns (uint transactionId){
         transactionId = addTransaction(destination, value, tType, data);
         confirmTransaction(transactionId);
