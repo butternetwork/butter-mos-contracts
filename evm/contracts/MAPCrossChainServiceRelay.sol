@@ -14,7 +14,6 @@ import "./interface/IWToken.sol";
 import "./interface/IMAPToken.sol";
 import "./interface/IFeeCenter.sol";
 import "./utils/Role.sol";
-import "./interface/IFeeCenter.sol";
 import "./interface/IVault.sol";
 import "./utils/TransferHelper.sol";
 import "./interface/IMCSRelay.sol";
@@ -38,7 +37,7 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Role, Initializable, Paus
 
     address public wToken;        // native wrapped token
 
-    uint256 public selfChainId;
+    uint public immutable selfChainId = block.chainid;
 
     // mapping(bytes32 => address) public tokenRegister;
     //Gas transfer fee charged by the target chain
@@ -93,9 +92,6 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Role, Initializable, Paus
     bytes32 public nearDepositOut;
 
     function initialize(address _wToken, address _mapToken, address _managerAddress) public initializer {
-        uint256 _chainId;
-        assembly {_chainId := chainid()}
-        selfChainId = _chainId;
         wToken = _wToken;
         mapToken = IERC20(_mapToken);
         lightClientManager = ILightClientManager(_managerAddress);
@@ -113,7 +109,7 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Role, Initializable, Paus
 
 
     modifier checkOrder(bytes32 orderId) {
-        require(!orderList[orderId], "order already existed");
+        require(!orderList[orderId], "order exist");
         orderList[orderId] = true;
         _;
     }
@@ -130,7 +126,7 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Role, Initializable, Paus
         lightClientManager = ILightClientManager(_managerAddress);
     }
 
-    function setBridgeAddress(uint256 _chainId, bytes memory _addr) external onlyManager {
+    function setBridageAddress(uint256 _chainId, bytes memory _addr) external onlyManager {
         bridgeAddress[_addr] = _chainId;
     }
 
@@ -179,6 +175,7 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Role, Initializable, Paus
     }
 
     function getFeeValue(uint256 amount, uint256 rate) pure public returns (uint){
+        require(rate <= 1000000, 'Invalid rate value');
         return amount.mul(rate).div(1000000);
     }
 
@@ -311,7 +308,7 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Role, Initializable, Paus
 
     function transferOutNative(bytes memory to, uint256 toChainId) external override payable whenNotPaused {
         uint256 amount = msg.value;
-        require(amount > 0, "value cannot be zero");
+        require(amount > 0, "value too low");
         IWToken(wToken).deposit{value : amount}();
         uint256 fee = getChainFee(toChainId, address(0), amount);
         uint256 outAmount = amount.sub(fee);
@@ -413,18 +410,18 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Role, Initializable, Paus
         }
     }
 
-    function _bytesToAddress(bytes memory bys) public pure returns (address addr){
+    function _bytesToAddress(bytes memory bys) internal pure returns (address addr){
         assembly {
             addr := mload(add(bys, 20))
         }
     }
 
-    function _addressToBytes(address self) public pure returns (bytes memory b) {
+    function _addressToBytes(address self) internal pure returns (bytes memory b) {
         b = abi.encodePacked(self);
     }
 
     function decodeTxLog(bytes memory logsHash)
-    public
+    internal
     pure
     returns (txLog[] memory _txLogs){
         RLPReader.RLPItem[] memory ls = logsHash.toRlpItem().toList();
@@ -443,7 +440,7 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Role, Initializable, Paus
     }
 
     function decodeNearLog(bytes memory logsHash)
-    public
+    internal
     view
     returns (bytes memory executorId, nearTransferOutEvent memory _outEvent){
         RLPReader.RLPItem[] memory ls = logsHash.toRlpItem().toList();
@@ -482,7 +479,7 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Role, Initializable, Paus
 
 
     function hexStrToBytes(bytes memory _hexStr)
-    public
+    internal
     pure
     returns (bytes memory)
     {
@@ -548,7 +545,7 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Role, Initializable, Paus
 
 
     function splitExtra(bytes memory extra)
-    public
+    internal
     pure
     returns (bytes memory newExtra){
         newExtra = new bytes(64);
