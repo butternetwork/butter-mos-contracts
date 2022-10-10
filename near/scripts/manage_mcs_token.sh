@@ -21,7 +21,7 @@ function printHelp() {
 
 function deploy() {
     echo "deploying $1 contract"
-    near call $MCS_ACCOUNT deploy_mcs_token '{"address": "'$1'"}'  --accountId $MASTER_ACCOUNT --deposit 10 --gas 80000000000000
+    near call $MCS_ACCOUNT deploy_mcs_token '{"address": "'$1'"}'  --accountId $MASTER_ACCOUNT --amount 10 --gas 80000000000000
 }
 
 function metadata() {
