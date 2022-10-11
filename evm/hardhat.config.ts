@@ -19,7 +19,7 @@ const config: HardhatUserConfig = {
     wcoin: {
       default: 0,
       212: '0x13CB04d4a5Dfb6398Fc5AB005a6c84337256eE23',
-      34434: '0xfe745307D9C8A6F9a72F608E87821f3F55090A35',
+      34434: '0xB59B98DF47432371A36A8F83fC7fd8371ec1300B',
     },
     mapcoin: {
       default: 0,
@@ -29,7 +29,7 @@ const config: HardhatUserConfig = {
     lightclient: {
       default: 0,
       212: '0x000068656164657273746F726541646472657373',
-      34434: '0xCc28E568537ddE69569271a432d1eDc3152aa5Af',
+      34434: '0x1eD5058d28fCD3ae7b9cfFD0B0B3282d939c4034',
     }
   },
   networks: {

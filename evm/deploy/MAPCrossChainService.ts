@@ -24,9 +24,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log("MapCrossChainService address:",mcs.address);
 
   await (await mcs.initialize(wcoin, mapcoin, lightclient)).wait();
-  await (await mcs.setBridge("0x1902347e9CCC4e4aa0cf0b19844bf528f0031642", 10)).wait();
-  await (await mcs.setCanBridgeToken("0x0000000000000000000000000000000000000000", 212, true)).wait();
-  await (await mcs.setCanBridgeToken("0xE1b2b81B66150F9EF5A89dC346a7A8B8df05d847", 212, true)).wait();
+  await (await mcs.setBridge("0xf0C4f447e361c14F9BF01F9805a78F51FCCb95BB", 212)).wait();
 
 }
 
