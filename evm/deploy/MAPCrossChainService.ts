@@ -21,10 +21,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   let mcs: Contract = await hre.ethers.getContract('MapCrossChainService');
 
-  console.log("MapCrossChainService address:",mcs.address);
+  console.log("MapCrossChainService address:"+mcs.address);
 
-  await (await mcs.initialize(wcoin, mapcoin, lightclient)).wait();
-  await (await mcs.setBridge("0xf0C4f447e361c14F9BF01F9805a78F51FCCb95BB", 212)).wait();
+  // await (await mcs.initialize(wcoin, mapcoin, lightclient)).wait();
+  // await (await mcs.setBridge("0xf0C4f447e361c14F9BF01F9805a78F51FCCb95BB", 212)).wait();
 
 }
 
