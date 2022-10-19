@@ -5,10 +5,11 @@ import MCSEVMMetadata from "../../evm/artifacts/contracts/MapCrossChainService.s
 import FeeCenterMetadata from "../../evm/artifacts/contracts/FeeCenter.sol/FeeCenter.json";
 import TokenRegisterMetadata from "../../evm/artifacts/contracts/TokenRegister.sol/TokenRegister.json";
 import * as net from "net";
-import {connect, KeyPair, keyStores, utils} from "near-api-js";
+import {connect, KeyPair, keyStores, utils, Contract as NearContract, Account} from "near-api-js";
 import * as fs from "fs";
 import * as path from "path";
 import BN from "bn.js";
+import {FinalExecutionOutcome} from "near-api-js/lib/providers";
 
 const MAP_TEST_CHAIN_ID = 212;
 const ETH_TEST_CHAIN_ID = 34434;
@@ -30,35 +31,76 @@ async function main(network: string) {
     } else {
         throw new Error(`network: ${network} is not supported yet`);
     }
-    //
-    // const mcsRelayContract = await deployMCSRelay(mapChainId);
-    // const mcsEthContract = await deployMCSETH(ethChainId);
-    // const feeCenterContract = await deployFeeCenter(mapChainId);
-    // const tokenRegisterContract = await deployTokenRegister(mapChainId);
-    //
-    // // initialize
-    // console.log("initialize mcs contracts")
-    //
-    // console.log("initialize relay")
-    // // @ts-ignore
-    // await mcsRelayContract.initialize(deploy_config.namedAccounts.wcoin[mapChainId], deploy_config.namedAccounts.mapcoin[mapChainId], deploy_config.namedAccounts.lightclient[mapChainId])
-    // console.log("set fee center")
-    // await mcsRelayContract.setFeeCenter(feeCenterContract.address);
-    // console.log("set token register")
-    // await mcsRelayContract.setTokenRegister(tokenRegisterContract.address);
-    // console.log("set bridge address")
-    // await mcsRelayContract.setBridgeAddress(ethChainId, mcsEthContract.address);
-    //
-    // // @ts-ignore
-    // await mcsEthContract.initialize(deploy_config.namedAccounts.wcoin[ethChainId], deploy_config.namedAccounts.mapcoin[ethChainId], deploy_config.namedAccounts.lightclient[ethChainId])
-    // await mcsEthContract.setBridge(mcsRelayContract.address, mapChainId);
 
-    console.log("deploy near mcs")
-    await deployNearMcs(nearChainId, network);
+    /**
+     * deploy all contracts
+     */
+    const mcsRelayContract = await deployMCSRelay(mapChainId);
+    const mcsEthContract = await deployMCSETH(ethChainId);
+    const feeCenterContract = await deployFeeCenter(mapChainId);
+    const tokenRegisterContract = await deployTokenRegister(mapChainId);
+    const [mcsAccountId, masterAccount] = await deployNearMcs(nearChainId, network);
+    console.log(`
+        mcs realy address: ${mcsRelayContract.address}\n
+        fee center address: ${feeCenterContract.address}\n
+        token register address: ${tokenRegisterContract.address}\n
+        \n
+        mcs eth address: ${mcsEthContract.address}\n
+        mcs near address: ${mcsAccountId}\n
+        
+    `)
+    /**
+     * initialize mcs relay
+     */
+    console.log("initialize mcs contracts")
+    // @ts-ignore
+    await mcsRelayContract.initialize(deploy_config.namedAccounts.wcoin[mapChainId], deploy_config.namedAccounts.mapcoin[mapChainId], deploy_config.namedAccounts.lightclient[mapChainId])
+    console.log("set fee center")
+    await mcsRelayContract.setFeeCenter(feeCenterContract.address);
+    console.log("set token register")
+    await mcsRelayContract.setTokenRegister(tokenRegisterContract.address);
+    console.log("set bridge address")
+    await mcsRelayContract.setBridgeAddress(ethChainId, mcsEthContract.address);
+
+    /**
+     * initialize eth
+     */
+    console.log("initialize eth mcs")
+    // @ts-ignore
+    await mcsEthContract.initialize(deploy_config.namedAccounts.wcoin[ethChainId], deploy_config.namedAccounts.mapcoin[ethChainId], deploy_config.namedAccounts.lightclient[ethChainId])
+    await mcsEthContract.setBridge(mcsRelayContract.address, mapChainId);
+
+
+    /**
+     * initialize near
+     */
+    console.log("initialize near mcs")
+    const contract = new NearContract(
+        masterAccount,
+        mcsAccountId,
+        {
+            viewMethods: [],
+            changeMethods: ["init"]
+        }
+    )
+    // @ts-ignore
+    await contract.init(
+        {
+            // @ts-ignore
+            "map_light_client": deploy_config.namedAccounts.lightclient[nearChainId],
+            "map_bridge_address": '1902347e9CCC4e4aa0cf0b19844bf528f0031642',
+            // @ts-ignore
+            "wrapped_token": deploy_config.namedAccounts.wcoin[nearChainId],
+            "near_chain_id": nearChainId,
+        },
+        "80000000000000"
+    )
+
 
     console.log("finished")
 
 }
+
 async function deployNearMcs(chainId: number, networkId: string) {
     const nearConnectionConfig = {
         networkId: network,
@@ -69,19 +111,26 @@ async function deployNearMcs(chainId: number, networkId: string) {
     }
     const nearConnection = await connect(nearConnectionConfig);
 
+
     // @ts-ignore
     const masterAccountId = deploy_config.namedAccounts.deployer[chainId];
+    // connect master account
     const masterAccount = await nearConnection.account(masterAccountId)
-    const mcsAccountId = "mcs04." + masterAccountId;
+    // new mcs account id
+    const mcsAccountId = "mcs" + Date.now() + "." + masterAccountId;
+    // set up new mcs account key
     const mcsKeyPair = KeyPair.fromRandom("ed25519");
+    // set new mcs account key store
     await nearConnectionConfig.keyStore.setKey(networkId, mcsAccountId, mcsKeyPair);
-
+    // create new mcs account
     await masterAccount.createAccount(mcsAccountId, mcsKeyPair.getPublicKey(), new BN(utils.format.parseNearAmount("40")!, 10));
-
+    // connect to new mcs account
     const mcsAccount = await nearConnection.account(mcsAccountId);
-    console.log("mcs account", mcsAccount)
+    // deploy contract from newly created mcs account
     const response = await mcsAccount.deployContract(fs.readFileSync('../near/scripts/res/mcs.wasm'));
-    console.log(response);
+
+    // console.log(response);
+    return [mcsAccountId, masterAccount] as const
 }
 async function deployMCSRelay(chainId: number): Promise<Contract> {
     // @ts-ignore
