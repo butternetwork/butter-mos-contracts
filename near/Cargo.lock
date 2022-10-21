@@ -1349,10 +1349,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mcs-factory"
+version = "0.1.0"
+dependencies = [
+ "near-sdk",
+]
+
+[[package]]
 name = "mcs-token"
 version = "0.1.0"
 dependencies = [
- "admin-controlled",
  "near-contract-standards",
  "near-sdk",
 ]
@@ -1400,10 +1406,14 @@ dependencies = [
 name = "mock-map-client"
 version = "0.1.0"
 dependencies = [
- "hex 0.4.3",
  "near-sdk",
- "num",
- "num-bigint 0.4.3",
+]
+
+[[package]]
+name = "multisig"
+version = "0.1.0"
+dependencies = [
+ "near-sdk",
 ]
 
 [[package]]
@@ -1431,7 +1441,6 @@ dependencies = [
  "anyhow",
  "hex 0.4.3",
  "map-light-client",
- "mcs",
  "near-sdk",
  "near-units",
  "serde_json",

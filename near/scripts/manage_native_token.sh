@@ -8,23 +8,11 @@ function printHelp() {
   echo "Usage:"
   echo "  $FILE_NAME <command>"
   echo "Commands:"
-  echo "  add <to chain>                             add to chain of native token"
-  echo "  remove <to chain>                          remove to chain of native token"
   echo "  list                                       view registered native tokens to chains"
   echo "  transfer <to chain> <from> <to> <amount>   transfer out native token"
   echo "  deposit  <from> <to> <amount>              deposit out native token"
   echo "  balance  <account>                         view account balance of native token"
   echo "  help                                       show help"
-}
-
-function add_to_chain() {
-  echo "adding native token to_chain $1 to mcs contract"
-  near call $MCS_ACCOUNT add_native_to_chain '{ "to_chain": '$1'}' --accountId $MCS_ACCOUNT --gas 120000000000000
-}
-
-function remove_to_chain() {
-  echo "removing native token to_chain $1 from mcs contract"
-  near call $MCS_ACCOUNT remove_native_to_chain '{ "to_chain": '$1'}' --accountId $MCS_ACCOUNT
 }
 
 function list_to_chains() {
@@ -34,12 +22,12 @@ function list_to_chains() {
 
 function transfer_out() {
   echo "transfer out $4 amount near from $2 to $3 on chain $1"
-  near call "$MCS_ACCOUNT" transfer_out_native '{ "to":'"$3"', "to_chain": '"$1"'}' --accountId "$2" --amount "$4" --gas 100000000000000
+  near call $MCS_ACCOUNT transfer_out_native '{ "to":'$3', "to_chain": '$1'}' --accountId $2 --depositYocto $4 --gas 100000000000000
 }
 
 function deposit_out() {
   echo "deposit out $3 amount near from $1 to $2 on MAP chain"
-  near call $MCS_ACCOUNT deposit_out_native '{ "to":'$3'}' --accountId $1 --depositYocto $3 --gas 100000000000000
+  near call $MCS_ACCOUNT deposit_out_native '{ "to":'$2'}' --accountId $1 --depositYocto $3 --gas 100000000000000
 }
 
 function balance() {
