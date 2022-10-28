@@ -11,6 +11,7 @@ This doc provides step-to-step guid to help whoever relevant to setup your own B
 3. [Add Token Pairs](#addtokenpairs)
 4. [Deposit Token](#deposittoken)
 5. [Setup Messenger](#messenger)
+6. [To Add a Token Pair](#tokenpair)
 
 
 
@@ -140,3 +141,5 @@ For messenger between MAP and Near, we need more supported services.
 1. AWS S3: sync blocks from S3 buckets to Redis
 2. Redis: store near block info
 
+## To Add a Token Pair<a name = "tokenpair"/>
+1. you need a token on MAP Chain, either the token controlled by MCS Relay contract on MAP(mcs relay is able to mint or burn the token), or you have a MAPVaultToken to hold that token.

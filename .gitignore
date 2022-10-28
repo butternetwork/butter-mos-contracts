@@ -1,6 +1,7 @@
 .idea
 node_modules
 .env
+near/scripts/res
 coverage
 coverage.json
 typechain

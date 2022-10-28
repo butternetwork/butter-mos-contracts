@@ -9,7 +9,7 @@
   "author": "xyli",
   "license": "ISC",
   "devDependencies": {
-    "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers@^0.3.0-beta.13",
+    "@nomiclabs/hardhat-ethers": "^2.2.0",
     "dotenv": "^16.0.2",
     "hardhat": "^2.11.0",
     "hardhat-deploy": "^0.11.13"

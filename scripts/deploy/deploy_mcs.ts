@@ -10,7 +10,8 @@ import * as fs from "fs";
 import * as path from "path";
 import BN from "bn.js";
 import {FinalExecutionOutcome} from "near-api-js/lib/providers";
-
+import {readFileSync}  from 'fs'
+import {join} from "path";
 const MAP_TEST_CHAIN_ID = 212;
 const ETH_TEST_CHAIN_ID = 34434;
 const NEAR_TEST_CHAIN_ID = 1313161555;
@@ -61,7 +62,6 @@ async function main(network: string) {
     await mcsRelayContract.setTokenRegister(tokenRegisterContract.address);
     console.log("set bridge address")
     await mcsRelayContract.setBridgeAddress(ethChainId, mcsEthContract.address);
-
     /**
      * initialize eth
      */
@@ -90,11 +90,20 @@ async function main(network: string) {
             "map_light_client": deploy_config.namedAccounts.lightclient[nearChainId],
             "map_bridge_address": '1902347e9CCC4e4aa0cf0b19844bf528f0031642',
             // @ts-ignore
+            "owner": deploy_config.namedAccounts.deployer[nearChainId],
+            // @ts-ignore
             "wrapped_token": deploy_config.namedAccounts.wcoin[nearChainId],
             "near_chain_id": nearChainId,
         },
         "80000000000000"
     )
+
+    const deploymentData: any = {};
+    deploymentData.feeCenter = feeCenterContract.address;
+    deploymentData.tokenRegister = tokenRegisterContract.address;
+    deploymentData.ethmcs = mcsEthContract.address;
+    deploymentData.mapmcs = mcsRelayContract.address;
+    fs.writeFileSync(join("deployment", 'deployed_address.json'), JSON.stringify(deploymentData))
 
 
     console.log("finished")
