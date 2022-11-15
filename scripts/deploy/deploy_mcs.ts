@@ -13,21 +13,21 @@ import {FinalExecutionOutcome} from "near-api-js/lib/providers";
 import {readFileSync}  from 'fs'
 import {join} from "path";
 const MAP_TEST_CHAIN_ID = 212;
-const ETH_TEST_CHAIN_ID = 34434;
+const BSC_TESTNET_CHAIN_ID = 97;
 const NEAR_TEST_CHAIN_ID = 1313161555;
 const MAP_MAIN_CHAIN_ID = 27767;
 const ETH_MAIN_CHAIN_ID = 1;
 const NEAR_MAIN_CHAIN_ID = 1313161556;
 
 async function main(network: string) {
-    let mapChainId, ethChainId, nearChainId: number;
+    let mapChainId, bscChainId, nearChainId: number;
     if (network === 'testnet') {
         mapChainId = MAP_TEST_CHAIN_ID;
-        ethChainId = ETH_TEST_CHAIN_ID;
+        bscChainId = BSC_TESTNET_CHAIN_ID;
         nearChainId = NEAR_TEST_CHAIN_ID;
     } else if (network === 'mainnet') {
         mapChainId = MAP_MAIN_CHAIN_ID;
-        ethChainId = ETH_MAIN_CHAIN_ID;
+        bscChainId = BSC_TESTNET_CHAIN_ID;
         nearChainId = NEAR_MAIN_CHAIN_ID;
     } else {
         throw new Error(`network: ${network} is not supported yet`);
@@ -37,16 +37,16 @@ async function main(network: string) {
      * deploy all contracts
      */
     const mcsRelayContract = await deployMCSRelay(mapChainId);
-    const mcsEthContract = await deployMCSETH(ethChainId);
+    const mcsEVMContract = await deployMCSEVM(bscChainId);
     const feeCenterContract = await deployFeeCenter(mapChainId);
     const tokenRegisterContract = await deployTokenRegister(mapChainId);
     const [mcsAccountId, masterAccount] = await deployNearMcs(nearChainId, network);
     console.log(`
-        mcs realy address: ${mcsRelayContract.address}\n
+        mcs relay address: ${mcsRelayContract.address}\n
         fee center address: ${feeCenterContract.address}\n
         token register address: ${tokenRegisterContract.address}\n
         \n
-        mcs eth address: ${mcsEthContract.address}\n
+        mcs bsc, address: ${mcsEVMContract.address}\n
         mcs near address: ${mcsAccountId}\n
         
     `)
@@ -61,14 +61,14 @@ async function main(network: string) {
     console.log("set token register")
     await mcsRelayContract.setTokenRegister(tokenRegisterContract.address);
     console.log("set bridge address")
-    await mcsRelayContract.setBridgeAddress(ethChainId, mcsEthContract.address);
+    await mcsRelayContract.setBridgeAddress(bscChainId, mcsEVMContract.address);
     /**
      * initialize eth
      */
-    console.log("initialize eth mcs")
+    console.log("initialize evm mcs")
     // @ts-ignore
-    await mcsEthContract.initialize(deploy_config.namedAccounts.wcoin[ethChainId], deploy_config.namedAccounts.mapcoin[ethChainId], deploy_config.namedAccounts.lightclient[ethChainId])
-    await mcsEthContract.setBridge(mcsRelayContract.address, mapChainId);
+    await mcsEVMContract.initialize(deploy_config.namedAccounts.wcoin[bscChainId], deploy_config.namedAccounts.mapcoin[bscChainId], deploy_config.namedAccounts.lightclient[bscChainId])
+    await mcsEVMContract.setBridge(mcsRelayContract.address, mapChainId);
 
 
     /**
@@ -101,7 +101,7 @@ async function main(network: string) {
     const deploymentData: any = {};
     deploymentData.feeCenter = feeCenterContract.address;
     deploymentData.tokenRegister = tokenRegisterContract.address;
-    deploymentData.ethmcs = mcsEthContract.address;
+    deploymentData.ethmcs = mcsEVMContract.address;
     deploymentData.mapmcs = mcsRelayContract.address;
     fs.writeFileSync(join("deployment", 'deployed_address.json'), JSON.stringify(deploymentData))
 
@@ -158,7 +158,7 @@ async function deployMCSRelay(chainId: number): Promise<Contract> {
     return contract;
 }
 
-async function deployMCSETH(chainId: number): Promise<Contract> {
+async function deployMCSEVM(chainId: number): Promise<Contract> {
     // @ts-ignore
     const rpcUrl: string = deploy_config.networks[chainId].url;
     // @ts-ignore
@@ -171,7 +171,7 @@ async function deployMCSETH(chainId: number): Promise<Contract> {
     let contract = await factory.deploy();
     contract  = await contract.deployed();
 
-    console.log("mcs eth contract is deployed: ", contract.address);
+    console.log("mcs evm contract is deployed on : " + chainId, contract.address);
     return contract;
 }
 

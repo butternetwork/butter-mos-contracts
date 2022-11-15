@@ -15,6 +15,7 @@
     "hardhat-deploy": "^0.11.13"
   },
   "dependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^1.0.2"
+    "@nomicfoundation/hardhat-toolbox": "^1.0.2",
+    "@openzeppelin/contracts": "^4.7.3"
   }
 }

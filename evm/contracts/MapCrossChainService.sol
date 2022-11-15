@@ -139,7 +139,6 @@ contract MapCrossChainService is ReentrancyGuard, Initializable, Pausable, IMCS,
         nearChainId = _id;
     }
 
-
     function transferIn(uint, bytes memory receiptProof) external override nonReentrant whenNotPaused {
         (bool sucess,string memory message,bytes memory logArray) = lightNode.verifyProofData(receiptProof);
         require(sucess, message);

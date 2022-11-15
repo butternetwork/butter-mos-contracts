@@ -11,8 +11,8 @@ accounts.push(PRIVATE_KEY);
 const config: HardhatUserConfig = {
   namedAccounts: {
     deployer: {
-      212: '0xCBdb1Da4f99276b0c427776BDE93838Bc19386Cc',
-      34434: '0xCBdb1Da4f99276b0c427776BDE93838Bc19386Cc',
+      212: '0x8c9b3cAf7DedD3003f53312779c1b92ba1625D94',
+      34434: '0x8c9b3cAf7DedD3003f53312779c1b92ba1625D94',
       1313161555: 'xyli.testnet'
     },
     wcoin: {

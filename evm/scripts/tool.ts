@@ -43,7 +43,7 @@ async function wrapMap(amount: string) {
 
 async function approve(tokenAddress: string, spender: string, amount: BigNumber) {
     const tokenContract = new ethers.Contract(tokenAddress, tokenABI, ethSigner);
-    const success = await tokenContract.allowance("0xCBdb1Da4f99276b0c427776BDE93838Bc19386Cc", spender);
+    const success = await tokenContract.allowance("0x8c9b3cAf7DedD3003f53312779c1b92ba1625D94", spender);
     return success;
 }
 main()
