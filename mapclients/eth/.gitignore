@@ -1,0 +1,13 @@
+node_modules
+../../mcs/evmv2/.env
+
+#Hardhat files
+cache
+artifacts
+
+#goland files
+.idea
+
+#hardhat plugin
+abi
+deployments

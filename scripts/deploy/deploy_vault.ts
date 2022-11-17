@@ -1,8 +1,7 @@
 import deploy_config from "./config";
 import {Contract, ethers} from "ethers";
-import MAPVaultTokenMetadata from "../../evm/artifacts/contracts/vault/MAPVaultToken.sol/MAPVaultToken.json"
-import FeeCenterMetadata from "../../evm/artifacts/contracts/FeeCenter.sol/FeeCenter.json";
-import DEPLOYED_ADDRESS from '../deployment/deployed_address.json'
+import MAPVaultTokenMetadata from "../../evmv2/artifacts/contracts/token/VaultTokenV2.sol/VaultTokenV2.json"
+// import DEPLOYED_ADDRESS from '../deployment/deployed_address.json'
 async function main(tokenAddress: string, network: string) {
 
     let chainId: number;
@@ -23,11 +22,11 @@ async function main(tokenAddress: string, network: string) {
     const mapSigner = new ethers.Wallet(pk, mapProvider);
 
     // check
-    const feeCenter = new ethers.Contract(DEPLOYED_ADDRESS.feeCenter, FeeCenterMetadata.abi, mapSigner)
-    const currentVaultAddress = await feeCenter.getVaultToken(tokenAddress)
-    if (currentVaultAddress != ethers.constants.AddressZero) {
-        throw new Error(`token ${tokenAddress} is already assign to vault ${currentVaultAddress}`)
-    }
+    // const feeCenter = new ethers.Contract(DEPLOYED_ADDRESS.feeCenter, FeeCenterMetadata.abi, mapSigner)
+    // const currentVaultAddress = await feeCenter.getVaultToken(tokenAddress)
+    // if (currentVaultAddress != ethers.constants.AddressZero) {
+    //     throw new Error(`token ${tokenAddress} is already assign to vault ${currentVaultAddress}`)
+    // }
 
     // deploy map vault token contract
     const factory = new ethers.ContractFactory(MAPVaultTokenMetadata.abi, MAPVaultTokenMetadata.bytecode, mapSigner);
@@ -55,7 +54,7 @@ async function main(tokenAddress: string, network: string) {
     
     vault address: ${contract.address}
     `)
-    await feeCenter.setTokenVault(tokenAddress, contract.address)
+    // await feeCenter.setTokenVault(tokenAddress, contract.address)
 }
 
 const tokenAddress: string = process.argv[2]!.toString();

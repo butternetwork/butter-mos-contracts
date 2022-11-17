@@ -1,3 +1,4 @@
+# MAP cross-chain service
 
 The project includes 4 types of contracts, which are:
 1. **multisig contract**: owner account of map light client contract and mcs contract to avoid centralization risk
@@ -5,7 +6,7 @@ The project includes 4 types of contracts, which are:
 3. **mcs contract**: MAP cross chain service contract
 4. **mcs token contract**: NEP-141 token created by mcs contract
 
-# Pre-requisites
+## Pre-requisites
 
 **1. rust**
 
@@ -38,7 +39,11 @@ npm install -g near-cli
 near login
 ```
 
-# Build the contracts
+**3. jq**
+
+Jq is a lightweight and flexible command-line JSON processor. Follow [here](https://stedolan.github.io/jq/download/) to install it.
+
+## Build the contracts
 
 Run below script to build:
 
@@ -54,7 +59,7 @@ Run below script to build:
 5. **multisig.wasm**: multisig contract
 
 
-# Deploy the contracts
+## Deploy the contracts
 **1. Configure below parameters in ./scripts/config.sh**
 
 ```shell
@@ -74,7 +79,8 @@ REQUEST_LOCK=5 # request cooldown period in seconds (time before a request can b
 MCS_NAME="mcs"  # the name of mcs contract to be created, the account ID will be $MCS_NAME.$MFACTORY_NAME.$MASTER_ACCOUNT
 MAP_MCS_ADDRESS="F579c89C22DAc92E9816C0b39856cA9281Bd7BE0"  # the mcs contract address on MAP relay chain
 WNEAR_ACCOUNT="wrap.testnet"  # wrapped near contract account on NEAR blockchain
-NEAR_CHAIN_ID=1313161555  # NEAR blockchain ID
+NEAR_CHAIN_ID=5566818579631833089  # NEAR testnet blockchain id, mainnet is 5566818579631833088
+MAP_CHAIN_ID=22776  # MAP blockchain ID
 CLIENT_ACCOUNT="client.fac.map002.testnet" # the account ID of the map light client contract which has already been deployed
 ```
 
@@ -84,7 +90,7 @@ CLIENT_ACCOUNT="client.fac.map002.testnet" # the account ID of the map light cli
 ```
 
 
-# Usage
+## Usage
 
 We can use the shell scripts in directory ./script to simplify the steps. First run below command to set environment variables:
 
@@ -209,6 +215,7 @@ If you want to add target chain ID to native token, run below commands:
 
 
 **3. Transfer mcs/ft/native token to another blockchain through MCS service**
+
 Transfer mcs token to another blockchain:
 
 ```shell
@@ -264,16 +271,19 @@ Transfer native token to another blockchain:
     ./scripts/manage_native_token.sh balance $FROM
 ```
 
-# Upgrade the contracts
+## Upgrade the contracts
 
 The mcs contract and mcs token contract can be upgraded through multisig contract.
 
-**1. Upgrade mcs contract**
-```shell
-MCS_WASM_FILE=/path/to/mcs/contract  # new mcs contract wasm file
+### 1. Upgrade mcs contract
 
-# request to upgrade mcs contract by multisig member
-./scripts/manage_multisig.sh request_and_confirm upgrade_mcs $MCS_WASM_FILE ${MEMBERS[1]}
+**Before upgrading mcs contract, everything (transfer in, transfer out, deposit out...) should be paused.**
+
+```shell
+PAUSED_MASK=63  # pause everything
+
+# request to pause everything by multisig member
+./scripts/manage_multisig.sh request_and_confirm set_paused $PAUSED_MASK ${MEMBERS[1]}
     
 # the request ID can be obtained from the last line of last command's output
 REQUEST_ID=
@@ -285,7 +295,67 @@ REQUEST_ID=
 # ./scripts/manage_multisig.sh execute $REQUEST_ID $MASTER_ACCOUNT
 ```
 
-**2. Upgrade mcs token contract**
+**Then upgrade the mcs contract code.**
+
+The first multisig member should use **[mcs upgrade tool](https://github.com/PandaRR007/mcs-upgrade-tool)** to add request and confirm.
+
+The tool output contains a link to the transaction detail. You can get the request ID from the NEAR explorer.
+
+Other multisig member can confirm and execute the request using below command:
+
+```shell
+# the request ID can be obtained from the transaction detail in NEAR explorer
+REQUEST_ID=
+    
+# confirm the request by another member
+./scripts/manage_multisig.sh confirm $REQUEST_ID ${MEMBERS[2]}
+
+# if the request is not executed because of the time lock, anyone can execute it after REQUEST_LOCK time
+# ./scripts/manage_multisig.sh execute $REQUEST_ID $MASTER_ACCOUNT
+```
+
+**Set the mcs contract state if new state is added to the contract struct.**
+
+E.g, if "map_chain_id" is added, set it using below command:
+
+```shell
+MAP_CHAIN_ID="22776"  # MAP chain ID
+
+# request to set new map light client account by multisig member
+./scripts/manage_multisig.sh request_and_confirm map_chain_id $MAP_CHAIN_ID ${MEMBERS[1]}
+    
+# the request ID can be obtained from the last line of last command's output
+REQUEST_ID=
+    
+# confirm the request by another member
+./scripts/manage_multisig.sh confirm $REQUEST_ID ${MEMBERS[2]}
+
+# if the request is not executed because of the time lock, anyone can execute it after REQUEST_LOCK time
+#./scripts/manage_multisig.sh execute $REQUEST_ID $MASTER_ACCOUNT
+```
+
+**Finally, unpause everything.**
+
+```shell
+PAUSED_MASK=0  # unpause everything
+
+# request to unpause everything by multisig member
+./scripts/manage_multisig.sh request_and_confirm set_paused $PAUSED_MASK ${MEMBERS[1]}
+    
+# the request ID can be obtained from the last line of last command's output
+REQUEST_ID=
+    
+# confirm the request by another member
+./scripts/manage_multisig.sh confirm $REQUEST_ID ${MEMBERS[2]}
+
+# if the request is not executed because of the time lock, anyone can execute it after REQUEST_LOCK time
+# ./scripts/manage_multisig.sh execute $REQUEST_ID $MASTER_ACCOUNT
+```
+
+
+### 2. Upgrade mcs token contract
+
+**NOTE**: currently the script works on MacOS only.
 ```shell
 MCS_TOKEN_WASM_FILE=/path/to/mcs/token/contract  # new mcs token contract wasm file
 MCS_TOKEN="mcs_token_0".$MCS_ACCOUNT
@@ -303,11 +373,11 @@ REQUEST_ID=
 # ./scripts/manage_multisig.sh execute $REQUEST_ID $MASTER_ACCOUNT
 ```
 
-**3. Set new MAP light client contract account**
+### 3. Set new MAP light client contract account
 
 The MCS contract supports updating the MAP light client contract account to a new one if the old one is deprecated.
 
-Before setting new client, the transfer in function should be paused.
+**Before setting new client, the transfer in function should be paused.**
 
 ```shell
 PAUSED_MASK=2  # pause transfer in
@@ -325,7 +395,7 @@ REQUEST_ID=
 # ./scripts/manage_multisig.sh execute $REQUEST_ID $MASTER_ACCOUNT
 ```
 
-Then set the new client account.
+**Then set the new client account.**
 
 ```shell
 NEW_CLIENT_ACCOUNT="new_client1.testnet"  # new MAP light client account ID
@@ -343,7 +413,25 @@ REQUEST_ID=
 #./scripts/manage_multisig.sh execute $REQUEST_ID $MASTER_ACCOUNT
 ```
 
-**4. Set new multisig contract account**
+**Finally, unpause transfer in function.**
+
+```shell
+PAUSED_MASK=0  # unpause everything
+
+# request to unpause everything by multisig member
+./scripts/manage_multisig.sh request_and_confirm set_paused $PAUSED_MASK ${MEMBERS[1]}
+    
+# the request ID can be obtained from the last line of last command's output
+REQUEST_ID=
+    
+# confirm the request by another member
+./scripts/manage_multisig.sh confirm $REQUEST_ID ${MEMBERS[2]}
+
+# if the request is not executed because of the time lock, anyone can execute it after REQUEST_LOCK time
+# ./scripts/manage_multisig.sh execute $REQUEST_ID $MASTER_ACCOUNT
+```
+
+### 4. Set new multisig contract account
 
 The MCS contract supports updating the multisig contract account to a new one if the old one is deprecated.
 
@@ -363,7 +451,7 @@ REQUEST_ID=
 # ./scripts/manage_multisig.sh execute $REQUEST_ID $MASTER_ACCOUNT
 ```
 
-# Testing
+## Testing
 1. How to run unit testing?
 
 ```shell

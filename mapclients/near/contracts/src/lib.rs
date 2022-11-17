@@ -11,12 +11,10 @@ pub mod traits;
 mod hash;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::{AccountId, env, log, near_bindgen, PanicOnDefault, serde_json};
+use near_sdk::{env, log, near_bindgen, PanicOnDefault, serde_json};
 use near_sdk::collections::UnorderedMap;
 use near_sdk::env::keccak256;
 use near_sdk::serde::{Serialize, Deserialize};
-use near_sdk::Gas;
-use near_sdk::json_types::Base64VecU8;
 pub use crypto::{G1, G2, REGISTER_EXPECTED_ERR};
 use crate::types::{istanbul::IstanbulExtra, istanbul::get_epoch_number, header::Header};
 use crate::types::header::Address;
@@ -28,7 +26,6 @@ use crate::types::proof::{ReceiptProof, verify_trie_proof};
 const ECDSA_SIG_LENGTH: usize = 65;
 const ECDSA_REGISTER: u64 = 2;
 const MAX_RECORD: u64 = 20;
-const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas(15_000_000_000_000);
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
@@ -36,7 +33,6 @@ pub struct MapLightClient {
     epoch_records: UnorderedMap<u64, EpochRecord>,
     epoch_size: u64,
     header_height: u64,
-    owner: AccountId,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
@@ -59,8 +55,7 @@ pub struct Validator {
 #[near_bindgen]
 impl MapLightClient {
     #[init]
-    pub fn new(owner: AccountId,
-               threshold: u64,
+    pub fn new(threshold: u64,
                validators: Vec<Validator>,
                epoch: u64,
                epoch_size: u64) -> Self {
@@ -89,7 +84,6 @@ impl MapLightClient {
             epoch_records: val_records,
             epoch_size,
             header_height: (epoch - 1) * epoch_size,
-            owner
         }
     }
 
@@ -256,20 +250,5 @@ impl MapLightClient {
             let epoch_to_remove = next_epoch - MAX_RECORD;
             self.epoch_records.remove(&epoch_to_remove);
         }
-    }
-
-    pub fn upgrade(&mut self, code: Base64VecU8) {
-        assert_eq!(self.owner, env::predecessor_account_id(), "unexpected caller {}", env::predecessor_account_id());
-
-        let current_id = env::current_account_id();
-        let promise_id = env::promise_batch_create(&current_id);
-        env::promise_batch_action_deploy_contract(promise_id, &code.0);
-        env::promise_batch_action_function_call(
-            promise_id,
-            "migrate",
-            &[],
-            0,
-            env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY,
-        );
     }
 }

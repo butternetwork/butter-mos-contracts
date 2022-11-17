@@ -4,7 +4,7 @@ use near_contract_standards::fungible_token::metadata::{
 use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, U128};
-use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault, PromiseOrValue, StorageUsage, log, Gas};
+use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault, PromiseOrValue, StorageUsage, Gas};
 
 const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas(15_000_000_000_000);
 
@@ -80,6 +80,24 @@ impl MCSToken {
 
     pub fn account_storage_usage(&self) -> StorageUsage {
         self.token.account_storage_usage
+    }
+
+    pub fn set_owner(&mut self, new_owner: AccountId) {
+        assert_eq!(self.owner, env::predecessor_account_id(), "unexpected caller {}", env::predecessor_account_id());
+        self.owner = new_owner;
+    }
+
+    pub fn get_owner(&self) -> AccountId {
+        self.owner.clone()
+    }
+
+    pub fn set_controller(&mut self, new_controller: AccountId) {
+        assert_eq!(self.owner, env::predecessor_account_id(), "unexpected caller {}", env::predecessor_account_id());
+        self.controller = new_controller;
+    }
+
+    pub fn get_controller(&self) -> AccountId {
+        self.controller.clone()
     }
 
     pub fn upgrade_self(&mut self, code: Base64VecU8) {
