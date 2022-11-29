@@ -15,7 +15,7 @@ const ALT_BN128_REGISTER: u64 = 1;
 pub const REGISTER_EXPECTED_ERR: &str =
     "Register was expected to have data because we just wrote it into it.";
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct G1 {
     #[serde(with = "crate::serialization::bytes::hexstring")]
@@ -40,10 +40,10 @@ pub struct G2 {
 impl G1 {
     pub fn from_slice(s: &[u8]) -> Result<Self, ()> {
         if let 64 = s.len() {
-            let mut x = [0 as u8; 32];
+            let mut x = [0_u8; 32];
             x.copy_from_slice(&s[..32]);
 
-            let mut y = [0 as u8; 32];
+            let mut y = [0_u8; 32];
             y.copy_from_slice(&s[32..]);
 
             return Ok(G1 { x, y });
@@ -54,11 +54,11 @@ impl G1 {
 
     pub fn from_le_slice(s: &[u8]) -> Result<Self, ()> {
         if let 64 = s.len() {
-            let mut x = [0 as u8; 32];
+            let mut x = [0_u8; 32];
             x.copy_from_slice(&s[..32]);
             x.reverse();
 
-            let mut y = [0 as u8; 32];
+            let mut y = [0_u8; 32];
             y.copy_from_slice(&s[32..]);
             y.reverse();
 
@@ -69,8 +69,8 @@ impl G1 {
     }
 
     pub fn from(x: &BigInt, y: &BigInt) -> Self {
-        let x = integer_to_vec_32(&x, true);
-        let y = integer_to_vec_32(&y, true);
+        let x = integer_to_vec_32(x, true);
+        let y = integer_to_vec_32(y, true);
 
         Self {
             x: <[u8; 32]>::try_from(x).unwrap(),

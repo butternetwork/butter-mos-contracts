@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.7;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interface/ITokenRegister.sol";
+import "./utils/Role.sol";
 
-contract TokenRegister is Ownable {
+contract TokenRegister is Role {
     uint public immutable chainID = block.chainid;
 
     constructor(){
@@ -18,16 +18,16 @@ contract TokenRegister is Ownable {
     //Source token binding
     mapping(uint256 => mapping(bytes => bytes)) public sourceBinding;
 
-    function regToken(
+    function registerToken(
         uint256 sourceChain, bytes memory sourceMapToken, bytes memory mapToken
     ) external
-    onlyOwner{
+    onlyManager{
         sourceCorrespond[sourceChain][sourceMapToken] = mapToken;
         mapCorrespond[sourceChain][mapToken] = sourceMapToken;
     }
 
     function regTokenSource(bytes memory sourceToken, bytes memory sourceMapToken) external
-    onlyOwner{
+    onlyManager{
         sourceBinding[chainID][sourceMapToken] = sourceToken;
     }
 

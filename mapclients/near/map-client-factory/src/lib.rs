@@ -1,6 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde_json::json;
-use near_sdk::{env, near_bindgen, AccountId, Promise, Gas};
+use near_sdk::{env, near_bindgen, Promise, Gas};
+use near_sdk::json_types::U64;
 use map_light_client::Validator;
 
 const MAP_CLIENT_BINARY: &'static [u8] = include_bytes!("../../target/wasm32-unknown-unknown/release/map_light_client.wasm");
@@ -18,11 +19,10 @@ impl Factory {
     pub fn create_map_client(
         &mut self,
         name: String,
-        owner: AccountId,
-        threshold: u64,
+        threshold: U64,
         validators: Vec<Validator>,
-        epoch: u64,
-        epoch_size: u64
+        epoch: U64,
+        epoch_size: U64
     ) -> Promise {
         let account_id = format!("{}.{}", name, env::current_account_id());
         Promise::new(account_id.parse().unwrap())
@@ -31,7 +31,7 @@ impl Factory {
             .transfer(env::attached_deposit())
             .function_call(
                 "new".to_string(),
-                json!({ "owner": owner,
+                json!({
                     "threshold": threshold,
                     "validators": validators,
                     "epoch": epoch,
