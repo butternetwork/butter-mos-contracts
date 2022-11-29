@@ -412,7 +412,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         (uint256 mapOutAmount, uint256 outAmount)  = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
 
         if (_outEvent.toChain == selfChainId) {
-            address payable toAddress = payable(Utils.fromBytes(_outEvent.toAddress));
+            address payable toAddress = payable(Utils.fromBytes(_outEvent.swapData.toAddress));
             if (token == wToken) {
                 TransferHelper.safeWithdraw(wToken, mapOutAmount);
                 TransferHelper.safeTransferETH(toAddress, mapOutAmount);
