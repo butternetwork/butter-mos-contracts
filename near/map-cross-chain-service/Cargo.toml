@@ -14,7 +14,7 @@ uint = { version = "0.8.3", default-features = false }
 rlp = "0.5.1"
 hex = "0.4.2"
 ethabi = "12.0.0"
-map-light-client = {path="../../mapclients/near/contracts"}
+map-light-client = {path="../../../mapclients/near/contracts"}
 tiny-keccak = "1.4.0"
 num-bigint = { version = "0.4", default-features = false }
 num = { version = "0.3", default-features = false }

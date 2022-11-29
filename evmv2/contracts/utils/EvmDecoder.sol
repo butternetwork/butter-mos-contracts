@@ -13,6 +13,7 @@ library EvmDecoder {
 
     bytes32 constant MAP_TRANSFEROUT_TOPIC = keccak256(bytes('mapTransferOut(bytes,bytes,bytes32,uint256,uint256,bytes,uint256,bytes)'));
     bytes32 constant MAP_DEPOSITOUT_TOPIC = keccak256(bytes('mapDepositOut(address,bytes,bytes32,uint256,uint256,address,uint256)'));
+    bytes32 constant MAP_SWAPOUT_TOPIC = keccak256(bytes('mapSwapOut(bytes,bytes,bytes32,uint256,uint256,bytes,address,bytes,(uint256[5],uint256[5],bytes[5],uint8[5]))'));
 
 
     function decodeTxLogs(bytes memory logsHash)
@@ -41,9 +42,21 @@ library EvmDecoder {
     pure
     returns (bytes memory executorId, IEvent.transferOutEvent memory outEvent){
         executorId = Utils.toBytes(log.addr);
+        outEvent.fromChain = abi.decode(log.topics[1], (uint256));
+        outEvent.toChain = abi.decode(log.topics[2], (uint256));
+
+        (outEvent.orderId, outEvent.token, outEvent.from, outEvent.to, outEvent.amount,outEvent.toChainToken)
+        = abi.decode(log.data, (bytes32, bytes, bytes, bytes, uint256, bytes));
+    }
+
+    function decodeSwapOutLog(IEvent.txLog memory log)
+    internal
+    pure
+    returns (bytes memory executorId, IEvent.swapOutEvent memory outEvent){
+        executorId = Utils.toBytes(log.addr);
         (outEvent.token, outEvent.from, outEvent.orderId, outEvent.fromChain,
-        outEvent.toChain, outEvent.to, outEvent.amount,outEvent.toChainToken)
-        = abi.decode(log.data, (bytes, bytes, bytes32, uint256, uint256, bytes, uint256, bytes));
+        outEvent.toChain, outEvent.to,,outEvent.toChainTargetToken, outEvent.swapData)
+        = abi.decode(log.data, (bytes,bytes,bytes32,uint256,uint256,bytes,address,bytes,(SwapData)));
     }
 
     function decodeDepositOutLog(IEvent.txLog memory log)
@@ -51,13 +64,16 @@ library EvmDecoder {
     pure
     returns (bytes memory executorId, IEvent.depositOutEvent memory depositEvent){
         executorId = Utils.toBytes(log.addr);
-        address tokenAddress =  abi.decode(log.topics[1],(address));
-        depositEvent.token = Utils.toBytes(tokenAddress);
-        address toAddress;
-        ( depositEvent.from, depositEvent.orderId, depositEvent.fromChain,
-        depositEvent.toChain,toAddress, depositEvent.amount)
-        = abi.decode(log.data, (bytes, bytes32, uint256, uint256, address, uint256));
 
+        depositEvent.fromChain = abi.decode(log.topics[1], (uint256));
+        depositEvent.toChain = abi.decode(log.topics[2], (uint256));
+
+        address token;
+        address toAddress;
+        (depositEvent.orderId, token, depositEvent.from, toAddress, depositEvent.amount)
+        = abi.decode(log.data, (bytes32, address, bytes, address, uint256));
+
+        depositEvent.token = Utils.toBytes(token);
         depositEvent.to = Utils.toBytes(toAddress);
 
     }

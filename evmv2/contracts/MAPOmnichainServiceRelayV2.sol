@@ -5,7 +5,6 @@ pragma solidity 0.8.7;
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
@@ -48,10 +47,13 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     mapping(uint256 => bytes) public mosContracts;
     mapping(uint256 => chainType) public chainTypes;
 
-    event mapDepositIn(address indexed token, bytes from, address indexed to,
-        bytes32 orderId, uint256 amount, uint256 fromChain);
+    event mapTransferRelay(uint256 indexed fromChain, uint256 indexed toChain, bytes32 orderId,
+        address token, bytes from,  bytes to, uint256 amount);
 
-    event mapTransferExecute(address indexed from, uint256 indexed fromChain, uint256 indexed toChain);
+    event mapDepositIn(uint256 indexed fromChain, uint256 indexed toChain, address indexed token, bytes32 orderId,
+        bytes from, address to, uint256 amount);
+
+    event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
     function initialize(address _wToken, address _managerAddress) public initializer
     checkAddress(_wToken) checkAddress(_managerAddress) {
@@ -144,6 +146,33 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         _transferOut(wToken, msg.sender, _to, amount, _toChain);
     }
 
+    function swapOutToken(
+        address _token, // src token
+        uint256 _amount,
+        uint256 _toChain, // target chain id
+        bytes memory _toAddress, // final target chain receiving address
+        SwapData calldata swapData
+    ) external whenNotPaused {
+        require(_toChain != selfChainId, "Cannot swap to self chain");
+        require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
+
+        TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
+        _swapOut(_token, msg.sender, _amount, _toChain, _toAddress, swapData);
+    }
+
+    function swapOutNative(
+        uint256 _toChain, // target chain id
+        bytes memory _targetToken, // final target chain token
+        bytes memory _toAddress, // final target chain receiving address
+        SwapData calldata swapData
+    ) external payable whenNotPaused {
+        require(_toChain != selfChainId, "Cannot swap to self chain");
+        uint256 amount = msg.value;
+        require(amount > 0, "Sending value is zero");
+        IWToken(wToken).deposit{value : amount}();
+        _swapOut(wToken, msg.sender, amount, _toChain, _toAddress, swapData);
+    }
+    
     function depositToken(address _token, address _to, uint _amount) external override nonReentrant whenNotPaused {
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "balance too low");
 
@@ -182,7 +211,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         } else {
             require(true, "chain type error");
         }
-        emit mapTransferExecute(msg.sender, _chainId, selfChainId);
+        emit mapTransferExecute(_chainId, selfChainId, msg.sender);
     }
 
     function depositIn(uint256 _chainId, bytes memory _receiptProof) external payable nonReentrant whenNotPaused {
@@ -206,7 +235,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         } else {
             require(true, "chain type error");
         }
-        emit mapTransferExecute(msg.sender, _chainId, selfChainId);
+        emit mapTransferExecute(_chainId, selfChainId, msg.sender);
     }
 
 
@@ -216,8 +245,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     }
 
 
-    function _getOrderId(address _token, address _from, bytes memory _to, uint256 _amount, uint256 _toChain) internal returns (bytes32){
-        return keccak256(abi.encodePacked(nonce++, _from, _to, _token, _amount, selfChainId, _toChain));
+    function _getOrderId(address _from, bytes memory _to, uint256 _toChain) internal returns (bytes32){
+        return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 
     function _collectFee(address _token, uint256 _mapAmount, uint256 _fromChain, uint256 _toChain) internal returns (uint256, uint256) {
@@ -254,14 +283,39 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         bytes memory toToken = tokenRegister.getToChainToken(_token, _toChain);
         require(!Utils.checkBytes(toToken, bytes("")), "out token not registered");
 
+        bytes32 orderId = _getOrderId(_from, _to, _toChain);
+        emit mapTransferRelay(selfChainId, _toChain, orderId, _token, Utils.toBytes(_from),  _to, _amount);
+
         (uint256 mapOutAmount, uint256 outAmount) = _collectFee(_token, _amount, selfChainId, _toChain);
 
         if (tokenRegister.checkMintable(_token)) {
             IMAPToken(_token).burn(mapOutAmount);
         }
 
-        bytes32 orderId = _getOrderId(_token, _from, _to, mapOutAmount, _toChain);
-        emit mapTransferOut(Utils.toBytes(_token), Utils.toBytes(_from), orderId, selfChainId, _toChain, _to, outAmount, toToken);
+        emit mapTransferOut(selfChainId, _toChain, orderId, Utils.toBytes(_token), Utils.toBytes(_from),  _to, outAmount, toToken);
+    }
+
+    function _swapOut(
+        address _token, // src token
+        address _from,
+        uint256 _amount,
+        uint256 _toChain, // target chain id
+        bytes memory _toAddress, // final target chain receiving address
+        SwapData calldata swapData
+    ) internal {
+        bytes memory toToken = tokenRegister.getToChainToken(_token, _toChain);
+        // bytes memory toToken = "0x0";
+        require(!Utils.checkBytes(toToken, bytes("")), "Out token not registered");
+
+        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(_token, _amount, selfChainId, _toChain);
+        
+        if (tokenRegister.checkMintable(_token)) {
+            IMAPToken(_token).burn(mapOutAmount);
+        }
+        
+
+        bytes32 orderId = _getOrderId(_from, _toAddress, _toChain);
+        emit mapSwapOut(Utils.toBytes(_token), Utils.toBytes(_from), selfChainId, _toChain, _toAddress, _token, swapData, orderId);
     }
 
     function _transferIn(uint256 _chainId, IEvent.transferOutEvent memory _outEvent)
@@ -269,12 +323,20 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(_chainId == _outEvent.fromChain, "invalid chain id");
         address token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
         require(token != address(0), "map token not registered");
-        bytes memory toChainToken = tokenRegister.getToChainToken(token, _outEvent.toChain);
-        require(!Utils.checkBytes(toChainToken, bytes("")), "out token not registered");
+        bytes memory toChainToken;
+        if (_outEvent.toChain == selfChainId) {
+            toChainToken = Utils.toBytes(token);
+        } else {
+            toChainToken = tokenRegister.getToChainToken(token, _outEvent.toChain);
+            require(!Utils.checkBytes(toChainToken, bytes("")), "out token not registered");
+        }
+
         uint256 mapAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
         if (tokenRegister.checkMintable(token)) {
             IMAPToken(token).mint(address(this), mapAmount);
         }
+
+        emit mapTransferRelay(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, _outEvent.to, mapAmount);
 
         (uint256 mapOutAmount, uint256 outAmount)  = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
 
@@ -287,19 +349,22 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
                 require(IERC20(token).balanceOf(address(this)) >= mapOutAmount, "balance too low");
                 TransferHelper.safeTransfer(token, toAddress, mapOutAmount);
             }
+            emit mapTransferIn(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from,
+                toAddress, mapOutAmount);
         }else {
             if (tokenRegister.checkMintable(token)) {
                 IMAPToken(token).burn(mapOutAmount);
             }
-        }
 
-        emit mapTransferOut(_outEvent.token, _outEvent.from, _outEvent.orderId, _outEvent.fromChain, _outEvent.toChain,
-            _outEvent.to, outAmount, toChainToken);
+            emit mapTransferOut(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, _outEvent.token, _outEvent.from,
+                _outEvent.to, outAmount, toChainToken);
+        }
     }
 
     function _depositIn(uint256 _chainId, IEvent.depositOutEvent memory _depositEvent)
     internal checkOrder(_depositEvent.orderId) {
         require(_chainId == _depositEvent.fromChain, "invalid chain id");
+        require(selfChainId == _depositEvent.toChain, "invalid chain id");
         address token = tokenRegister.getRelayChainToken(_depositEvent.fromChain, _depositEvent.token);
         require(token != address(0), "map token not registered");
 
@@ -317,7 +382,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(vaultToken != address(0), "vault token not registered");
 
         IVaultTokenV2(vaultToken).deposit(_fromChain, _amount, _to);
-        emit mapDepositIn(_token, _from, _to, _orderId, _amount, _fromChain);
+        emit mapDepositIn( _fromChain, selfChainId, _token, _orderId, _from, _to, _amount);
     }
 
     function _withdraw(address _token, address payable _receiver, uint256 _amount) internal {
@@ -332,7 +397,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {
-        require(msg.sender == _getAdmin(), "LightNode: only Admin can upgrade");
+        require(msg.sender == _getAdmin(), "MAPOmnichainServiceRelay: only Admin can upgrade");
     }
 
     function changeAdmin(address _admin) external onlyOwner checkAddress(_admin) {

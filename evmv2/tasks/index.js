@@ -1,3 +1,4 @@
+
 task("mosDeploy",
     "Deploy the upgradeable MapCrossChainService contract and initialize it",
     require("./mosDeploy")
@@ -65,14 +66,19 @@ task("mosSetMintableToken",
     require("./mosSetMintableToken")
 )
     .addParam("token", "token address")
-    .addParam("mintable", "true or false")
+    .addParam("mintable", "true or false",false,types.boolean)
 
 task("relayInit",
     "Initialize mos contract",
     require("./relayInit")
 )
-    .addParam("tokenmananger","tokenRegister contract")
+    .addParam("tokenmanager","tokenRegister contract")
 
+task("relaySetClientManager",
+    "Update client manager",
+    require("./relaySetClientManager")
+)
+    .addParam("manager","client manager contract")
 
 task("relayRegisterChain",
     "Register altchain mos to relay chain",
@@ -89,7 +95,9 @@ task("relayRegisterToken",
 )
     .addParam("token", "Token address")
     .addParam("vault", "vault token address")
-    .addParam("mintable", "token mintable")
+    .addParam("mintable", "token mintable",false,types.boolean)
+
+
 
 
 task("relayMapToken",
@@ -140,6 +148,14 @@ task("depositOutToken",
     .addOptionalParam("address", "The receiver address","",types.string)
     .addParam("value", "deposit value, unit WEI")
 
+task("withdraw",
+    "withdraw token",
+    require("./withdraw")
+)
+    .addParam("mos", "The mos address")
+    .addOptionalParam("token", "The token address","0x0000000000000000000000000000000000000000",types.string)
+    .addOptionalParam("address", "The receiver address","",types.string)
+    .addParam("value", "withdraw value")
 
 task("relayList",
     "List mos relay infos",

@@ -22,6 +22,7 @@ function printHelp() {
   echo "    remove_native <chain id>                 remove native token to_chain"
   echo "    remove_mcs    <token> <chain id>         remove mcs token to_chain"
   echo "    remove_ft    <token> <chain id>          remove fungible token to_chain"
+  echo "    upgrade_multisig  <wasm file>            upgrade multisig contract"
   echo "    upgrade_mcs  <wasm file>                 upgrade mcs contract"
   echo "    upgrade_mcs_token <token>  <wasm file>   upgrade mcs token contract"
   echo "    set_client  <map client account>         set new map light client account to mcs contract"
@@ -33,9 +34,9 @@ function printHelp() {
 }
 
 function prepare() {
-  near create-account $MEMBER0 --masterAccount $MASTER_ACCOUNT --initialBalance 1
-  near create-account $MEMBER1 --masterAccount $MASTER_ACCOUNT --initialBalance 1
-  near create-account $MEMBER2 --masterAccount $MASTER_ACCOUNT --initialBalance 1
+  near create-account ${MEMBERS[0]} --masterAccount $MASTER_ACCOUNT --initialBalance 1
+  near create-account ${MEMBERS[1]} --masterAccount $MASTER_ACCOUNT --initialBalance 1
+  near create-account ${MEMBERS[2]} --masterAccount $MASTER_ACCOUNT --initialBalance 1
 }
 
 function prepare_request() {
@@ -45,7 +46,7 @@ function prepare_request() {
         echo "adding native token to_chain $2 to mcs contract"
         RECEIVER=$MCS_ACCOUNT
         METHOD="add_native_to_chain"
-        ARGS=`echo '{"to_chain": '$2'}'| base64`
+        ARGS=`echo '{"to_chain": "'$2'"}'| base64`
         MEMBER=$3
       else
         printHelp
@@ -57,7 +58,7 @@ function prepare_request() {
         echo "add mcs token $2 to_chain $3 to mcs contract"
         RECEIVER=$MCS_ACCOUNT
         METHOD="add_mcs_token_to_chain"
-        ARGS=`echo '{"token": "'$2'", "to_chain": '$3'}'| base64`
+        ARGS=`echo '{"token": "'$2'", "to_chain": "'$3'"}'| base64`
         MEMBER=$4
       else
         printHelp
@@ -69,7 +70,7 @@ function prepare_request() {
         echo "add ft token $2 to_chain $3 to mcs contract"
         RECEIVER=$MCS_ACCOUNT
         METHOD="add_fungible_token_to_chain"
-        ARGS=`echo '{"token": "'$2'", "to_chain": '$3'}'| base64`
+        ARGS=`echo '{"token": "'$2'", "to_chain": "'$3'"}'| base64`
         MEMBER=$4
       else
         printHelp
@@ -81,7 +82,7 @@ function prepare_request() {
         echo "remove native token to_chain $2 from mcs contract"
         RECEIVER=$MCS_ACCOUNT
         METHOD="remove_native_to_chain"
-        ARGS=`echo '{"to_chain": '$2'}'| base64`
+        ARGS=`echo '{"to_chain": "'$2'"}'| base64`
         MEMBER=$3
       else
         printHelp
@@ -89,12 +90,12 @@ function prepare_request() {
       fi
       ;;
     remove_mcs)
-      if [[ $# == 3 ]]; then
+      if [[ $# == 4 ]]; then
         echo "remove mcs token $2 to_chain $3 from mcs contract"
         RECEIVER=$MCS_ACCOUNT
         METHOD="remove_mcs_token_to_chain"
-        ARGS=`echo '{"token": "'$2'", "to_chain": '$3'}'| base64`
-        MEMBER=$3
+        ARGS=`echo '{"token": "'$2'", "to_chain": "'$3'"}'| base64`
+        MEMBER=$4
       else
         printHelp
         exit 1
@@ -105,7 +106,7 @@ function prepare_request() {
         echo "remove ft token $2 to_chain $3 from mcs contract"
         RECEIVER=$MCS_ACCOUNT
         METHOD="remove_fungible_token_to_chain"
-        ARGS=`echo '{"token": "'$2'", "to_chain": '$3'}'| base64`
+        ARGS=`echo '{"token": "'$2'", "to_chain": "'$3'"}'| base64`
         MEMBER=$4
       else
         printHelp
@@ -129,7 +130,7 @@ function prepare_request() {
         echo "set chain type of chain $2 to $3"
         RECEIVER=$MCS_ACCOUNT
         METHOD="set_chain_type"
-        ARGS=`echo '{"chain_id": '$2', "chain_type": "'$3'"}'| base64`
+        ARGS=`echo '{"chain_id": "'$2'", "chain_type": "'$3'"}'| base64`
         MEMBER=$4
       else
         printHelp
@@ -166,6 +167,19 @@ function prepare_request() {
         RECEIVER=$MCS_ACCOUNT
         METHOD="set_map_relay_address"
         ARGS=`echo '{"map_relay_address": "'$2'"}'| base64`
+        MEMBER=$3
+      else
+        printHelp
+        exit 1
+      fi
+      ;;
+    upgrade_multisig)
+      if [[ $# == 3 ]]; then
+        echo "upgrade multisig contract to $2"
+        RECEIVER=$MULTISIG_ACCOUNT
+        METHOD="upgrade_self"
+        CODE=`base64 -i $2`
+        ARGS=`echo '{"code": "'$CODE'"}'| base64`
         MEMBER=$3
       else
         printHelp
@@ -250,7 +264,7 @@ function confirm() {
   echo "confirming request id '$1' by member '$2'"
   near view $MULTISIG_ACCOUNT get_request '{"request_id": '$1'}'
   near view $MULTISIG_ACCOUNT get_confirmations '{"request_id": '$1'}'
-  near call $MULTISIG_ACCOUNT confirm '{"request_id": '$1'}' --accountId $2 --gas 300000000000000
+  near call $MULTISIG_ACCOUNT confirm '{"request_id": '$1'}' --accountId $2 --gas 300000000000000  --depositYocto 1
 }
 
 function execute() {
@@ -276,7 +290,7 @@ function request_and_confirm() {
         }
       ]
     }
-  }' --accountId $MEMBER --gas 300000000000000
+  }' --accountId $MEMBER --gas 300000000000000  --depositYocto 1
 }
 
 function clean() {

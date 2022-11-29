@@ -65,7 +65,7 @@ npx hardhat relayInit  --tokenmanager <token register address> --network <networ
 ````
 
 
-4. FeeCenter sets fee distribution
+4.  sets fee distribution
 ````
 npx hardhat managerSetDistributeRate --type <0 to the token vault, 1 to specified receiver> --address <fee receiver address> --rate <rate 0-1000000, uni 0.000001> --network <network>
 ````
@@ -203,3 +203,15 @@ transfer native token to sender's address:
 npx hardhat transferOutToken --mos <mos or relay address> --value <transfer value> --chain <chain id> --network <network>
 ```
 
+
+## List token mapped chain
+
+1. relay chain
+```
+npx hardhat relayList --relay <relay address> --token <token address> --network <network>
+```
+
+2. altchains
+```
+npx hardhat mosList --mos <relay address> --token <token address> --network <network>
+```
