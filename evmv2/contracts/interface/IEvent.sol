@@ -6,13 +6,13 @@ import "./IMOSV2.sol";
 interface IEvent {
 
     struct transferOutEvent {
+        uint256 amount;
         bytes token;
         bytes from;
         bytes32 orderId;
         uint256 fromChain;
         uint256 toChain;
         bytes to;
-        uint256 amount;
         bytes toChainToken;
     }
 
@@ -27,15 +27,14 @@ interface IEvent {
     }
 
     struct swapOutEvent {
+        uint256 amount;
         bytes token;
         bytes from;
-        bytes32 orderId;
         uint256 fromChain;
         uint256 toChain;
-        bytes to;
         address mapTargetToken;
-        bytes toChainTargetToken;
         SwapData swapData;
+        bytes32 orderId;
     }
 
     struct txLog {

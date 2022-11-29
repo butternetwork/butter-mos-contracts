@@ -10,6 +10,7 @@ struct SwapData {
     bytes[MAX_SWAP_ROUTE_SIZE] pathArr; // 0xtokenin+0xtokenOut
     uint8[MAX_SWAP_ROUTE_SIZE] routerIndex; // 0 uniswa router addre, 1 sushi router
     bytes targetToken;
+    bytes toAddress;
 }
 
 interface IMOSV2 {
@@ -26,11 +27,11 @@ interface IMOSV2 {
         address token, bytes from,  address to, uint256 amount);
 
     event mapSwapOut(
+        uint256 amount,
         bytes token, // source chain token
         bytes from, // source chain from address
         uint256 fromChain, // from chain
         uint256 toChain, // to chain
-        bytes toAddress, // toAddress
         address mapTargetToken, // target token on map if source chain is not map
         SwapData swapData, // swap data, used on target chain dex.
         bytes32 orderId // order id

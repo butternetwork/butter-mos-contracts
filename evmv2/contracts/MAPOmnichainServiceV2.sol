@@ -165,7 +165,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
 
         bytes32 orderId = _getOrderID(msg.sender, _toAddress, _toChain);
 
-        emit mapSwapOut(Utils.toBytes(_token), Utils.toBytes(msg.sender), selfChainId, _toChain, _toAddress, _mapTargetToken, swapData, orderId);
+        emit mapSwapOut(_amount, Utils.toBytes(_token), Utils.toBytes(msg.sender), selfChainId, _toChain, _mapTargetToken, swapData, orderId);
     }
 
     function swapOutNative(
@@ -185,7 +185,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         require(amount > 0, "Sending value is zero");
         IWToken(wToken).deposit{value : amount}();
         bytes32 orderId = _getOrderID(msg.sender, _toAddress, _toChain);
-        emit mapSwapOut(Utils.toBytes(wToken), Utils.toBytes(msg.sender), selfChainId, _toChain, _toAddress, _mapTargetToken, swapData, orderId);
+        emit mapSwapOut(amount, Utils.toBytes(wToken), Utils.toBytes(msg.sender), selfChainId, _toChain, _mapTargetToken, swapData, orderId);
 
     }
 
@@ -290,8 +290,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     }
 
     function _swapIn(IEvent.swapOutEvent memory _outEvent) internal checkOrder(_outEvent.orderId) {
-        address targetToken = Utils.fromBytes(_outEvent.toChainTargetToken);
-        address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
+        address targetToken = Utils.fromBytes(_outEvent.swapData.targetToken);
+        address payable toAddress = payable(Utils.fromBytes(_outEvent.swapData.toAddress));
         SwapData memory swapData = _outEvent.swapData;
         bytes memory firstPath = swapData.pathArr[0];
         address srcToken;
