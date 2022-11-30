@@ -151,27 +151,24 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         address _token, // src token
         uint256 _amount,
         uint256 _toChain, // target chain id
-        bytes memory _toAddress, // final target chain receiving address
         SwapData calldata swapData
     ) external whenNotPaused {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
 
         TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
-        _swapOut(_token, msg.sender, _amount, _toChain, _toAddress, swapData);
+        _swapOut(_token, msg.sender, _amount, _toChain, swapData);
     }
 
     function swapOutNative(
         uint256 _toChain, // target chain id
-        bytes memory _targetToken, // final target chain token
-        bytes memory _toAddress, // final target chain receiving address
         SwapData calldata swapData
     ) external payable whenNotPaused {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWToken(wToken).deposit{value : amount}();
-        _swapOut(wToken, msg.sender, amount, _toChain, _toAddress, swapData);
+        _swapOut(wToken, msg.sender, amount, _toChain, swapData);
     }
     
     function depositToken(address _token, address _to, uint _amount) external override nonReentrant whenNotPaused {
@@ -327,7 +324,6 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         address _from,
         uint256 _amount,
         uint256 _toChain, // target chain id
-        bytes memory _toAddress, // final target chain receiving address
         SwapData calldata swapData
     ) internal {
         bytes memory toToken = tokenRegister.getToChainToken(_token, _toChain);
@@ -341,7 +337,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         }
         
 
-        bytes32 orderId = _getOrderId(_from, _toAddress, _toChain);
+        bytes32 orderId = _getOrderId(_from, swapData.toAddress, _toChain);
         emit mapSwapOut(outAmount, Utils.toBytes(_token), Utils.toBytes(_from), selfChainId, _toChain, _token, swapData, orderId);
     }
 
@@ -394,6 +390,12 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(_chainId == _outEvent.fromChain, "invalid chain id");
         address token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
         require(token != address(0), "map token not registered");
+        // if source token's relay chain mapping token is NOT mapTargetToken, then swap needed.
+        if (_outEvent.mapTargetToken != token) {
+            // do swap here...
+            token = _outEvent.mapTargetToken;
+        }
+
         bytes memory toChainToken;
         if (_outEvent.toChain == selfChainId) {
             toChainToken = Utils.toBytes(token);
@@ -420,15 +422,13 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
                 require(IERC20(token).balanceOf(address(this)) >= mapOutAmount, "balance too low");
                 TransferHelper.safeTransfer(token, toAddress, mapOutAmount);
             }
-            // emit mapSwapIn(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from,
-            //     toAddress, mapOutAmount);
+             emit mapSwapIn(_outEvent.fromChain, _outEvent.toChain, token, _outEvent.from, toAddress, mapOutAmount, _outEvent.orderId);
         }else {
             if (tokenRegister.checkMintable(token)) {
                 IMAPToken(token).burn(mapOutAmount);
             }
 
-            // emit mapSwapOut(outAmount, _outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, _outEvent.token, _outEvent.from,
-            //     _outEvent.toAddress, toChainToken);
+             emit mapSwapOut(outAmount, _outEvent.token, _outEvent.from, _outEvent.fromChain, _outEvent.toChain, _outEvent.mapTargetToken, _outEvent.swapData, _outEvent.orderId);
         }
     }
 

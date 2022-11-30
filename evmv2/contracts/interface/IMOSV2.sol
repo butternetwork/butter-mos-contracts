@@ -30,20 +30,21 @@ interface IMOSV2 {
         uint256 amount,
         bytes token, // source chain token
         bytes from, // source chain from address
-        uint256 fromChain, // from chain
-        uint256 toChain, // to chain
+        uint256 indexed fromChain, // from chain
+        uint256 indexed toChain, // to chain
         address mapTargetToken, // target token on map if source chain is not map
         SwapData swapData, // swap data, used on target chain dex.
         bytes32 orderId // order id
     );
 
     event mapSwapIn(
-        address indexed toToken,
+        uint256 indexed fromChain,
+        uint256 indexed toChain,
+        address token,
         bytes from,
-        bytes32 indexed orderId,
-        uint256 fromChain,
-        address to,
-        uint256 amountOut
+        address toAddress,
+        uint256 amountOut,
+        bytes32 indexed orderId
     );
 
     event mapDepositOut(uint256 indexed fromChain, uint256 indexed toChain, bytes32 orderId,

@@ -150,6 +150,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         SwapData calldata swapData
     )
     external
+
     nonReentrant
     whenNotPaused
     checkBridgeable(_token, _toChain)
@@ -293,48 +294,39 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         address targetToken = Utils.fromBytes(_outEvent.swapData.targetToken);
         address payable toAddress = payable(Utils.fromBytes(_outEvent.swapData.toAddress));
         SwapData memory swapData = _outEvent.swapData;
-        bytes memory firstPath = swapData.pathArr[0];
-        address srcToken;
-        assembly {
-            srcToken := mload(add(firstPath, 20))
-        }
-        // AccessParams memory params = AccessParams({
-        //     amountInArr: swapData.amountInArr,
-        //     amountOutMinArr: swapData.minAmountOutArr,
-        //     pathArr: swapData.pathArr, to: toAddress,
-        //     deadline: uint256(block.timestamp + 100),
-        //     input_Out_Addre: [srcToken, targetToken],
-        //     routerIndex: swapData.routerIndex
-        // });
-        // butterCore.multiSwap(params);
-
-        uint256 totalAmountIn;
-        uint256 totalMinAmountOut;
-        uint256[5] memory amountInArr = swapData.amountInArr;
-        uint256[5] memory amountOutArr = swapData.minAmountOutArr;
-
-        for (uint i = 0; i < 5; i++) {
-            totalAmountIn += amountInArr[i];
-        }
-        for (uint i = 0; i < 5; i++) {
-            totalMinAmountOut += amountOutArr[i];
-        }
-
-        bool success = true;
-        {
-        if (!success) {
-            if (srcToken == wToken) {
-                TransferHelper.safeWithdraw(wToken, totalAmountIn);
-                TransferHelper.safeTransferETH(toAddress, totalAmountIn);
-            } else if (isMintable(srcToken)) {
-                IMAPToken(srcToken).mint(toAddress, totalAmountIn);
-            } else {
-                TransferHelper.safeTransfer(srcToken, toAddress, totalAmountIn);
+        address targetToken;
+        // if path array is not empty, then we need to do swap on the chain
+        if (!swapData.pathArr || !swapData.pathArr.count) {
+            // do swap...
+            bytes memory firstPath = swapData.pathArr[0];
+            // get source token from the very first path
+            address srcToken;
+            assembly {
+                srcToken := mload(add(firstPath, 20))
             }
+
+            AccessParams memory params = AccessParams({
+                 amountInArr: swapData.amountInArr,
+                 amountOutMinArr: swapData.minAmountOutArr,
+                 pathArr: swapData.pathArr, to: toAddress,
+                 deadline: uint256(block.timestamp + 100),
+                 input_Out_Addre: [srcToken, targetToken],
+                 routerIndex: swapData.routerIndex
+             });
+             butterCore.multiSwap(params);
+             targetToken = srcToken;
         }
+        // edge case: how to get what the token
+        if (targetToken == wToken) {
+            TransferHelper.safeWithdraw(wToken, _);
+            TransferHelper.safeTransferETH(toAddress, _);
+        } else if (isMintable(targetToken)) {
+            IMAPToken(srcToken).mint(toAddress, _);
+        } else {
+            TransferHelper.safeTransfer(targetToken, toAddress, _);
         }
         
-            emit mapSwapIn(targetToken, _outEvent.from, _outEvent.orderId, _outEvent.fromChain, toAddress, totalMinAmountOut);
+            // emit mapSwapIn(targetToken, _outEvent.from, _outEvent.orderId, _outEvent.fromChain, toAddress, totalMinAmountOut);
         
     }
 
