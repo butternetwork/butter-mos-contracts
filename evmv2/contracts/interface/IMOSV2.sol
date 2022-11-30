@@ -2,16 +2,7 @@
 
 pragma solidity 0.8.7;
 
-// here we specified the length of 5 cuz the miximum swap route is 5
-uint8 constant MAX_SWAP_ROUTE_SIZE = 5;
-struct SwapData {
-    uint256[MAX_SWAP_ROUTE_SIZE] amountInArr;
-    uint256[MAX_SWAP_ROUTE_SIZE] minAmountOutArr;
-    bytes[MAX_SWAP_ROUTE_SIZE] pathArr; // 0xtokenin+0xtokenOut
-    uint8[MAX_SWAP_ROUTE_SIZE] routerIndex; // 0 uniswa router addre, 1 sushi router
-    bytes targetToken;
-    bytes toAddress;
-}
+import "./IEvent.sol";
 
 interface IMOSV2 {
     function transferOutToken(address _token, bytes memory _to, uint _amount, uint _toChain) external;

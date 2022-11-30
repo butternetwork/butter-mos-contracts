@@ -1,7 +1,19 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.7;
-import "./IMOSV2.sol";
+
+struct SwapParam {
+    uint amountIn;
+    uint minAmountOut;
+    bytes path;
+    uint64 routerIndex;
+}
+
+struct SwapData {
+        SwapParam[] swapParams;
+        bytes targetToken;
+        bytes toAddress;
+}
 
 interface IEvent {
 
