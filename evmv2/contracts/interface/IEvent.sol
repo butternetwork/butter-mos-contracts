@@ -1,30 +1,29 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.7;
-
 struct SwapParam {
-    uint amountIn;
-    uint minAmountOut;
-    bytes path;
-    uint64 routerIndex;
+    uint256 amountIn;
+    uint256 minAmountOut;
+    bytes path; // 0xtokenin+0xtokenOut on evm, or tokenIn'X'tokenOut on near
+    uint8 routerIndex; // pool id on near or router index on evm
 }
 
 struct SwapData {
-        SwapParam[] swapParams;
-        bytes targetToken;
-        bytes toAddress;
+    SwapParam[] swapParams;
+    bytes targetToken;
+    bytes toAddress;
 }
 
 interface IEvent {
 
     struct transferOutEvent {
-        uint256 amount;
         bytes token;
         bytes from;
         bytes32 orderId;
         uint256 fromChain;
         uint256 toChain;
         bytes to;
+        uint256 amount;
         bytes toChainToken;
     }
 

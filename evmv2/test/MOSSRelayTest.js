@@ -15,6 +15,7 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
     let addr6;
     let addr7;
     let addr8;
+    let addr9;
 
     let EvmDecoder;
     let evmDecoder;
@@ -55,7 +56,7 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
 
     beforeEach(async function () {
 
-        [deployer,owner, addr1, addr2, addr3, addr4, addr5,addr6,addr7,addr8] = await ethers.getSigners();
+        [deployer,owner, addr1, addr2, addr3, addr4, addr5,addr6,addr7,addr8,addr9] = await ethers.getSigners();
 
     });
 
@@ -219,16 +220,16 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         let near2eth001Receipt = await ethers.provider.getTransactionReceipt(near2eth001Data.hash)
         //uint256,uint256,bytes32,bytes,bytes,bytes,uint256,bytes
         let near2eth001Decode = ethers.utils.defaultAbiCoder.decode(['bytes32','bytes','bytes','bytes','uint256','bytes'],
-            near2eth001Receipt.logs[1].data)
+            near2eth001Receipt.logs[2].data)
 
         expect(near2eth001Decode[4]).to.equal("75000000000000000");
 
 
         // amount: 150000000000000000000000,
         let near2ethWData = await mossR.transferIn(1313161555,mosRelayData.near2ethW);
-        let near2ethWReceipt = await ethers.provider.getTransactionReceipt(near2ethWData.hash)
+        let near2ethWReceipt = await ethers.provider.getTransactionReceipt(near2ethWData.hash);
         let near2ethWDecode = ethers.utils.defaultAbiCoder.decode(['bytes32','bytes','bytes','bytes','uint256','bytes'],
-            near2ethWReceipt.logs[2].data)
+            near2ethWReceipt.logs[3].data)
         //console.log(near2ethWDecode)
         expect(near2ethWDecode[4]).to.equal("150000000000000000");
 
@@ -240,7 +241,7 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         let near2eth000Receipt = await ethers.provider.getTransactionReceipt(near2eth000Data.hash)
 
         let near2eth000Decode = ethers.utils.defaultAbiCoder.decode(['bytes32','bytes','bytes','bytes','uint256','bytes'],
-            near2eth000Receipt.logs[0].data)
+            near2eth000Receipt.logs[1].data)
         //console.log(near2eth000Decode)
         expect(near2eth000Decode[4]).to.equal("150000000000000000");
 
@@ -502,6 +503,19 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         expect(await standardToken.balanceOf(addr8.address)).to.equal("201000000000000000000");
 
 
+    });
+
+    it('test protocolFee', async function () {
+        await expect(mossR.connect(addr5).setDistributeRate(2,addr9.address,"500000")).to.be.revertedWith("invalid rate value")
+        await mossR.connect(addr5).setDistributeRate(2,addr9.address,"400000");
+
+        await tokenRegister.setTokenFee(usdt.address,97,"1000000000000000","2000000000000000000","500000")
+
+        await usdt.mint(owner.address,"1000000000000000000");
+
+        await mossR.connect(owner).transferOutToken(usdt.address,address2Bytes,"1000000000000000000",97)
+
+        expect(await usdt.balanceOf(addr9.address)).to.equal("200000000000000000")
     });
 
 

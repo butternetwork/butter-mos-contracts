@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
-
-pragma solidity 0.8.7;
-
 import "./IEvent.sol";
+pragma solidity 0.8.7;
 
 interface IMOSV2 {
     function transferOutToken(address _token, bytes memory _to, uint _amount, uint _toChain) external;
@@ -16,6 +14,9 @@ interface IMOSV2 {
 
     event mapTransferIn(uint256 indexed fromChain, uint256 indexed toChain, bytes32 orderId,
         address token, bytes from,  address to, uint256 amount);
+
+    event mapDepositOut(uint256 indexed fromChain, uint256 indexed toChain, bytes32 orderId,
+        address token, bytes from, address to, uint256 amount);
 
     event mapSwapOut(
         uint256 amount,
@@ -37,7 +38,4 @@ interface IMOSV2 {
         uint256 amountOut,
         bytes32 indexed orderId
     );
-
-    event mapDepositOut(uint256 indexed fromChain, uint256 indexed toChain, bytes32 orderId,
-        address token, bytes from, address to, uint256 amount);
 }

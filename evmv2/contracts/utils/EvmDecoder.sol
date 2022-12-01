@@ -11,8 +11,8 @@ library EvmDecoder {
     using RLPReader for bytes;
     using RLPReader for RLPReader.RLPItem;
 
-    bytes32 constant MAP_TRANSFEROUT_TOPIC = keccak256(bytes('mapTransferOut(bytes,bytes,bytes32,uint256,uint256,bytes,uint256,bytes)'));
-    bytes32 constant MAP_DEPOSITOUT_TOPIC = keccak256(bytes('mapDepositOut(address,bytes,bytes32,uint256,uint256,address,uint256)'));
+    bytes32 constant MAP_TRANSFEROUT_TOPIC = keccak256(bytes('mapTransferOut(uint256,uint256,bytes32,bytes,bytes,bytes,uint256,bytes)'));
+    bytes32 constant MAP_DEPOSITOUT_TOPIC = keccak256(bytes('mapDepositOut(uint256,uint256,bytes32,address,bytes,address,uint256)'));
     bytes32 constant MAP_SWAPOUT_TOPIC = keccak256(bytes('mapSwapOut(bytes,bytes,bytes32,uint256,uint256,bytes,address,bytes,(uint256[5],uint256[5],bytes[5],uint8[5]))'));
 
 
@@ -40,7 +40,7 @@ library EvmDecoder {
     function decodeTransferOutLog(IEvent.txLog memory log)
     internal
     pure
-    returns (bytes memory executorId, IEvent.transferOutEvent memory outEvent){
+    returns (bytes memory executorId, IEvent.transferOutEvent memory outEvent) {
         executorId = Utils.toBytes(log.addr);
         outEvent.fromChain = abi.decode(log.topics[1], (uint256));
         outEvent.toChain = abi.decode(log.topics[2], (uint256));
@@ -52,11 +52,18 @@ library EvmDecoder {
     function decodeSwapOutLog(IEvent.txLog memory log)
     internal
     pure
-    returns (bytes memory executorId, IEvent.swapOutEvent memory outEvent){
+    returns (bytes memory executorId, IEvent.swapOutEvent memory outEvent) {
         executorId = Utils.toBytes(log.addr);
-        (outEvent.token, outEvent.from, outEvent.fromChain,
-        outEvent.toChain,outEvent.mapTargetToken,outEvent.swapData, outEvent.orderId)
-        = abi.decode(log.data, (bytes,bytes,uint256,uint256,address,(SwapData), bytes32));
+        (outEvent.amount,outEvent.token, outEvent.from, outEvent.fromChain,
+        outEvent.toChain,outEvent.mapTargetToken,outEvent.swapData,outEvent.orderId)
+        = abi.decode(log.data, (uint256,bytes,bytes,uint256,uint256,address,(SwapData),bytes32));
+    }
+
+    function decodeSwapDataLog(IEvent.txLog memory log)
+    internal
+    pure
+    returns (SwapData memory swapData) {
+        swapData = abi.decode(log.data, ((SwapData)));
     }
 
     function decodeDepositOutLog(IEvent.txLog memory log)

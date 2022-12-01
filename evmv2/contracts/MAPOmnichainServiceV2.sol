@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
@@ -10,7 +11,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "./interface/IWToken.sol";
-import "./interface/IButterCore.sol";
+import "./interface/IEvent.sol";
 import "./interface/IMAPToken.sol";
 import "./utils/TransferHelper.sol";
 import "./interface/IMOSV2.sol";
@@ -18,7 +19,6 @@ import "./interface/ILightNode.sol";
 import "./utils/RLPReader.sol";
 import "./utils/Utils.sol";
 import "./utils/EvmDecoder.sol";
-import "./interface/IMOSV2.sol";
 
 
 contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOSV2, UUPSUpgradeable {
@@ -32,7 +32,6 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     address public relayContract;
     uint256 public relayChainId;
     ILightNode public lightNode;
-    address public butterCoreAddress;
 
     mapping(bytes32 => bool) public orderList;
     mapping(address => bool) public mintableTokens;
@@ -49,9 +48,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     }
 
 
-    receive() external payable {
-        require(msg.sender == wToken, "only wToken");
-    }
+    receive() external payable {}
 
 
     modifier checkOrder(bytes32 _orderId) {
@@ -100,9 +97,6 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         relayChainId = _chainId;
     }
 
-    function setButterCore(address _butterCore) external onlyOwner checkAddress(_butterCore) {
-        butterCoreAddress = _butterCore;
-    }
     function registerToken(address _token, uint _toChain, bool _enable) external onlyOwner {
         tokenMappingList[_toChain][_token] = _enable;
     }
@@ -111,8 +105,10 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         if (_token == wToken) {
             TransferHelper.safeWithdraw(wToken, _amount);
             TransferHelper.safeTransferETH(_receiver, _amount);
-        } else {
-            IERC20(_token).transfer(_receiver, _amount);
+        } else if(_token == address(0)){
+            TransferHelper.safeTransferETH(_receiver, _amount);
+        }else {
+            TransferHelper.safeTransfer(_token,_receiver,_amount);
         }
     }
 
@@ -145,7 +141,6 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         uint256 _amount,
         address _mapTargetToken, // targetToken on map
         uint256 _toChain, // target chain id
-        bytes memory _toAddress, // final target chain receiving address
         SwapData calldata swapData
     )
     external
@@ -155,6 +150,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
+        bytes memory toAddress = swapData.toAddress;
 
         if (isMintable(_token)) {
             IMAPToken(_token).burnFrom(msg.sender, _amount);
@@ -162,7 +158,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
             TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
         }
 
-        bytes32 orderId = _getOrderID(msg.sender, _toAddress, _toChain);
+        bytes32 orderId = _getOrderID(msg.sender, toAddress, _toChain);
 
         emit mapSwapOut(_amount, Utils.toBytes(_token), Utils.toBytes(msg.sender), selfChainId, _toChain, _mapTargetToken, swapData, orderId);
     }
@@ -170,7 +166,6 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     function swapOutNative(
         address _mapTargetToken, // targetToken on map
         uint256 _toChain, // target chain id
-        bytes memory _toAddress, // final target chain receiving address
         SwapData calldata swapData
     )
     external
@@ -180,10 +175,11 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     checkBridgeable(wToken, _toChain)
     {
         require(_toChain != selfChainId, "Cannot swap to self chain");
+        bytes memory toAddress = swapData.toAddress;
         uint amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWToken(wToken).deposit{value : amount}();
-        bytes32 orderId = _getOrderID(msg.sender, _toAddress, _toChain);
+        bytes32 orderId = _getOrderID(msg.sender, toAddress, _toChain);
         emit mapSwapOut(amount, Utils.toBytes(wToken), Utils.toBytes(msg.sender), selfChainId, _toChain, _mapTargetToken, swapData, orderId);
 
     }
@@ -327,17 +323,16 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
                 TransferHelper.safeTransfer(targetToken, toAddress, amount);
             }
         }
-        
-            // emit mapSwapIn(targetToken, _outEvent.from, _outEvent.orderId, _outEvent.fromChain, toAddress, totalMinAmountOut);
-        
-    }
 
+        // emit mapSwapIn(targetToken, _outEvent.from, _outEvent.orderId, _outEvent.fromChain, toAddress, totalMinAmountOut);
+
+    }
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {
         require(msg.sender == _getAdmin(), "MAPOmnichainService: only Admin can upgrade");
     }
 
-    function changeAdmin(address _admin) external onlyOwner checkAddress(_admin) {
+    function changeAdmin(address _admin) external onlyOwner checkAddress(_admin){
         _changeAdmin(_admin);
     }
 
