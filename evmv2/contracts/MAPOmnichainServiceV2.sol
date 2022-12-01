@@ -30,6 +30,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     uint public nonce;
     address public wToken;          // native wrapped token
     address public relayContract;
+    address public butterCoreContract;
     uint256 public relayChainId;
     ILightNode public lightNode;
 
@@ -105,10 +106,10 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         if (_token == wToken) {
             TransferHelper.safeWithdraw(wToken, _amount);
             TransferHelper.safeTransferETH(_receiver, _amount);
-        } else if(_token == address(0)){
+        } else if (_token == address(0)) {
             TransferHelper.safeTransferETH(_receiver, _amount);
-        }else {
-            TransferHelper.safeTransfer(_token,_receiver,_amount);
+        } else {
+            TransferHelper.safeTransfer(_token, _receiver, _amount);
         }
     }
 
@@ -123,7 +124,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
             TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
         }
         bytes32 orderId = _getOrderID(msg.sender, _to, _toChain);
-        emit mapTransferOut(selfChainId, _toChain, orderId, Utils.toBytes(_token), Utils.toBytes(msg.sender),  _to, _amount, Utils.toBytes(address(0)));
+        emit mapTransferOut(selfChainId, _toChain, orderId, Utils.toBytes(_token), Utils.toBytes(msg.sender), _to, _amount, Utils.toBytes(address(0)));
     }
 
     function transferOutNative(bytes memory _to, uint _toChain) external override payable nonReentrant whenNotPaused
@@ -133,7 +134,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         require(amount > 0, "balance is zero");
         IWToken(wToken).deposit{value : amount}();
         bytes32 orderId = _getOrderID(msg.sender, _to, _toChain);
-        emit mapTransferOut(selfChainId, _toChain, orderId, Utils.toBytes(wToken), Utils.toBytes(msg.sender),  _to, amount, Utils.toBytes(address(0)));
+        emit mapTransferOut(selfChainId, _toChain, orderId, Utils.toBytes(wToken), Utils.toBytes(msg.sender), _to, amount, Utils.toBytes(address(0)));
     }
 
     function swapOutToken(
@@ -185,7 +186,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     }
 
     function depositToken(address _token, address _to, uint _amount) external override nonReentrant whenNotPaused
-    checkBridgeable(_token, relayChainId){
+    checkBridgeable(_token, relayChainId) {
         address from = msg.sender;
         //require(IERC20(token).balanceOf(_from) >= _amount, "balance too low");
 
@@ -196,7 +197,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         }
 
         bytes32 orderId = _getOrderID(from, Utils.toBytes(_to), relayChainId);
-        emit mapDepositOut(selfChainId, relayChainId, orderId, _token, Utils.toBytes(from),  _to, _amount);
+        emit mapDepositOut(selfChainId, relayChainId, orderId, _token, Utils.toBytes(from), _to, _amount);
     }
 
     function depositNative(address _to) external override payable nonReentrant whenNotPaused
@@ -281,38 +282,40 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
             TransferHelper.safeTransfer(token, toAddress, amount);
         }
 
-        emit mapTransferIn( _outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, toAddress, amount);
+        emit mapTransferIn(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, toAddress, amount);
     }
 
     function _swapIn(IEvent.swapOutEvent memory _outEvent) internal checkOrder(_outEvent.orderId) {
         address targetToken = Utils.fromBytes(_outEvent.swapData.targetToken);
         address payable toAddress = payable(Utils.fromBytes(_outEvent.swapData.toAddress));
-        // SwapData memory swapData = _outEvent.swapData;
         uint amount = _outEvent.amount;
-        // if path array is not empty, then we need to do swap on the chain
-        if (true) {
-            // do swap...
-            // bytes memory firstPath = swapData.swapParams[0].path;
+
+        SwapData memory swapData = _outEvent.swapData;
+        SwapParam[] memory swapParams = swapData.swapParams;
+        // if swap params is not empty, then we need to do swap on the chain
+        if (swapParams.length > 0) {
+            // do swap
+            bytes memory firstPath = swapData.swapParams[0].path;
             // get source token from the very first path
-            // address srcToken;
-            // assembly {
-            //     srcToken := mload(add(firstPath, 20))
-            // }
+            address srcToken;
+            assembly {
+                srcToken := mload(add(firstPath, 20))
+            }
             // assemble request
-            // AccessParams memory params = AccessParams({
-            //      amountInArr: swapData.amountInArr,
-            //      amountOutMinArr: swapData.minAmountOutArr,
-            //      pathArr: swapData.pathArr, to: toAddress,
-            //      to: toAddress,
-            //      deadline: uint256(block.timestamp + 100),
-            //      input_Out_Addre: [srcToken, targetToken],
-            //      routerIndex: swapData.routerIndex
-            //  });
-            //  bool success = address(butterCoreAddress).call(abi.encodeWithSignature("multiSwap()", params));
-            // if (!success) {
-            //     // if swap not success, give user source token
-            //     targetToken = srcToken;
-            // }
+            AccessParams memory params = AccessParams({
+                amountInArr : [swapParams[0].amountIn],
+                amountOutMinArr : [swapParams[0].minAmountOut],
+                pathArr: [swapParams[0].path],
+                to: payable(Utils.fromBytes(swapData.toAddress)),
+                deadline: uint256(block.timestamp + 100),
+                input_Out_Addre: [srcToken, targetToken],
+                routerIndex: [uint8(swapParams[0].routerIndex)]
+            });
+            (bool success,) = address(butterCoreContract).call(abi.encodeWithSignature("multiSwap()", params));
+            if (!success) {
+                // if swap not success, give user source token
+                targetToken = srcToken;
+            }
         } else {
             if (targetToken == wToken) {
                 TransferHelper.safeWithdraw(wToken, amount);
@@ -332,7 +335,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         require(msg.sender == _getAdmin(), "MAPOmnichainService: only Admin can upgrade");
     }
 
-    function changeAdmin(address _admin) external onlyOwner checkAddress(_admin){
+    function changeAdmin(address _admin) external onlyOwner checkAddress(_admin) {
         _changeAdmin(_admin);
     }
 

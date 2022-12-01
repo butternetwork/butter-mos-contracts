@@ -13,7 +13,15 @@ struct SwapData {
     bytes targetToken;
     bytes toAddress;
 }
-
+    struct AccessParams {
+        uint256[1]  amountInArr;
+        uint256[1]  amountOutMinArr;
+        bytes[1]    pathArr;
+        address  payable  to;
+        uint256    deadline;
+        address[2]  input_Out_Addre;  // 0 -input  1- Out
+        uint8[1]  routerIndex;
+    }
 interface IEvent {
 
     struct transferOutEvent {
