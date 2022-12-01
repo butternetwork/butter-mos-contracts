@@ -5,7 +5,7 @@ struct SwapParam {
     uint256 amountIn;
     uint256 minAmountOut;
     bytes path; // 0xtokenin+0xtokenOut on evm, or tokenIn'X'tokenOut on near
-    uint8 routerIndex; // pool id on near or router index on evm
+    uint64 routerIndex; // pool id on near or router index on evm
 }
 
 struct SwapData {
