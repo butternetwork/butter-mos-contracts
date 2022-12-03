@@ -2,8 +2,12 @@
 
 pragma solidity 0.8.7;
 
-
+import "../interface/IEvent.sol";
 library Utils {
+
+    function assembleParamsFromSwapData(SwapData memory swapData) internal pure {
+
+    }
 
     function checkBytes(bytes memory b1, bytes memory b2) internal pure returns (bool){
         return keccak256(b1) == keccak256(b2);
@@ -96,5 +100,7 @@ library Utils {
 
         return bytes_array;
     }
+
+
 
 }

@@ -286,50 +286,45 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     }
 
     function _swapIn(IEvent.swapOutEvent memory _outEvent) internal checkOrder(_outEvent.orderId) {
-        address targetToken = Utils.fromBytes(_outEvent.swapData.targetToken);
+        // the token contract get
+        address tokenIn = Utils.fromBytes(_outEvent.token);
+        // the token contract need to send
+        address tokenOut = Utils.fromBytes(_outEvent.swapData.targetToken);
+        // receiving address
         address payable toAddress = payable(Utils.fromBytes(_outEvent.swapData.toAddress));
-        uint amount = _outEvent.amount;
+        // amount of token need to be sent
+        uint amountOut = _outEvent.amount;
 
+        // swap params, including route, amountIn, amountOut, toAddress etc
         SwapData memory swapData = _outEvent.swapData;
         SwapParam[] memory swapParams = swapData.swapParams;
         // if swap params is not empty, then we need to do swap on the chain
         if (swapParams.length > 0) {
-            // do swap
-            bytes memory firstPath = swapData.swapParams[0].path;
-            // get source token from the very first path
-            address srcToken;
-            assembly {
-                srcToken := mload(add(firstPath, 20))
+            if (isMintable(tokenOut)) {
+                IMAPToken(tokenOut).mint(address(this), amountOut);
             }
-            // assemble request
-            AccessParams memory params = AccessParams({
-                amountInArr : [swapParams[0].amountIn],
-                amountOutMinArr : [swapParams[0].minAmountOut],
-                pathArr: [swapParams[0].path],
-                to: payable(Utils.fromBytes(swapData.toAddress)),
-                deadline: uint256(block.timestamp + 100),
-                input_Out_Addre: [srcToken, targetToken],
-                routerIndex: [uint8(swapParams[0].routerIndex)]
-            });
-            (bool success,) = address(butterCoreContract).call(abi.encodeWithSignature("multiSwap()", params));
-            if (!success) {
-                // if swap not success, give user source token
-                targetToken = srcToken;
-            }
-        } else {
-            if (targetToken == wToken) {
-                TransferHelper.safeWithdraw(wToken, amount);
-                TransferHelper.safeTransferETH(toAddress, amount);
-            } else if (isMintable(targetToken)) {
-                IMAPToken(targetToken).mint(toAddress, amount);
-            } else {
-                TransferHelper.safeTransfer(targetToken, toAddress, amount);
-            }
+            // assemble request to call butter router
+//            AccessParams memory params = Utils.assembleAccessParams(swapData);
+//            (bool success,) = address(butterCoreContract).call(abi.encodeWithSignature("multiSwap()", params));
+            bool success = true;
+            // if swap succeed, just return
+            if (success) return;
+
+            // if swap not succeed, give user the source token
+            tokenOut = tokenIn;
         }
-
+        // transfer token if swap
+        if (tokenOut == wToken) {
+            TransferHelper.safeWithdraw(wToken, amountOut);
+            TransferHelper.safeTransferETH(toAddress, amountOut);
+        } else if (isMintable(tokenOut)) {
+            IMAPToken(tokenOut).mint(toAddress, amountOut);
+        } else {
+            TransferHelper.safeTransfer(tokenOut, toAddress, amountOut);
+        }
         // emit mapSwapIn(targetToken, _outEvent.from, _outEvent.orderId, _outEvent.fromChain, toAddress, totalMinAmountOut);
-
     }
+
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {
         require(msg.sender == _getAdmin(), "MAPOmnichainService: only Admin can upgrade");

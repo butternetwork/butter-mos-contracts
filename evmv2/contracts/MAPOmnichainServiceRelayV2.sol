@@ -216,9 +216,9 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         (bool success,string memory message,bytes memory logArray) = lightClientManager.verifyProofData(_chainId, _receiptProof);
         require(success, message);
         if (chainTypes[_chainId] == chainType.NEAR) {
-            (bytes memory mosContract, IEvent.transferOutEvent memory outEvent) = NearDecoder.decodeNearLog(logArray);
+            (bytes memory mosContract, IEvent.swapOutEvent memory outEvent) = NearDecoder.decodeNearSwapLog(logArray);
             require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
-            _transferIn(_chainId, outEvent);
+            _swapIn(_chainId, outEvent);
         } else if (chainTypes[_chainId] == chainType.EVM) {
             IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
             for (uint256 i = 0; i < logs.length; i++) {
@@ -376,7 +376,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(token != address(0), "map token not registered");
         // if source token's relay chain mapping token is NOT mapTargetToken, then swap needed.
         if (_outEvent.mapTargetToken != token) {
-            // do swap here...
+            // swap logic goes here...
             token = _outEvent.mapTargetToken;
         }
 
@@ -411,7 +411,6 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             if (tokenRegister.checkMintable(token)) {
                 IMAPToken(token).burn(mapOutAmount);
             }
-
             emit mapSwapOut(outAmount, _outEvent.token, _outEvent.from, _outEvent.fromChain, _outEvent.toChain, _outEvent.mapTargetToken, _outEvent.swapData, _outEvent.orderId);
         }
     }
