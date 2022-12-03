@@ -74,9 +74,10 @@ module.exports = {
       accounts: accounts
     },
     BscTest: {
-      url: `https://data-seed-prebsc-2-s1.binance.org:8545/`,
+      url: `https://rpc.ankr.com/bsc_testnet_chapel/9a12629301614050e76136dcaf9627f5ef215f86fb1185d908f9d232b8530ef7`,
       chainId : 97,
       accounts: accounts,
+      gas: 3000000,
       gasPrice: 11 * 1000000000
     },
     Eth: {

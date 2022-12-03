@@ -139,6 +139,19 @@ task("transferOutToken",
     .addParam("value", "transfer value, unit WEI")
     .addParam("chain", "target chain id")
 
+task("swapOutToken",
+    "Cross-chain token swap",
+    require("./swapOutToken")
+)
+    .addParam("mos", "the mos address")
+    .addOptionalParam("token", "The token address","0x0000000000000000000000000000000000000000",types.string)
+    .addOptionalParam("value", "token amount in Wei", '1000000000000000000')
+    .addOptionalParam("mapTargetToken", "target token on map", "0x0000000000000000000000000000000000000000",types.string)
+    .addOptionalParam("address", "The receiver address, default is msg.sender","",types.string)
+    .addParam("tochain", "target chain id")
+    // .addParam("swapData", "swap data route")
+
+
 task("depositOutToken",
     "Cross-chain deposit token",
     require("./depositOutToken")
