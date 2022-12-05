@@ -1,28 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.7;
-struct SwapParam {
-    uint256 amountIn;
-    uint256 minAmountOut;
-    bytes path; // 0xtokenin+0xtokenOut on evm, or tokenIn'X'tokenOut on near
-    uint64 routerIndex; // pool id on near or router index on evm
-}
-
-struct SwapData {
-    SwapParam[] swapParams;
-    bytes targetToken;
-    bytes toAddress;
-}
-
-struct AccessParams {
-    uint256[]  amountInArr;
-    uint256[]  amountOutMinArr;
-    bytes[]    pathArr;
-    address  payable  to;
-    uint256    deadline;
-    address[2]  input_Out_Addre;  // 0 -input  1- Out
-    uint8[]  routerIndex;
-}
+import "../utils/ButterLib.sol";
 
 interface IEvent {
 
@@ -46,6 +25,7 @@ interface IEvent {
         bytes to;
         uint256 amount;
     }
+
     struct swapOutEvent {
         uint256 amount;
         bytes token;
@@ -53,7 +33,7 @@ interface IEvent {
         uint256 fromChain;
         uint256 toChain;
         address mapTargetToken;
-        SwapData swapData;
+        ButterLib.SwapData swapData;
         bytes32 orderId;
     }
 

@@ -2,10 +2,10 @@
 
 pragma solidity 0.8.7;
 
-import "../interface/IEvent.sol";
+import "../utils/ButterLib.sol";
 import "./RLPReader.sol";
 import "./Utils.sol";
-
+import "../interface/IEvent.sol";
 library EvmDecoder {
 
     using RLPReader for bytes;
@@ -56,14 +56,14 @@ library EvmDecoder {
         executorId = Utils.toBytes(log.addr);
         (outEvent.amount,outEvent.token, outEvent.from, outEvent.fromChain,
         outEvent.toChain,outEvent.mapTargetToken,outEvent.swapData,outEvent.orderId)
-        = abi.decode(log.data, (uint256,bytes,bytes,uint256,uint256,address,(SwapData),bytes32));
+        = abi.decode(log.data, (uint256,bytes,bytes,uint256,uint256,address,(ButterLib.SwapData),bytes32));
     }
 
     function decodeSwapDataLog(IEvent.txLog memory log)
     internal
     pure
-    returns (SwapData memory swapData) {
-        swapData = abi.decode(log.data, ((SwapData)));
+    returns (ButterLib.SwapData memory swapData) {
+        swapData = abi.decode(log.data, ((ButterLib.SwapData)));
     }
 
     function decodeDepositOutLog(IEvent.txLog memory log)

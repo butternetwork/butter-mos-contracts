@@ -2,10 +2,26 @@
 
 pragma solidity 0.8.7;
 
-import "../interface/IEvent.sol";
+import "./ButterLib.sol";
+
 library Utils {
 
-    function assembleParamsFromSwapData(SwapData memory swapData) internal pure {
+    function assembleCoreParam(ButterLib.SwapData memory swapData) internal pure returns(ButterLib.ButterCoreSwapParam memory) {
+        ButterLib.SwapParam[] memory swapParams = swapData.swapParams;
+
+        uint[] memory amountInArr;
+        bytes[] memory pathArr;
+        uint32[] memory routerIndex;
+        address[2] memory inputOutAddre;
+
+        ButterLib.ButterCoreSwapParam memory params = ButterLib.ButterCoreSwapParam({
+            amountInArr : amountInArr,
+            paramsArr : pathArr,
+            routerIndex: routerIndex,
+            inputOutAddre : inputOutAddre
+        });
+
+        return params;
 
     }
 
@@ -100,7 +116,6 @@ library Utils {
 
         return bytes_array;
     }
-
 
 
 }

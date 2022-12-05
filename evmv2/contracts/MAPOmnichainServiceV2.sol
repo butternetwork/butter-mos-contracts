@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "./interface/IWToken.sol";
-import "./interface/IEvent.sol";
+import "./utils/ButterLib.sol";
 import "./interface/IMAPToken.sol";
 import "./utils/TransferHelper.sol";
 import "./interface/IMOSV2.sol";
@@ -142,7 +142,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         uint256 _amount,
         address _mapTargetToken, // targetToken on map
         uint256 _toChain, // target chain id
-        SwapData calldata swapData
+        ButterLib.SwapData calldata swapData
     )
     external
     override
@@ -168,7 +168,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     function swapOutNative(
         address _mapTargetToken, // targetToken on map
         uint256 _toChain, // target chain id
-        SwapData calldata swapData
+        ButterLib.SwapData calldata swapData
     )
     external
     override
@@ -298,17 +298,17 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         uint amountOut = _outEvent.amount;
 
         // swap params, including route, amountIn, amountOut, toAddress etc
-        SwapData memory swapData = _outEvent.swapData;
-        SwapParam[] memory swapParams = swapData.swapParams;
+        ButterLib.SwapData memory swapData = _outEvent.swapData;
+        ButterLib.SwapParam[] memory swapParams = swapData.swapParams;
         // if swap params is not empty, then we need to do swap on the chain
         if (swapParams.length > 0) {
             if (isMintable(tokenOut)) {
                 IMAPToken(tokenOut).mint(address(this), amountOut);
             }
-            // assemble request to call butter router
-//            AccessParams memory params = Utils.assembleAccessParams(swapData);
-//            (bool success,) = address(butterCoreContract).call(abi.encodeWithSignature("multiSwap()", params));
-            bool success = true;
+            // assemble request to call butter core
+            ButterLib.ButterCoreSwapParam memory butterCoreSwapParam = Utils.assembleCoreParam(swapData);
+
+            (bool success,) = address(butterCoreContract).call(abi.encodeWithSignature("multiSwap()", butterCoreSwapParam));
             // if swap succeed, just return
             if (success) return;
 

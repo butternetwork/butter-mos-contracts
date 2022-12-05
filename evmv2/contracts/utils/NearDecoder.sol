@@ -3,9 +3,10 @@
 
 pragma solidity 0.8.7;
 
-import "../interface/IEvent.sol";
+import "../utils/ButterLib.sol";
 import "./RLPReader.sol";
 import "./Utils.sol";
+import "../interface/IEvent.sol";
 
 library NearDecoder {
 
