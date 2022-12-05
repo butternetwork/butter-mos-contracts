@@ -6,17 +6,23 @@ import "./ButterLib.sol";
 
 library Utils {
 
-    function assembleCoreParam(ButterLib.SwapData memory swapData) internal pure returns(ButterLib.ButterCoreSwapParam memory) {
+    function assembleButterCoreParam(address tokenIn, address tokenOut, address toAddress, ButterLib.SwapData memory swapData) internal view returns(ButterLib.ButterCoreSwapParam memory) {
         ButterLib.SwapParam[] memory swapParams = swapData.swapParams;
 
         uint[] memory amountInArr;
-        bytes[] memory pathArr;
+        bytes[] memory paramsArr;
         uint32[] memory routerIndex;
-        address[2] memory inputOutAddre;
+        address[2] memory inputOutAddre = [tokenIn, tokenOut];
+
+        for (uint i = 0; i < swapParams.length; i++) {
+            amountInArr[i] = swapParams[i].amountIn;
+            routerIndex[i] = uint32(swapParams[i].routerIndex);
+            paramsArr[i] = abi.encode(swapParams[i].amountIn, swapParams[i].minAmountOut, swapParams[i].path, toAddress, block.timestamp + 1000, tokenIn, tokenOut);
+        }
 
         ButterLib.ButterCoreSwapParam memory params = ButterLib.ButterCoreSwapParam({
             amountInArr : amountInArr,
-            paramsArr : pathArr,
+            paramsArr : paramsArr,
             routerIndex: routerIndex,
             inputOutAddre : inputOutAddre
         });
