@@ -35,12 +35,21 @@ module.exports = async (taskArgs) => {
             taskArgs.mos,
             taskArgs.value
         )).wait();
+        {
+
+        }
         const swapData = {
             swapParams: [
                 {
                     amountIn: '100000000000000',
                     minAmountOut: '0',
                     path: '0x' + stringToHex('wrap.testnetXmost.testnet'),
+                    routerIndex: 1
+                },
+                {
+                    amountIn: '100000000000000',
+                    minAmountOut: '0',
+                    path: '0x' + stringToHex('most.testnetXabc.testnet'),
                     routerIndex: 1
                 }
             ],

@@ -150,9 +150,10 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     function swapOutToken(
         address _token, // src token
         uint256 _amount,
+        address _mapTargetToken, // targetToken on map
         uint256 _toChain, // target chain id
         SwapData calldata swapData
-    ) external whenNotPaused {
+    ) external override whenNotPaused {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
 
@@ -161,9 +162,10 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     }
 
     function swapOutNative(
+        address _mapTargetToken, // targetToken on map
         uint256 _toChain, // target chain id
         SwapData calldata swapData
-    ) external payable whenNotPaused {
+    ) external override payable whenNotPaused {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");

@@ -145,6 +145,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         SwapData calldata swapData
     )
     external
+    override
     nonReentrant
     whenNotPaused
     checkBridgeable(_token, _toChain)
@@ -170,6 +171,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         SwapData calldata swapData
     )
     external
+    override
     payable
     nonReentrant
     whenNotPaused

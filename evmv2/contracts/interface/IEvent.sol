@@ -46,7 +46,6 @@ interface IEvent {
         bytes to;
         uint256 amount;
     }
-
     struct swapOutEvent {
         uint256 amount;
         bytes token;
