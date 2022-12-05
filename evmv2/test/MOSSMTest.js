@@ -39,6 +39,7 @@ describe("MAPOmnichainServiceV2 start test", function () {
 
     let receiver = "0x2E784874ddB32cD7975D68565b509412A5B519F4";
 
+
     beforeEach(async function () {
 
         [addr6,owner, addr1, addr2, addr3, addr4, addr5,addr7,addr8,addr9,...addrs] = await ethers.getSigners();
@@ -129,6 +130,59 @@ describe("MAPOmnichainServiceV2 start test", function () {
         expect(await standardToken.connect(addr1).balanceOf(addr1.address)).to.equal("99000000000000000000000000")
 
         expect(await standardToken.balanceOf(moss.address)).to.equal("900000000000000000000000");
+    });
+
+    it('swapOutToken test',async function () {
+
+        address2Bytes = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
+        const mapTargetToken = '0x0000000000000000000000000000000000000000'
+        await standardToken.connect(addr1).approve(moss.address,"10000000000000000000000000000000000")
+
+        const swapData = {
+            swapParams: [
+                {
+                    amountIn: '100000000000000000000000',
+                    minAmountOut: '0',
+                    path: '0x' + stringToHex('wrap.testnetXmost.testnet'),
+                    routerIndex: 1
+                },
+                {
+                    amountIn: '100000000000000000000000',
+                    minAmountOut: '0',
+                    path: '0x' + stringToHex('most.testnetXabc.testnet'),
+                    routerIndex: 1
+                }
+            ],
+            targetToken: '0x' + stringToHex('most.testnet'),
+            toAddress: '0x' + stringToHex('xyli.testnet')
+        }
+        //swapOut "100000000000000000000000" token
+        await moss.connect(addr1).swapOutToken(
+            standardToken.address,
+            "100000000000000000000000",
+            mapTargetToken,
+            34434,
+            swapData
+            );
+
+        //MintableToken true totalSupply burn 100000000000000000000000
+        expect(await standardToken.totalSupply()).to.equal(BigNumber.from("99900000000000000000000000"));
+
+        // here
+        expect(await standardToken.balanceOf(moss.address)).to.equal("1000000000000000000000000")
+        await moss.removeMintableToken([standardToken.address]);
+
+        expect(await moss.mintableTokens(standardToken.address)).to.equal(false);
+
+        await moss.connect(addr1).transferOutToken(standardToken.address,address2Bytes,"900000000000000000000000",34434);
+        //MintableToken false totalSupply no change
+        expect(await standardToken.totalSupply()).to.equal(BigNumber.from("99900000000000000000000000"));
+        //addr1 balance 99900000000000000000000000 subtract 900000000000000000000000
+        // here
+        expect(await standardToken.connect(addr1).balanceOf(addr1.address)).to.equal("98000000000000000000000000")
+
+        // here
+        expect(await standardToken.balanceOf(moss.address)).to.equal("1900000000000000000000000");
     });
 
     it('map transferIn test ', async function () {
@@ -294,4 +348,8 @@ describe("MAPOmnichainServiceV2 start test", function () {
     });
 })
 
-
+function stringToHex(str) {
+    return str.split("").map(function(c) {
+        return ("0" + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join("");
+}

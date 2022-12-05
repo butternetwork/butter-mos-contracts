@@ -29,7 +29,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         address receiver;
         uint rate;
     }
-    enum chainType{
+
+    enum chainType {
         NULL,
         EVM,
         NEAR

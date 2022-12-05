@@ -2,6 +2,7 @@ const { ethers } = require("hardhat");
 const { expect } = require("chai");
 const mosRelayData = require('./mosRelayData');
 require("solidity-coverage");
+const {BigNumber} = require("ethers");
 
 
 describe("MAPOmnichainServiceRelayV2 start test", function () {
@@ -183,6 +184,60 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         await standardToken.connect(owner).approve(mossR.address,"100000000000000000000");
 
         await mossR.connect(owner).transferOutToken(standardToken.address,address2Bytes,"1000000000000000000",97)
+
+        expect(await mapVault.vaultBalance(97)).to.equal("-1000000000000000000")
+        expect(await standardToken.totalSupply()).to.equal("0");
+        console.log(await standardToken.totalSupply());
+
+        await standardToken.mint(owner.address,"1000000000000000000");
+
+        await tokenRegister.registerToken(standardToken.address,mapVault.address, false);
+
+        await mossR.connect(owner).transferOutToken(standardToken.address,address2Bytes,"1000000000000000000",1313161555)
+
+        expect(await mapVault.vaultBalance(1313161555)).to.equal("-1000000000000000000")
+        expect(await standardToken.totalSupply()).to.equal("1000000000000000000");
+
+        expect(await standardToken.balanceOf(owner.address)).to.equal("0");
+    });
+
+    it('swapOutToken test',async function () {
+        const mapTargetToken = '0x0000000000000000000000000000000000000000'
+
+        let mintRole = await  standardToken.MINTER_ROLE();
+
+        await standardToken.grantRole(mintRole,mossR.address);
+
+        await standardToken.mint(owner.address,"1000000000000000000");
+
+        await standardToken.connect(owner).approve(mossR.address,"100000000000000000000");
+
+        const swapData = {
+            swapParams: [
+                {
+                    amountIn: '100000000000000000000000',
+                    minAmountOut: '0',
+                    path: '0x' + stringToHex('wrap.testnetXmost.testnet'),
+                    routerIndex: 1
+                },
+                {
+                    amountIn: '100000000000000000000000',
+                    minAmountOut: '0',
+                    path: '0x' + stringToHex('most.testnetXabc.testnet'),
+                    routerIndex: 1
+                }
+            ],
+            targetToken: '0x' + stringToHex('most.testnet'),
+            toAddress: '0x' + stringToHex('xyli.testnet')
+        }
+        //swapOut "100000000000000000000000" token
+        await mossR.connect(addr1).swapOutToken(
+            standardToken.address,
+            "100000000000000000000000",
+            mapTargetToken,
+            97,
+            swapData
+        );
 
         expect(await mapVault.vaultBalance(97)).to.equal("-1000000000000000000")
         expect(await standardToken.totalSupply()).to.equal("0");
