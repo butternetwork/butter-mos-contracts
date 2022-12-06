@@ -299,35 +299,44 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         // receiving address
         address payable toAddress = payable(Utils.fromBytes(_outEvent.swapData.toAddress));
         // amount of token need to be sent
-        uint amountOut = _outEvent.amount;
+        uint actualAmountIn = _outEvent.amount;
 
         // swap params, including route, amountIn, amountOut, toAddress etc
         ButterLib.SwapData memory swapData = _outEvent.swapData;
         ButterLib.SwapParam[] memory swapParams = swapData.swapParams;
-        // if swap params is not empty, then we need to do swap on the chain
+
+        // if swap params is not empty, then we need to do swap on current chain
         if (swapParams.length > 0) {
             if (isMintable(tokenOut)) {
-                IMAPToken(tokenOut).mint(address(this), amountOut);
+                IMAPToken(tokenOut).mint(address(this), actualAmountIn);
             }
-            // assemble request to call butter core
-            ButterLib.ButterCoreSwapParam memory butterCoreSwapParam = Utils.assembleButterCoreParam(tokenIn, tokenOut, toAddress, swapData);
 
-            // low-level call multiswap
-            (bool success,) = address(butterCoreAddress).call(abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))", butterCoreSwapParam));
-            // if swap succeed, just return
-            if (success) return;
+            uint predicatedAmountIn = Utils.getAmountInSumFromSwapParams(swapParams);
+            if (actualAmountIn >= predicatedAmountIn) {
+                // assemble request to call butter core
+                ButterLib.ButterCoreSwapParam memory butterCoreSwapParam =
+                Utils.assembleButterCoreParam(tokenIn, actualAmountIn, predicatedAmountIn, swapData);
 
-            // if swap not succeed, give user the source token
+                // low-level call butter core to finish swap
+                (bool success,) = address(butterCoreAddress).call(
+                    abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))", butterCoreSwapParam)
+                );
+
+                // if swap succeed, just return
+                if (success) return;
+            }
+            // if swap not succeed or swap not happened, give user the source token
             tokenOut = tokenIn;
         }
-        // transfer token if swap
+
+        // transfer token if swap did not happen
         if (tokenOut == wToken) {
-            TransferHelper.safeWithdraw(wToken, amountOut);
-            TransferHelper.safeTransferETH(toAddress, amountOut);
-        } else if (isMintable(tokenOut)) {
-            IMAPToken(tokenOut).mint(toAddress, amountOut);
+            TransferHelper.safeWithdraw(wToken, actualAmountIn);
+            TransferHelper.safeTransferETH(toAddress, actualAmountIn);
+        } else if (isMintable(tokenOut) && swapParams.length == 0) {
+            IMAPToken(tokenOut).mint(toAddress, actualAmountIn);
         } else {
-            TransferHelper.safeTransfer(tokenOut, toAddress, amountOut);
+            TransferHelper.safeTransfer(tokenOut, toAddress, actualAmountIn);
         }
         // emit mapSwapIn(targetToken, _outEvent.from, _outEvent.orderId, _outEvent.fromChain, toAddress, totalMinAmountOut);
     }

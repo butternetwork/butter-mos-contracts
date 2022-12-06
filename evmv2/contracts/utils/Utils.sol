@@ -5,30 +5,63 @@ pragma solidity 0.8.7;
 import "./ButterLib.sol";
 
 library Utils {
-
-    function assembleButterCoreParam(address tokenIn, address tokenOut, address toAddress, ButterLib.SwapData memory swapData) internal view returns(ButterLib.ButterCoreSwapParam memory) {
-        ButterLib.SwapParam[] memory swapParams = swapData.swapParams;
-
+    function assembleButterCoreParam(
+        address _tokenIn,
+        uint _actualAmountIn,
+        uint _predicatedAmountIn,
+        ButterLib.SwapData memory _swapData
+    )
+    public
+    view
+    returns (ButterLib.ButterCoreSwapParam memory) {
+        ButterLib.SwapParam[] memory swapParams = _swapData.swapParams;
         uint[] memory amountInArr;
         bytes[] memory paramsArr;
         uint32[] memory routerIndex;
-        address[2] memory inputOutAddre = [tokenIn, tokenOut];
+
+
+        // modify swapParam amount in, compensate the difference between actual and predicted amount.
+        if (_actualAmountIn >= _predicatedAmountIn) {
+            swapParams[0].amountIn += (_actualAmountIn - _predicatedAmountIn);
+        }
 
         for (uint i = 0; i < swapParams.length; i++) {
+
             amountInArr[i] = swapParams[i].amountIn;
+
             routerIndex[i] = uint32(swapParams[i].routerIndex);
-            paramsArr[i] = abi.encode(swapParams[i].amountIn, swapParams[i].minAmountOut, swapParams[i].path, toAddress, block.timestamp + 1000, tokenIn, tokenOut);
+
+            paramsArr[i] = abi.encode(
+                amountInArr[i],
+                swapParams[i].minAmountOut,
+                swapParams[i].path,
+                _swapData.toAddress,
+                block.timestamp + 1000,
+                _tokenIn,
+                Utils.fromBytes(_swapData.targetToken)
+            );
         }
 
         ButterLib.ButterCoreSwapParam memory params = ButterLib.ButterCoreSwapParam({
             amountInArr : amountInArr,
             paramsArr : paramsArr,
-            routerIndex: routerIndex,
-            inputOutAddre : inputOutAddre
+            routerIndex : routerIndex,
+            inputOutAddre : [_tokenIn, Utils.fromBytes(_swapData.targetToken)]
         });
 
         return params;
 
+    }
+
+    function getAmountInSumFromSwapParams(ButterLib.SwapParam[] memory swapParams)
+    internal
+    pure
+    returns (uint sum_)
+    {
+        sum_ = 0;
+        for (uint i = 0; i < swapParams.length; i++) {
+            sum_ += swapParams[i].amountIn;
+        }
     }
 
     function checkBytes(bytes memory b1, bytes memory b2) internal pure returns (bool){
