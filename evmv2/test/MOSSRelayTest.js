@@ -278,14 +278,6 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         expect(await testToken.balanceOf(owner.address)).to.equal("0");
     });
 
-    // it('swapOutNative test ', async function () {
-    //
-    //     await mossR.connect(owner).transferOutNative(address2Bytes,1313161555,{value:"100000000000000000"});
-    //
-    //     expect(await wrapped.balanceOf(mossR.address)).to.equal("100000000000000000")
-    // });
-
-
     it('transferIn test ', async function () {
         await tokenRegister.registerToken(standardToken.address,mapVault.address,true);
 
@@ -594,6 +586,14 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         await mossR.connect(owner).transferOutToken(usdt.address,address2Bytes,"1000000000000000000",97)
 
         expect(await usdt.balanceOf(addr9.address)).to.equal("200000000000000000")
+    });
+
+    it('swapOutNative test ', async function () {
+        const mapTargetToken = '0x0000000000000000000000000000000000000000'
+
+        await mossR.connect(owner).swapOutNative(mapTargetToken,1313161555, swapData, {value:"100000000000000000"});
+
+        expect(await wrapped.balanceOf(mossR.address)).to.equal("2100000000000000000")
     });
 
 
