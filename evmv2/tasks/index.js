@@ -183,3 +183,9 @@ task("mosList",
 )
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
     .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
+
+task("upgradeMOS",
+    "upgrade mos evm contract in proxy",
+    require("./upgradeMOS")
+)
+    .addParam("mos", "The mos address")

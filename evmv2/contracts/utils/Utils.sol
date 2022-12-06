@@ -11,7 +11,7 @@ library Utils {
         uint _predicatedAmountIn,
         ButterLib.SwapData memory _swapData
     )
-    public
+    internal
     view
     returns (ButterLib.ButterCoreSwapParam memory) {
         ButterLib.SwapParam[] memory swapParams = _swapData.swapParams;
