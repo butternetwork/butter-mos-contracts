@@ -30,7 +30,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     uint public nonce;
     address public wToken;          // native wrapped token
     address public relayContract;
-    address public butterCoreAddress;
+    address public butterCore;
     uint256 public relayChainId;
     ILightNode public lightNode;
 
@@ -99,7 +99,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     }
 
     function setButterCoreAddress(address _butterCoreAddress) external onlyOwner checkAddress(_butterCoreAddress) {
-        butterCoreAddress = _butterCoreAddress;
+        butterCore = _butterCoreAddress;
     }
 
     function registerToken(address _token, uint _toChain, bool _enable) external onlyOwner {
@@ -318,7 +318,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
                 Utils.assembleButterCoreParam(tokenIn, actualAmountIn, predicatedAmountIn, swapData);
 
                 // low-level call butter core to finish swap
-                (bool success,) = address(butterCoreAddress).call(
+                (bool success,) = address(butterCore).call(
                     abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))", butterCoreSwapParam)
                 );
 
