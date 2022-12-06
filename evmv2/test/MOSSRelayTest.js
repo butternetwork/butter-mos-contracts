@@ -2,6 +2,7 @@ const { ethers } = require("hardhat");
 const { expect } = require("chai");
 const mosRelayData = require('./mosRelayData');
 require("solidity-coverage");
+const {BigNumber} = require("ethers");
 
 
 describe("MAPOmnichainServiceRelayV2 start test", function () {
@@ -53,6 +54,25 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
 
     let address2Bytes;
     let initData;
+
+    const swapData = {
+        swapParams: [
+            {
+                amountIn: '100000000000000000000000',
+                minAmountOut: '0',
+                path: '0x0000',
+                routerIndex: 1
+            },
+            {
+                amountIn: '100000000000000000000000',
+                minAmountOut: '0',
+                path: '0x0000',
+                routerIndex: 1
+            }
+        ],
+        targetToken: '0x0000',
+        toAddress: '0x0000'
+    }
 
     beforeEach(async function () {
 
@@ -206,6 +226,64 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
 
         expect(await wrapped.balanceOf(mossR.address)).to.equal("100000000000000000")
     });
+
+    it('swapOutToken test', async function () {
+        //chainID 31337
+        //address2Bytes = await mossR._addressToBytes(addr2.address);
+        address2Bytes = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
+        let testTokenContract = await ethers.getContractFactory("MintableToken");
+        let testToken = await testTokenContract.deploy("TestToken","TT");
+
+        // setup token vault
+        let tokenVaultContract = await ethers.getContractFactory("VaultTokenV2");
+        let tokenVault = await tokenVaultContract.deploy(testToken.address,"MapVaultToken","MVT");
+        console.log("MapVault  address:",tokenVault.address);
+        await tokenVault.addManager(mossR.address);
+
+
+        const mintAmount = "100000000000000000000";
+        await testToken.mint(addr1.address, mintAmount);
+        expect(await testToken.totalSupply()).to.equal(BigNumber.from(mintAmount));
+
+        await tokenRegister.registerToken(testToken.address,tokenVault.address, "true");
+        await tokenRegister.mapToken(testToken.address,1313161555,mosRelayData.nearTestToken,24);
+        await tokenRegister.mapToken(testToken.address,97,mosRelayData.bscTestToken,18);
+
+        await testToken.connect(addr1).approve(mossR.address, mintAmount)
+
+        let mintRole = await testToken.MINTER_ROLE();
+
+        await testToken.grantRole(mintRole,mossR.address);
+
+        await testToken.mint(owner.address,"1000000000000000000");
+
+        await testToken.connect(owner).approve(mossR.address,"100000000000000000000");
+
+        const mapTargetToken = '0x0000000000000000000000000000000000000000'
+
+        await mossR.connect(owner).swapOutToken(testToken.address, "1000000000000000000", mapTargetToken,97, swapData)
+
+        expect(await tokenVault.vaultBalance(97)).to.equal("-1000000000000000000")
+        expect(await testToken.totalSupply()).to.equal("100000000000000000000");
+
+        await testToken.mint(owner.address,"1000000000000000000");
+
+        await tokenRegister.registerToken(testToken.address,tokenVault.address, false);
+
+        await mossR.connect(owner).swapOutToken(testToken.address, "1000000000000000000", mapTargetToken,1313161555, swapData)
+
+        expect(await tokenVault.vaultBalance(1313161555)).to.equal("-1000000000000000000")
+        expect(await testToken.totalSupply()).to.equal("101000000000000000000");
+
+        expect(await testToken.balanceOf(owner.address)).to.equal("0");
+    });
+
+    // it('swapOutNative test ', async function () {
+    //
+    //     await mossR.connect(owner).transferOutNative(address2Bytes,1313161555,{value:"100000000000000000"});
+    //
+    //     expect(await wrapped.balanceOf(mossR.address)).to.equal("100000000000000000")
+    // });
 
 
     it('transferIn test ', async function () {
