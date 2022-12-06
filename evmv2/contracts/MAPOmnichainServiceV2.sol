@@ -312,6 +312,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
             // assemble request to call butter core
             ButterLib.ButterCoreSwapParam memory butterCoreSwapParam = Utils.assembleButterCoreParam(tokenIn, tokenOut, toAddress, swapData);
 
+            // low-level call multiswap
             (bool success,) = address(butterCoreAddress).call(abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))", butterCoreSwapParam));
             // if swap succeed, just return
             if (success) return;

@@ -38,12 +38,28 @@ describe("MAPOmnichainServiceV2 start test", function () {
     let address2Bytes;
 
     let receiver = "0x2E784874ddB32cD7975D68565b509412A5B519F4";
-
+    const swapData = {
+        swapParams: [
+            {
+                amountIn: '100000000000000000000000',
+                minAmountOut: '0',
+                path: '0x' + stringToHex('wrap.testnetXmost.testnet'),
+                routerIndex: 1
+            },
+            {
+                amountIn: '100000000000000000000000',
+                minAmountOut: '0',
+                path: '0x' + stringToHex('most.testnetXabc.testnet'),
+                routerIndex: 1
+            }
+        ],
+        targetToken: '0x' + stringToHex('most.testnet'),
+        toAddress: '0x' + stringToHex('xyli.testnet')
+    }
 
     beforeEach(async function () {
 
         [addr6,owner, addr1, addr2, addr3, addr4, addr5,addr7,addr8,addr9,...addrs] = await ethers.getSigners();
-
     });
 
     it("constract deploy init", async function () {
@@ -132,58 +148,6 @@ describe("MAPOmnichainServiceV2 start test", function () {
         expect(await standardToken.balanceOf(moss.address)).to.equal("900000000000000000000000");
     });
 
-    it('swapOutToken test',async function () {
-
-        address2Bytes = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
-        const mapTargetToken = '0x0000000000000000000000000000000000000000'
-        await standardToken.connect(addr1).approve(moss.address,"10000000000000000000000000000000000")
-
-        const swapData = {
-            swapParams: [
-                {
-                    amountIn: '100000000000000000000000',
-                    minAmountOut: '0',
-                    path: '0x' + stringToHex('wrap.testnetXmost.testnet'),
-                    routerIndex: 1
-                },
-                {
-                    amountIn: '100000000000000000000000',
-                    minAmountOut: '0',
-                    path: '0x' + stringToHex('most.testnetXabc.testnet'),
-                    routerIndex: 1
-                }
-            ],
-            targetToken: '0x' + stringToHex('most.testnet'),
-            toAddress: '0x' + stringToHex('xyli.testnet')
-        }
-        //swapOut "100000000000000000000000" token
-        await moss.connect(addr1).swapOutToken(
-            standardToken.address,
-            "100000000000000000000000",
-            mapTargetToken,
-            34434,
-            swapData
-            );
-
-        //MintableToken true totalSupply burn 100000000000000000000000
-        expect(await standardToken.totalSupply()).to.equal(BigNumber.from("99900000000000000000000000"));
-
-        // here
-        expect(await standardToken.balanceOf(moss.address)).to.equal("1000000000000000000000000")
-        await moss.removeMintableToken([standardToken.address]);
-
-        expect(await moss.mintableTokens(standardToken.address)).to.equal(false);
-
-        await moss.connect(addr1).transferOutToken(standardToken.address,address2Bytes,"900000000000000000000000",34434);
-        //MintableToken false totalSupply no change
-        expect(await standardToken.totalSupply()).to.equal(BigNumber.from("99900000000000000000000000"));
-        //addr1 balance 99900000000000000000000000 subtract 900000000000000000000000
-        // here
-        expect(await standardToken.connect(addr1).balanceOf(addr1.address)).to.equal("98000000000000000000000000")
-
-        // here
-        expect(await standardToken.balanceOf(moss.address)).to.equal("1900000000000000000000000");
-    });
 
     it('map transferIn test ', async function () {
         await moss.addMintableToken([standardToken.address]);
@@ -281,6 +245,55 @@ describe("MAPOmnichainServiceV2 start test", function () {
 
     });
 
+
+    it('swapOutToken test',async function () {
+        // deploy test token
+        let testTokenContract = await ethers.getContractFactory("MintableToken");
+        let testToken = await testTokenContract.deploy("TestToken","TT");
+
+        // mint 10 test token to addr1
+        const mintAmount = "100000000000000000000";
+        await testToken.mint(addr1.address, mintAmount);
+        expect(await testToken.totalSupply()).to.equal(BigNumber.from(mintAmount));
+        // register test token
+        await moss.registerToken(testToken.address,34434,"true");
+        await moss.registerToken(testToken.address,212,"true");
+        // add mintable
+        await moss.addMintableToken([testToken.address]);
+        await testToken.connect(addr1).approve(moss.address, mintAmount)
+
+        address2Bytes = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
+        const mapTargetToken = '0x0000000000000000000000000000000000000000'
+
+        const swapAmount = "1000000000000000000";
+        await moss.connect(addr1).swapOutToken(
+            testToken.address,
+            swapAmount,
+            mapTargetToken,
+            34434,
+            swapData
+        );
+
+        expect(await testToken.totalSupply()).to.equal(BigNumber.from("99000000000000000000"));
+
+        expect(await testToken.balanceOf(moss.address)).to.equal('0')
+        await moss.removeMintableToken([testToken.address]);
+
+        expect(await moss.mintableTokens(testToken.address)).to.equal(false);
+    });
+
+
+    it('swapOutNative', async function () {
+        await moss.registerToken(wrapped.address,1313161555,"true");
+        const mapTargetToken = '0x0000000000000000000000000000000000000000'
+
+        await moss.connect(owner).swapOutNative(mapTargetToken,1313161555, swapData, {value:"100000000000000000"});
+
+        //100000000000000000
+        expect(await wrapped.balanceOf(moss.address)).to.equal("950000000000000000")
+
+    });
+
     it('withdraw test', async function () {
         console.log(await ethers.provider.getBalance(moss.address));
         await moss.emergencyWithdraw(
@@ -346,7 +359,9 @@ describe("MAPOmnichainServiceV2 start test", function () {
         await expect(moss.transferIn(212,mosData.near2et000)).to.be.revertedWith("order exist");
 
     });
+
 })
+
 
 function stringToHex(str) {
     return str.split("").map(function(c) {
