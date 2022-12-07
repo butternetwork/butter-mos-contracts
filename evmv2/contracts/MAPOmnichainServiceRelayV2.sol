@@ -25,7 +25,7 @@ import "./utils/Utils.sol";
 contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable, IMOSV2, UUPSUpgradeable {
     using SafeMath for uint256;
 
-    struct Rate{
+    struct Rate {
         address receiver;
         uint rate;
     }
@@ -49,7 +49,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     mapping(uint256 => chainType) public chainTypes;
 
     event mapTransferRelay(uint256 indexed fromChain, uint256 indexed toChain, bytes32 orderId,
-        address token, bytes from,  bytes to, uint256 amount);
+        address token, bytes from, bytes to, uint256 amount);
 
     event mapDepositIn(uint256 indexed fromChain, uint256 indexed toChain, address indexed token, bytes32 orderId,
         bytes from, address to, uint256 amount);
@@ -150,28 +150,28 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
     function swapOutToken(
         address _token, // src token
+        bytes memory _to,
         uint256 _amount,
-        address _mapTargetToken, // targetToken on map
         uint256 _toChain, // target chain id
-        ButterLib.SwapData calldata swapData
+        bytes calldata swapData
     ) external override whenNotPaused {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
 
         TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
-        _swapOut(_token, msg.sender, _amount, _toChain, swapData);
+        _swapOut(_token, _to, msg.sender, _amount, _toChain, swapData);
     }
 
     function swapOutNative(
-        address _mapTargetToken, // targetToken on map
+        bytes memory _to,
         uint256 _toChain, // target chain id
-        ButterLib.SwapData calldata swapData
+        bytes calldata swapData
     ) external override payable whenNotPaused {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWToken(wToken).deposit{value : amount}();
-        _swapOut(wToken, msg.sender, amount, _toChain, swapData);
+        _swapOut(wToken, _to, msg.sender, amount, _toChain, swapData);
     }
 
     function depositToken(address _token, address _to, uint _amount) external override nonReentrant whenNotPaused {
@@ -204,7 +204,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
                 if (topic == EvmDecoder.MAP_TRANSFEROUT_TOPIC) {
                     (bytes memory mosContract, IEvent.transferOutEvent memory outEvent) = EvmDecoder.decodeTransferOutLog(log);
                     //require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
-                    if(Utils.checkBytes(mosContract, mosContracts[_chainId])) {
+                    if (Utils.checkBytes(mosContract, mosContracts[_chainId])) {
                         _transferIn(_chainId, outEvent);
                     }
                 }
@@ -230,7 +230,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
                 if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC) {
                     (bytes memory mosContract, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
                     //require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
-                    if(Utils.checkBytes(mosContract, mosContracts[_chainId])) {
+                    if (Utils.checkBytes(mosContract, mosContracts[_chainId])) {
                         _swapIn(_chainId, outEvent);
                     }
                 }
@@ -254,7 +254,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             for (uint256 i = 0; i < logs.length; i++) {
                 if (abi.decode(logs[i].topics[0], (bytes32)) == EvmDecoder.MAP_DEPOSITOUT_TOPIC) {
                     (bytes memory mosContract, IEvent.depositOutEvent memory depositEvent) = EvmDecoder.decodeDepositOutLog(logs[i]);
-                    if(Utils.checkBytes(mosContract, mosContracts[_chainId])) {
+                    if (Utils.checkBytes(mosContract, mosContracts[_chainId])) {
                         _depositIn(_chainId, depositEvent);
                     }
                 }
@@ -298,12 +298,12 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             otherFee = fee - vaultFee;
 
             (uint256 out, address receiver) = getFee(1, fee);
-            if(out>0 && receiver != address(0)){
+            if (out > 0 && receiver != address(0)) {
                 _withdraw(token, payable(receiver), out);
             }
 
             (uint256 protocolFee, address protocolReceiver) = getFee(2, fee);
-            if(protocolFee > 0 && protocolReceiver != address(0)){
+            if (protocolFee > 0 && protocolReceiver != address(0)) {
                 _withdraw(token, payable(protocolReceiver), protocolFee);
             }
         }
@@ -318,7 +318,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(!Utils.checkBytes(toToken, bytes("")), "out token not registered");
 
         bytes32 orderId = _getOrderId(_from, _to, _toChain);
-        emit mapTransferRelay(selfChainId, _toChain, orderId, _token, Utils.toBytes(_from),  _to, _amount);
+        emit mapTransferRelay(selfChainId, _toChain, orderId, _token, Utils.toBytes(_from), _to, _amount);
 
         (uint256 mapOutAmount, uint256 outAmount) = _collectFee(_token, _amount, selfChainId, _toChain);
 
@@ -326,7 +326,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             IMAPToken(_token).burn(mapOutAmount);
         }
 
-        emit mapTransferOut(selfChainId, _toChain, orderId, Utils.toBytes(_token), Utils.toBytes(_from),  _to, outAmount, toToken);
+        emit mapTransferOut(selfChainId, _toChain, orderId, Utils.toBytes(_token), Utils.toBytes(_from), _to, outAmount, toToken);
     }
 
     function _transferIn(uint256 _chainId, IEvent.transferOutEvent memory _outEvent)
@@ -349,7 +349,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
         emit mapTransferRelay(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, _outEvent.to, mapAmount);
 
-        (uint256 mapOutAmount, uint256 outAmount)  = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
+        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
 
         if (_outEvent.toChain == selfChainId) {
             address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
@@ -362,7 +362,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             }
             emit mapTransferIn(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from,
                 toAddress, mapOutAmount);
-        }else {
+        } else {
             if (tokenRegister.checkMintable(token)) {
                 IMAPToken(token).burn(mapOutAmount);
             }
@@ -378,14 +378,15 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         address token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
         require(token != address(0), "map token not registered");
         // does not support swap on map for now.
-        require(_outEvent.mapTargetToken == token, "Swap on Map Relay Chain not supported yet");
+        ButterLib.SwapData memory swapData = abi.decode(_outEvent.swapData, (ButterLib.SwapData));
+        require(swapData.mapTargetToken == token, "Swap on Map Relay Chain not supported yet");
 
 
         // if source token's relay chain mapping token is NOT mapTargetToken, then swap needed.
-//        if (_outEvent.mapTargetToken != token) {
-//            // swap logic goes here...
-//            token = _outEvent.mapTargetToken;
-//        }
+        //        if (_outEvent.mapTargetToken != token) {
+        //            // swap logic goes here...
+        //            token = _outEvent.mapTargetToken;
+        //        }
 
         bytes memory toChainToken;
         if (_outEvent.toChain == selfChainId) {
@@ -402,10 +403,10 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
         // emit mapTransferRelay(mapAmount, _outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, _outEvent.toAddress, mapAmount);
 
-        (uint256 mapOutAmount, uint256 outAmount)  = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
+        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
 
         if (_outEvent.toChain == selfChainId) {
-            address payable toAddress = payable(Utils.fromBytes(_outEvent.swapData.toAddress));
+            address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
             if (token == wToken) {
                 TransferHelper.safeWithdraw(wToken, mapOutAmount);
                 TransferHelper.safeTransferETH(toAddress, mapOutAmount);
@@ -414,20 +415,30 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
                 TransferHelper.safeTransfer(token, toAddress, mapOutAmount);
             }
             emit mapSwapIn(_outEvent.fromChain, _outEvent.toChain, token, _outEvent.from, toAddress, mapOutAmount, _outEvent.orderId);
-        }else {
+        } else {
             if (tokenRegister.checkMintable(token)) {
                 IMAPToken(token).burn(mapOutAmount);
             }
-            emit mapSwapOut(outAmount, toChainToken, _outEvent.from, _outEvent.fromChain, _outEvent.toChain, _outEvent.mapTargetToken, _outEvent.swapData, _outEvent.orderId);
+            emit mapSwapOut(
+                _outEvent.fromChain,
+                _outEvent.toChain,
+                _outEvent.orderId,
+                toChainToken,
+                _outEvent.from,
+                _outEvent.to,
+                outAmount,
+                _outEvent.swapData
+            );
         }
     }
 
     function _swapOut(
         address _token, // src token
+        bytes memory _to,
         address _from,
         uint256 _amount,
         uint256 _toChain, // target chain id
-        ButterLib.SwapData calldata swapData
+        bytes calldata swapData
     ) internal {
         bytes memory toToken = tokenRegister.getToChainToken(_token, _toChain);
         // bytes memory toToken = "0x0";
@@ -439,8 +450,17 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             IMAPToken(_token).burn(mapOutAmount);
         }
 
-        bytes32 orderId = _getOrderId(_from, swapData.toAddress, _toChain);
-        emit mapSwapOut(outAmount, toToken, Utils.toBytes(_from), selfChainId, _toChain, _token, swapData, orderId);
+        bytes32 orderId = _getOrderId(_from, _to, _toChain);
+        emit mapSwapOut(
+            selfChainId,
+            _toChain,
+            orderId,
+            toToken,
+            Utils.toBytes(_from),
+            _to,
+            outAmount,
+            swapData
+        );
     }
 
     function _depositIn(uint256 _chainId, IEvent.depositOutEvent memory _depositEvent)
@@ -459,12 +479,12 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     }
 
     function _deposit(address _token, bytes memory _from, address _to, uint256 _amount, bytes32 _orderId, uint256 _fromChain)
-    internal  {
+    internal {
         address vaultToken = tokenRegister.getVaultToken(_token);
         require(vaultToken != address(0), "vault token not registered");
 
         IVaultTokenV2(vaultToken).deposit(_fromChain, _amount, _to);
-        emit mapDepositIn( _fromChain, selfChainId, _token, _orderId, _from, _to, _amount);
+        emit mapDepositIn(_fromChain, selfChainId, _token, _orderId, _from, _to, _amount);
     }
 
     function _withdraw(address _token, address payable _receiver, uint256 _amount) internal {

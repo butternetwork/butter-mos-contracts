@@ -143,10 +143,10 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
 
     function swapOutToken(
         address _token, // src token
+        bytes memory _to,
         uint256 _amount,
-        address _mapTargetToken, // targetToken on map
         uint256 _toChain, // target chain id
-        ButterLib.SwapData calldata swapData
+        bytes calldata swapData
     )
     external
     override
@@ -156,7 +156,6 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
-        bytes memory toAddress = swapData.toAddress;
 
         if (isMintable(_token)) {
             IMAPToken(_token).burnFrom(msg.sender, _amount);
@@ -164,15 +163,24 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
             TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
         }
 
-        bytes32 orderId = _getOrderID(msg.sender, toAddress, _toChain);
+        bytes32 orderId = _getOrderID(msg.sender, _to, _toChain);
 
-        emit mapSwapOut(_amount, Utils.toBytes(_token), Utils.toBytes(msg.sender), selfChainId, _toChain, _mapTargetToken, swapData, orderId);
+        emit mapSwapOut(
+            selfChainId,
+            _toChain,
+            orderId,
+            Utils.toBytes(_token),
+            Utils.toBytes(msg.sender),
+            _to,
+            _amount,
+            swapData
+        );
     }
 
     function swapOutNative(
-        address _mapTargetToken, // targetToken on map
+        bytes memory _to,
         uint256 _toChain, // target chain id
-        ButterLib.SwapData calldata swapData
+        bytes calldata swapData
     )
     external
     override
@@ -182,12 +190,20 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     checkBridgeable(wToken, _toChain)
     {
         require(_toChain != selfChainId, "Cannot swap to self chain");
-        bytes memory toAddress = swapData.toAddress;
         uint amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWToken(wToken).deposit{value : amount}();
-        bytes32 orderId = _getOrderID(msg.sender, toAddress, _toChain);
-        emit mapSwapOut(amount, Utils.toBytes(wToken), Utils.toBytes(msg.sender), selfChainId, _toChain, _mapTargetToken, swapData, orderId);
+        bytes32 orderId = _getOrderID(msg.sender, _to, _toChain);
+        emit mapSwapOut(
+            selfChainId,
+            _toChain,
+            orderId,
+            Utils.toBytes(wToken),
+            Utils.toBytes(msg.sender),
+            _to,
+            amount,
+            swapData
+        );
 
     }
 
@@ -295,14 +311,13 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         // the token contract get
         address tokenIn = Utils.fromBytes(_outEvent.token);
         // the token contract need to send
-        address tokenOut = Utils.fromBytes(_outEvent.swapData.targetToken);
+        ButterLib.SwapData memory swapData = abi.decode(_outEvent.swapData, (ButterLib.SwapData));
+        address tokenOut = Utils.fromBytes(swapData.targetToken);
         // receiving address
-        address payable toAddress = payable(Utils.fromBytes(_outEvent.swapData.toAddress));
+        address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
         // amount of token need to be sent
         uint actualAmountIn = _outEvent.amount;
 
-        // swap params, including route, amountIn, amountOut, toAddress etc
-        ButterLib.SwapData memory swapData = _outEvent.swapData;
         ButterLib.SwapParam[] memory swapParams = swapData.swapParams;
 
         // if swap params is not empty, then we need to do swap on current chain
@@ -315,7 +330,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
             if (actualAmountIn >= predicatedAmountIn) {
                 // assemble request to call butter core
                 ButterLib.ButterCoreSwapParam memory butterCoreSwapParam =
-                Utils.assembleButterCoreParam(tokenIn, actualAmountIn, predicatedAmountIn, swapData);
+                Utils.assembleButterCoreParam(tokenIn, actualAmountIn, predicatedAmountIn, _outEvent.to, swapData);
 
                 // low-level call butter core to finish swap
                 (bool success,) = address(butterCore).call(

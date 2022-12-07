@@ -8,17 +8,18 @@ interface IMOSV2 {
 
     function swapOutToken(
         address _token, // src token
+        bytes memory _to,
         uint256 _amount,
-        address _mapTargetToken, // targetToken on map
         uint256 _toChain, // target chain id
-        ButterLib.SwapData calldata swapData
+        bytes calldata swapData
     ) external;
 
     function swapOutNative(
-        address _mapTargetToken, // targetToken on map
+        bytes memory _to,
         uint256 _toChain, // target chain id
-        ButterLib.SwapData calldata swapData
+        bytes calldata swapData
     ) external payable;
+
     function depositToken(address _token, address to, uint _amount) external;
     function depositNative(address _to) external payable ;
 
@@ -41,14 +42,14 @@ interface IMOSV2 {
         address token, bytes from, address to, uint256 amount);
 
     event mapSwapOut(
-        uint256 amount,
-        bytes token, // token to transfer
-        bytes from, // source chain from address
         uint256 indexed fromChain, // from chain
         uint256 indexed toChain, // to chain
-        address mapTargetToken, // target token on map if source chain is not map
-        ButterLib.SwapData swapData, // swap data, used on target chain dex.
-        bytes32 orderId // order id
+        bytes32 orderId, // order id
+        bytes token, // token to transfer
+        bytes from, // source chain from address
+        bytes to,
+        uint256 amount,
+        bytes swapData // swap data, used on target chain dex.
     );
 
     event mapSwapIn(

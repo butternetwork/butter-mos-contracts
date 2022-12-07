@@ -13,7 +13,7 @@ library ButterLib {
     struct SwapData {
         SwapParam[] swapParams;
         bytes targetToken;
-        bytes toAddress;
+        address mapTargetToken;
     }
 
     struct ButterCoreSwapParam {

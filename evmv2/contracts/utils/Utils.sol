@@ -9,6 +9,7 @@ library Utils {
         address _tokenIn,
         uint _actualAmountIn,
         uint _predicatedAmountIn,
+        bytes memory _to,
         ButterLib.SwapData memory _swapData
     )
     internal
@@ -35,7 +36,7 @@ library Utils {
                 amountInArr[i],
                 swapParams[i].minAmountOut,
                 swapParams[i].path,
-                _swapData.toAddress,
+                _to,
                 block.timestamp + 1000,
                 _tokenIn,
                 Utils.fromBytes(_swapData.targetToken)

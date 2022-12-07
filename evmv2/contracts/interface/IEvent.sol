@@ -27,14 +27,15 @@ interface IEvent {
     }
 
     struct swapOutEvent {
-        uint256 amount;
-        bytes token; // token to transfer
-        bytes from;
         uint256 fromChain;
         uint256 toChain;
-        address mapTargetToken;
-        ButterLib.SwapData swapData;
         bytes32 orderId;
+        bytes token; // token to transfer
+        bytes from;
+        bytes to;
+        uint256 amount;
+        address mapTargetToken;
+        bytes swapData;
     }
 
     struct txLog {

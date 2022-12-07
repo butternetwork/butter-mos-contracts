@@ -54,16 +54,17 @@ library EvmDecoder {
     pure
     returns (bytes memory executorId, IEvent.swapOutEvent memory outEvent) {
         executorId = Utils.toBytes(log.addr);
-        (outEvent.amount,outEvent.token, outEvent.from, outEvent.fromChain,
-        outEvent.toChain,outEvent.mapTargetToken,outEvent.swapData,outEvent.orderId)
-        = abi.decode(log.data, (uint256,bytes,bytes,uint256,uint256,address,(ButterLib.SwapData),bytes32));
-    }
-
-    function decodeSwapDataLog(IEvent.txLog memory log)
-    internal
-    pure
-    returns (ButterLib.SwapData memory swapData) {
-        swapData = abi.decode(log.data, ((ButterLib.SwapData)));
+        (
+            outEvent.fromChain,
+            outEvent.toChain,
+            outEvent.orderId,
+            outEvent.token,
+            outEvent.from,
+            outEvent.amount,
+            outEvent.mapTargetToken,
+            outEvent.swapData
+        )
+        = abi.decode(log.data, (uint256,uint256,bytes32,bytes,bytes,uint256,address,bytes));
     }
 
     function decodeDepositOutLog(IEvent.txLog memory log)
