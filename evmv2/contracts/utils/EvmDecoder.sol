@@ -60,11 +60,11 @@ library EvmDecoder {
             outEvent.orderId,
             outEvent.token,
             outEvent.from,
+            outEvent.to,
             outEvent.amount,
-            outEvent.mapTargetToken,
             outEvent.swapData
         )
-        = abi.decode(log.data, (uint256,uint256,bytes32,bytes,bytes,uint256,address,bytes));
+        = abi.decode(log.data, (uint256,uint256,bytes32,bytes,bytes,bytes,uint256,bytes));
     }
 
     function decodeDepositOutLog(IEvent.txLog memory log)

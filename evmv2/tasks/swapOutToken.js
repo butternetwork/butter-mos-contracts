@@ -15,7 +15,7 @@ const bscSwapData = {
         }
     ],
     targetToken: '0x0000000000000000000000000000000000000000',
-    toAddress: '0x8c9b3cAf7DedD3003f53312779c1b92ba1625D94' // receiver address
+    mapTargetToken: '0x0000000000000000000000000000000000000000' // receiver address
 }
 
 const maticSwapData = {
@@ -28,7 +28,7 @@ const maticSwapData = {
         }
     ],
     targetToken: '0x0000000000000000000000000000000000000000',
-    toAddress: '0x8c9b3cAf7DedD3003f53312779c1b92ba1625D94'
+    mapTargetToken: '0x0000000000000000000000000000000000000000'
 }
 
 

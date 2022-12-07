@@ -34,7 +34,6 @@ interface IEvent {
         bytes from;
         bytes to;
         uint256 amount;
-        address mapTargetToken;
         bytes swapData;
     }
 
