@@ -3,6 +3,7 @@ const { expect } = require("chai");
 const mosRelayData = require('./mosRelayData');
 require("solidity-coverage");
 const {BigNumber} = require("ethers");
+const exp = require("constants");
 
 
 describe("MAPOmnichainServiceRelayV2 start test", function () {
@@ -238,42 +239,27 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         console.log("MapVault  address:",tokenVault.address);
         await tokenVault.addManager(mossR.address);
 
-
-        const mintAmount = "100000000000000000000";
-        await testToken.mint(addr1.address, mintAmount);
-        expect(await testToken.totalSupply()).to.equal(BigNumber.from(mintAmount));
-
-        await tokenRegister.registerToken(testToken.address,tokenVault.address, "true");
-        await tokenRegister.mapToken(testToken.address,1313161555,mosRelayData.nearTestToken,24);
+        // register token
+        await tokenRegister.registerToken(testToken.address,tokenVault.address, "false");
+        // await tokenRegister.mapToken(testToken.address,1313161555,mosRelayData.nearTestToken,24);
         await tokenRegister.mapToken(testToken.address,97,mosRelayData.bscTestToken,18);
+        // mint token
+        const mintAmount = "100000000000000000000";
+        await testToken.mint(owner.address,BigNumber.from(mintAmount).mul(2));
+        await testToken.connect(owner).approve(mossR.address, BigNumber.from(mintAmount).mul(2));
+        await mossR.connect(owner).depositToken(testToken.address, addr1.address, mintAmount);
 
-        await testToken.connect(addr1).approve(mossR.address, mintAmount)
+        expect(await testToken.totalSupply()).to.equal(BigNumber.from(mintAmount).mul(2));
 
-        let mintRole = await testToken.MINTER_ROLE();
+        const swapAmount = "1000000000000000000";
+        expect(await tokenVault.vaultBalance(97)).to.equal(0)
 
-        await testToken.grantRole(mintRole,mossR.address);
+        const mapTargetToken = '0x0000000000000000000000000000000000000000';
+        await mossR.connect(owner).swapOutToken(testToken.address, swapAmount, mapTargetToken,97, swapData)
+        //
+        expect(await testToken.balanceOf(mossR.address)).to.equal(mintAmount);
+        expect(await tokenVault.vaultBalance(97)).to.equal("-1000000000000000000");
 
-        await testToken.mint(owner.address,"1000000000000000000");
-
-        await testToken.connect(owner).approve(mossR.address,"100000000000000000000");
-
-        const mapTargetToken = '0x0000000000000000000000000000000000000000'
-
-        await mossR.connect(owner).swapOutToken(testToken.address, "1000000000000000000", mapTargetToken,97, swapData)
-
-        expect(await tokenVault.vaultBalance(97)).to.equal("-1000000000000000000")
-        expect(await testToken.totalSupply()).to.equal("100000000000000000000");
-
-        await testToken.mint(owner.address,"1000000000000000000");
-
-        await tokenRegister.registerToken(testToken.address,tokenVault.address, false);
-
-        await mossR.connect(owner).swapOutToken(testToken.address, "1000000000000000000", mapTargetToken,1313161555, swapData)
-
-        expect(await tokenVault.vaultBalance(1313161555)).to.equal("-1000000000000000000")
-        expect(await testToken.totalSupply()).to.equal("101000000000000000000");
-
-        expect(await testToken.balanceOf(owner.address)).to.equal("0");
     });
 
     it('transferIn test ', async function () {
