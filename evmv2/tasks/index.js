@@ -155,6 +155,7 @@ task("swapOutToken",
     .addOptionalParam("mapTargetToken", "target token on map", "0x0000000000000000000000000000000000000000",types.string)
     .addOptionalParam("address", "The receiver address, default is msg.sender","",types.string)
     .addParam("tochain", "target chain id")
+    .addParam("fromchain", "from chain name")
     // .addParam("swapData", "swap data route")
 
 

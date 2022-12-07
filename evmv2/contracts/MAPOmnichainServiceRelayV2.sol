@@ -377,11 +377,15 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(_chainId == _outEvent.fromChain, "invalid chain id");
         address token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
         require(token != address(0), "map token not registered");
+        // does not support swap on map for now.
+        require(_outEvent.mapTargetToken == token, "Swap on Map Relay Chain not supported yet");
+
+
         // if source token's relay chain mapping token is NOT mapTargetToken, then swap needed.
-        if (_outEvent.mapTargetToken != token) {
-            // swap logic goes here...
-            token = _outEvent.mapTargetToken;
-        }
+//        if (_outEvent.mapTargetToken != token) {
+//            // swap logic goes here...
+//            token = _outEvent.mapTargetToken;
+//        }
 
         bytes memory toChainToken;
         if (_outEvent.toChain == selfChainId) {
