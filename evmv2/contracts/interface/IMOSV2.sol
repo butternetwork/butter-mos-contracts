@@ -42,7 +42,7 @@ interface IMOSV2 {
 
     event mapSwapOut(
         uint256 amount,
-        bytes token, // source chain token
+        bytes token, // token to transfer
         bytes from, // source chain from address
         uint256 indexed fromChain, // from chain
         uint256 indexed toChain, // to chain

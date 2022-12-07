@@ -28,7 +28,7 @@ interface IEvent {
 
     struct swapOutEvent {
         uint256 amount;
-        bytes token;
+        bytes token; // token to transfer
         bytes from;
         uint256 fromChain;
         uint256 toChain;

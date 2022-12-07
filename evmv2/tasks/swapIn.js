@@ -8,7 +8,7 @@ function stringToHex(str) {
 const bscSwapData = {
     swapParams: [
         {
-            amountIn: '1000000000000000000', // 1 USDC
+            amountIn: '100000000000000000000', // 100 USDC
             minAmountOut: '0',
             path: '0x64544969ed7EBf5f083679233325356EbE738930094616F0BdFB0b526bD735Bf66Eca0Ad254ca81F', // usdc - wbnb
             routerIndex: 0 // pancake
@@ -21,7 +21,7 @@ const bscSwapData = {
 const maticSwapData = {
     swapParams: [
         {
-            amountIn: '1000000000000000000', // 1 USDC
+            amountIn: '100000000000000000000', // 100 USDC
             minAmountOut: '0',
             path: '0x64544969ed7EBf5f083679233325356EbE738930094616F0BdFB0b526bD735Bf66Eca0Ad254ca81F', // usdc - wmatic
             routerIndex: 0 // quick
@@ -51,10 +51,10 @@ module.exports = async (taskArgs) => {
         }
     }
     let toChainSwapData;
-    if (taskArgs.tochain === '97') {
-        toChainSwapData = bscSwapData;
-    } else {
+    if (taskArgs.fromchain === 'bsc') {
         toChainSwapData = maticSwapData;
+    } else {
+        toChainSwapData = bscSwapData;
     }
 
     if (taskArgs.token === "0x0000000000000000000000000000000000000000"){

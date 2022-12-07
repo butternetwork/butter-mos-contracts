@@ -257,6 +257,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
                 }
             }
         }
+
         emit mapSwapExecute(_chainId, selfChainId, msg.sender);
     }
 
@@ -267,7 +268,6 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     function isBridgeable(address _token, uint256 _toChain) public view returns (bool) {
         return tokenMappingList[_toChain][_token];
     }
-
 
     function _getOrderID(address _from, bytes memory _to, uint _toChain) internal returns (bytes32){
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));

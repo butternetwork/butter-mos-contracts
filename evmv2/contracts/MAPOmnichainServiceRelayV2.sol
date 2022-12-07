@@ -418,7 +418,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             if (tokenRegister.checkMintable(token)) {
                 IMAPToken(token).burn(mapOutAmount);
             }
-            emit mapSwapOut(outAmount, _outEvent.token, _outEvent.from, _outEvent.fromChain, _outEvent.toChain, _outEvent.mapTargetToken, _outEvent.swapData, _outEvent.orderId);
+            emit mapSwapOut(outAmount, toChainToken, _outEvent.from, _outEvent.fromChain, _outEvent.toChain, _outEvent.mapTargetToken, _outEvent.swapData, _outEvent.orderId);
         }
     }
 
@@ -440,7 +440,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         }
 
         bytes32 orderId = _getOrderId(_from, swapData.toAddress, _toChain);
-        emit mapSwapOut(outAmount, Utils.toBytes(_token), Utils.toBytes(_from), selfChainId, _toChain, _token, swapData, orderId);
+        emit mapSwapOut(outAmount, toToken, Utils.toBytes(_from), selfChainId, _toChain, _token, swapData, orderId);
     }
 
     function _depositIn(uint256 _chainId, IEvent.depositOutEvent memory _depositEvent)
