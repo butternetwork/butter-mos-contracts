@@ -55,31 +55,29 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
     let address2Bytes;
     let initData;
 
-    const swapData = {
-        swapParams: [
-            {
-                amountIn: '100000000000000000000000',
-                minAmountOut: '0',
-                path: '0x0000',
-                routerIndex: 1
-            },
-            {
-                amountIn: '100000000000000000000000',
-                minAmountOut: '0',
-                path: '0x0000',
-                routerIndex: 1
-            }
-        ],
-        targetToken: '0x0000',
-        toAddress: '0x0000'
-    }
-
     beforeEach(async function () {
 
         [deployer,owner, addr1, addr2, addr3, addr4, addr5,addr6,addr7,addr8,addr9] = await ethers.getSigners();
 
     });
-
+    const swapData = {
+        swapParams: [
+            {
+                amountIn: '100000000000000000000',
+                minAmountOut: '0',
+                path: '0x688f3Ef5f728995a9DcB299DAEC849CA2E49ddE1ad4c2B6e113113d345c167F7BdAA5A5D1cD00273',
+                routerIndex: 1
+            },
+            {
+                amountIn: '100000000000000000000',
+                minAmountOut: '0',
+                path: '0x688f3Ef5f728995a9DcB299DAEC849CA2E49ddE1ad4c2B6e113113d345c167F7BdAA5A5D1cD00273',
+                routerIndex: 2
+            }
+        ],
+        targetToken: '0xad4c2B6e113113d345c167F7BdAA5A5D1cD00273',
+        toAddress: '0x8c9b3cAf7DedD3003f53312779c1b92ba1625D94'
+    }
     it("MAPOmnichainServiceRelayV2 contract deploy init", async function () {
         console.log("deployer address:",deployer.address)
         console.log(addr8.address)

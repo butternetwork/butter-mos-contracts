@@ -240,8 +240,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
 
     function swapIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
         require(_chainId == relayChainId, "invalid chain id");
-        (bool sucess, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
-        require(sucess, message);
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
+        require(success, message);
         IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
 
         for (uint i = 0; i < logs.length; i++) {
@@ -250,7 +250,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
 
             if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
                 (, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
-                // there might be more than on events to multi-chains
+                // there might be more than one events to multi-chains
                 // only process the event for this chain
                 if (selfChainId == outEvent.toChain) {
                     _swapIn(outEvent);
