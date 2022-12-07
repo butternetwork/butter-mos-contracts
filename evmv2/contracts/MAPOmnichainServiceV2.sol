@@ -40,7 +40,6 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
 
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
-
     function initialize(address _wToken, address _lightNode)
     public initializer checkAddress(_wToken) checkAddress(_lightNode) {
         wToken = _wToken;
@@ -259,11 +258,9 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
         require(success, message);
         IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
-
         for (uint i = 0; i < logs.length; i++) {
             IEvent.txLog memory log = logs[i];
             bytes32 topic = abi.decode(log.topics[0], (bytes32));
-
             if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
                 (, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
                 // there might be more than one events to multi-chains
@@ -311,7 +308,9 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         // the token contract get
         address tokenIn = Utils.fromBytes(_outEvent.token);
         // the token contract need to send
-        ButterLib.SwapData memory swapData = abi.decode(_outEvent.swapData, (ButterLib.SwapData));
+        ButterLib.SwapData memory swapData;
+        (swapData.swapParams, swapData.targetToken, swapData.mapTargetToken) = abi.decode(_outEvent.swapData,
+            ((ButterLib.SwapParam)[], bytes, address));
         address tokenOut = Utils.fromBytes(swapData.targetToken);
         // receiving address
         address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
@@ -319,7 +318,6 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         uint actualAmountIn = _outEvent.amount;
 
         ButterLib.SwapParam[] memory swapParams = swapData.swapParams;
-
         // if swap params is not empty, then we need to do swap on current chain
         if (swapParams.length > 0) {
             if (isMintable(tokenOut)) {
@@ -333,12 +331,15 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
                 Utils.assembleButterCoreParam(tokenIn, actualAmountIn, predicatedAmountIn, _outEvent.to, swapData);
 
                 // low-level call butter core to finish swap
-                (bool success,) = address(butterCore).call(
-                    abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))", butterCoreSwapParam)
+                (bool success,) = payable(butterCore).call(
+                    abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2],uint))", butterCoreSwapParam)
                 );
 
                 // if swap succeed, just return
-                if (success) return;
+                if (success) {
+                    emit mapSwapIn(_outEvent.fromChain, selfChainId, tokenOut, _outEvent.from, toAddress, actualAmountIn, _outEvent.orderId);
+                    return;
+                }
             }
             // if swap not succeed or swap not happened, give user the source token
             tokenOut = tokenIn;
@@ -353,7 +354,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         } else {
             TransferHelper.safeTransfer(tokenOut, toAddress, actualAmountIn);
         }
-        // emit mapSwapIn(targetToken, _outEvent.from, _outEvent.orderId, _outEvent.fromChain, toAddress, totalMinAmountOut);
+        emit mapSwapIn(_outEvent.fromChain, selfChainId, tokenOut, _outEvent.from, toAddress, actualAmountIn, _outEvent.orderId);
     }
 
     /** UUPS *********************************************************/

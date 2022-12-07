@@ -12,9 +12,9 @@ module.exports = async (taskArgs) => {
 
         [
             [[
-                "1000000000000000000", // 1 USDC
+                "10000000000000000", // 1 USDC
                 "0",
-                '0x64544969ed7EBf5f083679233325356EbE738930094616F0BdFB0b526bD735Bf66Eca0Ad254ca81F', // usdc - wbnb
+                '0x0xaB1a4d4f1D656d2450692D237fdD6C7f9146e814ae13d989daC2f0dEbFf460aC112a837C89BAa7cd', // usdc - wbnb
                 "0" // pancake
             ]]
             ,
@@ -22,13 +22,13 @@ module.exports = async (taskArgs) => {
             '0x0000000000000000000000000000000000000000'
         ]
     );
-
+    console.log('swapdata', abi.decode(["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"], bscSwapData))
     const maticSwapData = abi.encode(
         ["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"],
 
         [
             [[
-                "1000000000000000000", // 1 USDC
+                "10000000000000000", // 1 USDC
                 "0",
                 '0x64544969ed7EBf5f083679233325356EbE738930094616F0BdFB0b526bD735Bf66Eca0Ad254ca81F', // usdc - wbnb
                 "0" // pancake
@@ -83,7 +83,6 @@ module.exports = async (taskArgs) => {
             taskArgs.tochain,
             toChainSwapData
         )).wait();
-
     }
 
     console.log(`swap out token ${taskArgs.token} ${taskArgs.value} to chain ${taskArgs.tochain} ${address} successful`);

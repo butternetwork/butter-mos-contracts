@@ -16,9 +16,9 @@ library Utils {
     view
     returns (ButterLib.ButterCoreSwapParam memory) {
         ButterLib.SwapParam[] memory swapParams = _swapData.swapParams;
-        uint[] memory amountInArr;
-        bytes[] memory paramsArr;
-        uint32[] memory routerIndex;
+        uint256[]  memory amountInArr = new uint256[](swapParams.length);
+        bytes[]  memory paramsArr = new bytes[](swapParams.length);
+        uint32[]  memory routerIndex = new uint32[](swapParams.length);
 
 
         // modify swapParam amount in, compensate the difference between actual and predicted amount.
@@ -43,12 +43,7 @@ library Utils {
             );
         }
 
-        ButterLib.ButterCoreSwapParam memory params = ButterLib.ButterCoreSwapParam({
-            amountInArr : amountInArr,
-            paramsArr : paramsArr,
-            routerIndex : routerIndex,
-            inputOutAddre : [_tokenIn, Utils.fromBytes(_swapData.targetToken)]
-        });
+        ButterLib.ButterCoreSwapParam memory params;
 
         return params;
 

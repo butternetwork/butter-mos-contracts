@@ -110,9 +110,6 @@ task("relayRegisterToken",
     .addParam("vault", "vault token address")
     .addParam("mintable", "token mintable",false,types.boolean)
 
-
-
-
 task("relayMapToken",
     "Map the altchain token to the token on relay chain",
     require("./relayMapToken")
@@ -202,3 +199,8 @@ task("upgradeMOS",
     require("./upgradeMOS")
 )
     .addParam("mos", "The mos address")
+
+task("swapIn",
+    "swapIn",
+    require("./swapIn.js")
+)
