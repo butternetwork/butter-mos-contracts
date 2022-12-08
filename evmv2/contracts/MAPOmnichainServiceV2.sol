@@ -303,7 +303,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
 
         emit mapTransferIn(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, toAddress, amount);
     }
-    event Bo(uint, address);
+
     function _swapIn(IEvent.swapOutEvent memory _outEvent) internal checkOrder(_outEvent.orderId) {
         address tokenIn = Utils.fromBytes(_outEvent.token);
 
@@ -330,16 +330,15 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
                 // assemble request to call butter core
                 ButterLib.ButterCoreSwapParam memory butterCoreSwapParam =
                 Utils.assembleButterCoreParam(tokenIn, actualAmountIn, predicatedAmountIn, _outEvent.to, swapData);
-
                 // low-level call butter core to finish swap
                 TransferHelper.safeApprove(tokenIn, butterCore, actualAmountIn);
                  (bool success,) = address(butterCore).call(
-                    abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))", butterCoreSwapParam)
+                        abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))", butterCoreSwapParam)
                 );
 
                 // if swap succeed, just return
                 if (success) {
-                    emit mapSwapIn(_outEvent.fromChain, selfChainId, tokenOut, _outEvent.from, toAddress, uint256(8), _outEvent.orderId);
+                    emit mapSwapIn(_outEvent.fromChain, selfChainId, tokenOut, _outEvent.from, toAddress, actualAmountIn, _outEvent.orderId);
                     return;
                 }
             }

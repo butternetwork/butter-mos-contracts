@@ -38,7 +38,7 @@ module.exports = async (taskArgs, hre) => {
     let coreAddress;
     let stablecoinAddress;
     if (chainId === 97) {
-        coreAddress = '0x43D94b4e5ff5590b8F9605d79c8E1f2e36A80145';
+        coreAddress = '0xA8d5352e8629B2FFE3d127142FB1D530f8b793eC';
         stablecoinAddress = '0x3F1E91BFC874625f4ee6EF6D8668E79291882373';
     } else if (chainId === 80001) {
         coreAddress = '0x448484ab100D9F374621eE1A520419CF21349F11';
