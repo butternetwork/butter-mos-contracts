@@ -43,8 +43,12 @@ library Utils {
             );
         }
 
-        ButterLib.ButterCoreSwapParam memory params;
-
+        ButterLib.ButterCoreSwapParam memory params = ButterLib.ButterCoreSwapParam({
+            amountInArr : amountInArr,
+            paramsArr : paramsArr,
+            routerIndex : routerIndex,
+            inputOutAddre : [_tokenIn, Utils.fromBytes(_swapData.targetToken)]
+        });
         return params;
 
     }

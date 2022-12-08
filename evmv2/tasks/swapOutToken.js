@@ -14,15 +14,16 @@ module.exports = async (taskArgs) => {
             [[
                 "10000000000000000", // 1 USDC
                 "0",
-                '0x0xaB1a4d4f1D656d2450692D237fdD6C7f9146e814ae13d989daC2f0dEbFf460aC112a837C89BAa7cd', // usdc - wbnb
+                '0xaB1a4d4f1D656d2450692D237fdD6C7f9146e814ae13d989daC2f0dEbFf460aC112a837C89BAa7cd', // usdc - wbnb
                 "0" // pancake
             ]]
             ,
-            '0x0000000000000000000000000000000000001111',
-            '0x0000000000000000000000000000000000000000'
+            '0x0000000000000000000000000000000000000000',
+            '0x0000000000000000000000000000000000001111'
         ]
     );
     console.log('swapdata', abi.decode(["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"], bscSwapData))
+
     const maticSwapData = abi.encode(
         ["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"],
 
@@ -30,12 +31,12 @@ module.exports = async (taskArgs) => {
             [[
                 "10000000000000000", // 1 USDC
                 "0",
-                '0x64544969ed7EBf5f083679233325356EbE738930094616F0BdFB0b526bD735Bf66Eca0Ad254ca81F', // usdc - wbnb
-                "0" // pancake
+                '0x64544969ed7EBf5f083679233325356EbE738930094616F0BdFB0b526bD735Bf66Eca0Ad254ca81F', // usdc - matic
+                "0" // quickswap
             ]]
             ,
-            '0x0000000000000000000000000000000000002222',
-            '0x0000000000000000000000000000000000000000'
+            '0x0000000000000000000000000000000000000000',
+            '0x0000000000000000000000000000000000002222'
         ]
     );
 
@@ -71,6 +72,7 @@ module.exports = async (taskArgs) => {
             {value: taskArgs.value}
         )).wait();
     } else {
+
         await (await token.connect(deployer).approve(
             taskArgs.mos,
             taskArgs.value
