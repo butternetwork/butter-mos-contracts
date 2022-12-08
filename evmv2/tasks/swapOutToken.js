@@ -12,14 +12,14 @@ module.exports = async (taskArgs) => {
 
         [
             [[
-                "10000000000000000", // 1 USDC
+                "1000000000000000000", // 1 USDC
                 "0",
-                '0xaB1a4d4f1D656d2450692D237fdD6C7f9146e814ae13d989daC2f0dEbFf460aC112a837C89BAa7cd', // usdc - wbnb
+                abi.encode(["address[]"], [['0x3F1E91BFC874625f4ee6EF6D8668E79291882373', '0x593F6F6748dc203DFa636c299EeA6a39C0734EEd']]),
                 "0" // pancake
             ]]
             ,
-            '0x0000000000000000000000000000000000000000',
-            '0x0000000000000000000000000000000000001111'
+            '0x593F6F6748dc203DFa636c299EeA6a39C0734EEd',
+            '0x0000000000000000000000000000000000000000'
         ]
     );
     console.log('swapdata', abi.decode(["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"], bscSwapData))
@@ -29,14 +29,14 @@ module.exports = async (taskArgs) => {
 
         [
             [[
-                "10000000000000000", // 1 USDC
+                "1000000000000000000", // 1 USDC
                 "0",
-                '0x64544969ed7EBf5f083679233325356EbE738930094616F0BdFB0b526bD735Bf66Eca0Ad254ca81F', // usdc - matic
+                abi.encode(["address[]"], [['0x1E01CF4503808Fb30F17806035A87cf5A5217727', '0xe1D8eAB4e616156E11e1c59D1a0E0EFeD66f4cfa']]),
                 "0" // quickswap
             ]]
             ,
+            '0xe1D8eAB4e616156E11e1c59D1a0E0EFeD66f4cfa',
             '0x0000000000000000000000000000000000000000',
-            '0x0000000000000000000000000000000000002222'
         ]
     );
 

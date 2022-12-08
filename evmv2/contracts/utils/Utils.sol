@@ -35,8 +35,8 @@ library Utils {
             paramsArr[i] = abi.encode(
                 amountInArr[i],
                 swapParams[i].minAmountOut,
-                swapParams[i].path,
-                _to,
+                abi.decode(swapParams[i].path, (address[])),
+                Utils.fromBytes(_to),
                 block.timestamp + 1000,
                 _tokenIn,
                 Utils.fromBytes(_swapData.targetToken)

@@ -89,8 +89,8 @@ module.exports = async (taskArgs,hre) => {
     console.log(`register mintable mUSDC to vault ${vault.address}`)
 
     // map token
-    const bscUSDCAddress = '0xaB1a4d4f1D656d2450692D237fdD6C7f9146e814'
-    const maticUSDCAddress = '0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7'
+    const bscUSDCAddress = '0x3F1E91BFC874625f4ee6EF6D8668E79291882373'
+    const maticUSDCAddress = '0x1E01CF4503808Fb30F17806035A87cf5A5217727'
 
     await (await tokenManager.connect(deployer).mapToken(
         usdc.address,

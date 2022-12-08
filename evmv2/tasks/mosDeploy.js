@@ -3,6 +3,8 @@ module.exports = async (taskArgs, hre) => {
     const accounts = await ethers.getSigners()
     const deployer = accounts[0];
 
+    const chainId = await deployer.getChainId();
+
     console.log("deployer address:", deployer.address);
 
     await deploy('MAPOmnichainServiceV2', {
@@ -30,9 +32,28 @@ module.exports = async (taskArgs, hre) => {
 
     mos = await ethers.getContractAt('MAPOmnichainServiceV2', mosProxy.address);
 
-    await (await mos.connect(deployer).setRelayContract('212', '0xEbD0E665F871c888D3EEf17aDB2361eFB7CD126C')).wait();
-    console.log("st realy", mosProxy.address)
+    await (await mos.connect(deployer).setRelayContract('212', '0x74116d39A9e4ED0D160999f042F69286B5bcf1A3')).wait();
+    console.log("set realy", "0x74116d39A9e4ED0D160999f042F69286B5bcf1A3")
 
-    await (await mos.connect(deployer).setButterCoreAddress('0xb401355440842aAb5A4DeA8ABFC7439d9Cb8ab55')).wait();
-    console.log('set core')
+    let coreAddress;
+    let stablecoinAddress;
+    if (chainId === 97) {
+        coreAddress = '0x43D94b4e5ff5590b8F9605d79c8E1f2e36A80145';
+        stablecoinAddress = '0x3F1E91BFC874625f4ee6EF6D8668E79291882373';
+    } else if (chainId === 80001) {
+        coreAddress = '0x448484ab100D9F374621eE1A520419CF21349F11';
+        stablecoinAddress = '0x1E01CF4503808Fb30F17806035A87cf5A5217727'
+    } else {
+        throw new Error("unsupported chainId", chainId)
+    }
+
+    await (await mos.connect(deployer).setButterCoreAddress(coreAddress)).wait();
+    console.log('set core', coreAddress)
+
+    // send some stable coin for testing
+    const amount = "2000000000000000000";
+    const token = await ethers.getContractAt('MintableToken', stablecoinAddress);
+    await (await token.connect(deployer).transfer(mosProxy.address, amount)).wait();
+    console.log(`sent ${amount} stable coin to address ${mosProxy.address}`);
+
 }
