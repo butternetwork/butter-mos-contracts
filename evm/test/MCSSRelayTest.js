@@ -126,8 +126,8 @@ describe("MAPCrossChainServiceRelay start test", function () {
 
         await mcssR.addAuthToken([standardToken.address]);
 
-        await mapVault.addManager(mcssR.address);
-        await mapVaultU.addManager(mcssR.address);
+        await mapVault.transferOwnership(mcssR.address);
+        await mapVaultU.transferOwnership(mcssR.address);
 
         await feeCenter.setChainTokenGasFee(34434,usdt.address,"1000000000000000","2000000000000000000","500000")
 
@@ -350,9 +350,12 @@ describe("MAPCrossChainServiceRelay start test", function () {
 
     it('admin test', async function () {
 
-        await expect(mcssR.changeAdmin("0x0000000000000000000000000000000000000000")).to.be.revertedWith("zero address")
+        await expect(mcssR.setPendingAdmin("0x0000000000000000000000000000000000000000")).to.be.revertedWith("Ownable: pendingAdmin is the zero address")
 
-        await mcssR.changeAdmin(addr5.address);
+        await mcssR.setPendingAdmin(addr5.address);
+
+        await mcssR.connect(addr5).changeAdmin();
+
 
         expect(await mcssR.getAdmin()).to.equal(addr5.address);
 
