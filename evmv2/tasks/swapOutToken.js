@@ -22,7 +22,7 @@ module.exports = async (taskArgs) => {
             '0x0000000000000000000000000000000000000000'
         ]
     );
-    console.log('swapdata', abi.decode(["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"], bscSwapData))
+    // console.log('swapdata', abi.decode(["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"], bscSwapData))
 
     const maticSwapData = abi.encode(
         ["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"],

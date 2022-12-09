@@ -30,13 +30,14 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     uint public nonce;
     address public wToken;          // native wrapped token
     address public relayContract;
-    address public butterCore;
     uint256 public relayChainId;
     ILightNode public lightNode;
 
     mapping(bytes32 => bool) public orderList;
     mapping(address => bool) public mintableTokens;
     mapping(uint256 => mapping(address => bool)) public tokenMappingList;
+
+    address public butterCore;
 
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
@@ -62,7 +63,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         _;
     }
 
-    modifier checkAddress(address _address){
+    modifier checkAddress(address _address) {
         require(_address != address(0), "address is zero");
         _;
     }
@@ -338,7 +339,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
 
                 // if swap succeed, just return
                 if (success) {
-                    emit mapSwapIn(_outEvent.fromChain, selfChainId, tokenOut, _outEvent.from, toAddress, actualAmountIn, _outEvent.orderId);
+                    emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenOut, _outEvent.from, toAddress, actualAmountIn);
                     return;
                 }
             }
@@ -355,7 +356,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         } else {
             TransferHelper.safeTransfer(tokenOut, toAddress, actualAmountIn);
         }
-        emit mapSwapIn(_outEvent.fromChain, selfChainId, tokenOut, _outEvent.from, toAddress, actualAmountIn, _outEvent.orderId);
+        emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenOut, _outEvent.from, toAddress, actualAmountIn);
     }
 
     /** UUPS *********************************************************/

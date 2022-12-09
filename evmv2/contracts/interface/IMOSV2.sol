@@ -55,10 +55,10 @@ interface IMOSV2 {
     event mapSwapIn(
         uint256 indexed fromChain,
         uint256 indexed toChain,
+        bytes32 indexed orderId,
         address token,
         bytes from,
         address toAddress,
-        uint256 amountOut,
-        bytes32 indexed orderId
+        uint256 amountOut
     );
 }
