@@ -38,24 +38,24 @@ describe("MAPOmnichainServiceV2 start test", function () {
     let address2Bytes;
 
     let receiver = "0x2E784874ddB32cD7975D68565b509412A5B519F4";
-    const swapData = {
-        swapParams: [
-            {
-                amountIn: '100000000000000000000',
-                minAmountOut: '0',
-                path: '0x688f3Ef5f728995a9DcB299DAEC849CA2E49ddE1ad4c2B6e113113d345c167F7BdAA5A5D1cD00273',
-                routerIndex: 1
-            },
-            {
-                amountIn: '100000000000000000000',
-                minAmountOut: '0',
-                path: '0x688f3Ef5f728995a9DcB299DAEC849CA2E49ddE1ad4c2B6e113113d345c167F7BdAA5A5D1cD00273',
-                routerIndex: 2
-            }
-        ],
-        targetToken: '0xad4c2B6e113113d345c167F7BdAA5A5D1cD00273',
-        toAddress: receiver
-    }
+
+    const abi = ethers.utils.defaultAbiCoder;
+
+    const swapData = abi.encode(
+        ["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"],
+
+        [
+            [[
+                "1000000000000000000", // 1 USDC
+                "0",
+                abi.encode(["address[]"], [['0x3F1E91BFC874625f4ee6EF6D8668E79291882373', '0x593F6F6748dc203DFa636c299EeA6a39C0734EEd']]),
+                "0" // pancake
+            ]]
+            ,
+            '0x593F6F6748dc203DFa636c299EeA6a39C0734EEd',
+            '0x0000000000000000000000000000000000000000'
+        ]
+    );
 
     beforeEach(async function () {
 
@@ -301,13 +301,11 @@ describe("MAPOmnichainServiceV2 start test", function () {
 
         await testToken.connect(addr1).approve(moss.address, mintAmount)
 
-        const mapTargetToken = '0x0000000000000000000000000000000000000000'
-
         const swapAmount = "1000000000000000000";
         await moss.connect(addr1).swapOutToken(
             testToken.address,
+            addr1.address,
             swapAmount,
-            mapTargetToken,
             34434,
             swapData
         );
@@ -322,7 +320,7 @@ describe("MAPOmnichainServiceV2 start test", function () {
         await moss.registerToken(wrapped.address,1313161555,"true");
         const mapTargetToken = '0x0000000000000000000000000000000000000000'
         const balanceBefore = await wrapped.balanceOf(moss.address);
-        await moss.connect(owner).swapOutNative(mapTargetToken,1313161555, swapData, {value:"100000000000000000"});
+        await moss.connect(owner).swapOutNative(owner.address,1313161555, swapData, {value:"100000000000000000"});
         const balanceAfter = await wrapped.balanceOf(moss.address);
         //100000000000000000
         expect(balanceAfter.sub(balanceBefore)).to.equal("100000000000000000")

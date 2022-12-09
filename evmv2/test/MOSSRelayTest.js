@@ -61,24 +61,23 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         [deployer,owner, addr1, addr2, addr3, addr4, addr5,addr6,addr7,addr8,addr9] = await ethers.getSigners();
 
     });
-    const swapData = {
-        swapParams: [
-            {
-                amountIn: '100000000000000000000',
-                minAmountOut: '0',
-                path: '0x688f3Ef5f728995a9DcB299DAEC849CA2E49ddE1ad4c2B6e113113d345c167F7BdAA5A5D1cD00273',
-                routerIndex: 1
-            },
-            {
-                amountIn: '100000000000000000000',
-                minAmountOut: '0',
-                path: '0x688f3Ef5f728995a9DcB299DAEC849CA2E49ddE1ad4c2B6e113113d345c167F7BdAA5A5D1cD00273',
-                routerIndex: 2
-            }
-        ],
-        targetToken: '0xad4c2B6e113113d345c167F7BdAA5A5D1cD00273',
-        toAddress: '0x8c9b3cAf7DedD3003f53312779c1b92ba1625D94'
-    }
+    const abi = ethers.utils.defaultAbiCoder;
+
+    const swapData = abi.encode(
+        ["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"],
+
+        [
+            [[
+                "1000000000000000000", // 1 USDC
+                "0",
+                abi.encode(["address[]"], [['0x3F1E91BFC874625f4ee6EF6D8668E79291882373', '0x593F6F6748dc203DFa636c299EeA6a39C0734EEd']]),
+                "0" // pancake
+            ]]
+            ,
+            '0x593F6F6748dc203DFa636c299EeA6a39C0734EEd',
+            '0x0000000000000000000000000000000000000000'
+        ]
+    );
     it("MAPOmnichainServiceRelayV2 contract deploy init", async function () {
         console.log("deployer address:",deployer.address)
         console.log(addr8.address)
@@ -255,7 +254,7 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         expect(await tokenVault.vaultBalance(97)).to.equal(0)
 
         const mapTargetToken = '0x0000000000000000000000000000000000000000';
-        await mossR.connect(owner).swapOutToken(testToken.address, swapAmount, mapTargetToken,97, swapData)
+        await mossR.connect(owner).swapOutToken(testToken.address, owner.address, swapAmount, 97, swapData)
         //
         expect(await testToken.balanceOf(mossR.address)).to.equal(mintAmount);
         expect(await tokenVault.vaultBalance(97)).to.equal("-1000000000000000000");
@@ -575,7 +574,7 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
     it('swapOutNative test ', async function () {
         const mapTargetToken = '0x0000000000000000000000000000000000000000'
 
-        await mossR.connect(owner).swapOutNative(mapTargetToken,1313161555, swapData, {value:"100000000000000000"});
+        await mossR.connect(owner).swapOutNative(owner.address,1313161555, swapData, {value:"100000000000000000"});
 
         expect(await wrapped.balanceOf(mossR.address)).to.equal("2100000000000000000")
     });
