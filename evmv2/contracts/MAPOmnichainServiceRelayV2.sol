@@ -229,7 +229,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
                 bytes32 topic = abi.decode(log.topics[0], (bytes32));
                 if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC) {
                     (bytes memory mosContract, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
-                    //require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
+                    require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
                     if (Utils.checkBytes(mosContract, mosContracts[_chainId])) {
                         _swapIn(_chainId, outEvent);
                     }

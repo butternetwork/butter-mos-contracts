@@ -9,6 +9,6 @@ typechain
 #Hardhat files
 cache
 artifacts
-deployments
+#deployments
 target
 .DS_Store

@@ -32,17 +32,21 @@ module.exports = async (taskArgs, hre) => {
 
     mos = await ethers.getContractAt('MAPOmnichainServiceV2', mosProxy.address);
 
-    await (await mos.connect(deployer).setRelayContract('212', '0x74116d39A9e4ED0D160999f042F69286B5bcf1A3')).wait();
-    console.log("set realy", "0x74116d39A9e4ED0D160999f042F69286B5bcf1A3")
+    await (await mos.connect(deployer).setRelayContract('212', '0x2599Ba29774B01ED26bCf1b8aB92b5Ce90362EBD')).wait();
+    console.log("set realy", "0x2599Ba29774B01ED26bCf1b8aB92b5Ce90362EBD")
 
     let coreAddress;
     let stablecoinAddress;
     if (chainId === 97) {
         coreAddress = '0xA8d5352e8629B2FFE3d127142FB1D530f8b793eC';
         stablecoinAddress = '0x3F1E91BFC874625f4ee6EF6D8668E79291882373';
+        await (await mos.connect(deployer).registerToken(stablecoinAddress, 212, true)).wait();
+        await (await mos.connect(deployer).registerToken(stablecoinAddress, 80001, true)).wait();
     } else if (chainId === 80001) {
         coreAddress = '0x448484ab100D9F374621eE1A520419CF21349F11';
         stablecoinAddress = '0x1E01CF4503808Fb30F17806035A87cf5A5217727'
+        await (await mos.connect(deployer).registerToken(stablecoinAddress, 212, true)).wait();
+        await (await mos.connect(deployer).registerToken(stablecoinAddress, 97, true)).wait();
     } else {
         throw new Error("unsupported chainId", chainId)
     }
