@@ -10,4 +10,4 @@ artifacts
 
 #hardhat plugin
 abi
-deployments
+#deployments
