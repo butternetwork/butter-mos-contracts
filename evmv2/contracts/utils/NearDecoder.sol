@@ -14,8 +14,8 @@ library NearDecoder {
     using RLPReader for RLPReader.RLPItem;
 
     bytes32 constant NEAR_TRANSFEROUT = 0x4e87426fdd31a6df84975ed344b2c3fbd45109085f1557dff1156b300f135df8;
-    bytes32 constant NEAR_SWAPOUT = 0x4e87426fdd31a6df84975ed344b2c3fbd45109085f1557dff1156b300f135df8;
     bytes32 constant NEAR_DEPOSITOUT = 0x3ad224e3e42a516df08d1fca74990eac30205afb5287a46132a6975ce0b2cede;
+    bytes32 constant NEAR_SWAPOUT = 0xca1cf8cebf88499429cca8f87cbca15ab8dafd06702259a5344ddce89ef3f3a5;
 
     function decodeNearLog(bytes memory _logs)
     internal

@@ -6,7 +6,7 @@ library ButterLib {
     struct SwapParam {
         uint256 amountIn;
         uint256 minAmountOut;
-        bytes path; // 0xtokenin+0xtokenOut on evm, or tokenIn'X'tokenOut on near
+        bytes path; //evm, or tokenIn'X'tokenOut on near
         uint64 routerIndex; // pool id on near or router index on evm
     }
 

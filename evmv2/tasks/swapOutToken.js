@@ -13,7 +13,7 @@ module.exports = async (taskArgs) => {
         [
             [[
                 "1000000000000000000", // 1 USDC
-                "0",
+                "000000000000000000",
                 abi.encode(["address[]"], [['0x3F1E91BFC874625f4ee6EF6D8668E79291882373', '0x593F6F6748dc203DFa636c299EeA6a39C0734EEd']]),
                 "0" // pancake
             ]]
@@ -22,7 +22,6 @@ module.exports = async (taskArgs) => {
             '0x6Ac66dCBE1680aAC446B28BE5371Be869B5059cF'
         ]
     );
-    // console.log('swapdata', abi.decode(["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"], bscSwapData))
 
     const maticSwapData = abi.encode(
         ["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"],
@@ -30,7 +29,7 @@ module.exports = async (taskArgs) => {
         [
             [[
                 "1000000000000000000", // 1 USDC
-                "0",
+                "800000000000000000",
                 abi.encode(["address[]"], [['0x1E01CF4503808Fb30F17806035A87cf5A5217727', '0xe1D8eAB4e616156E11e1c59D1a0E0EFeD66f4cfa']]),
                 "0" // quickswap
             ]]
@@ -39,6 +38,7 @@ module.exports = async (taskArgs) => {
             '0x6Ac66dCBE1680aAC446B28BE5371Be869B5059cF',
         ]
     );
+    console.log('swapdata', maticSwapData)
 
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
