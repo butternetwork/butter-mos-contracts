@@ -69,11 +69,11 @@ describe("MAPOmnichainServiceV2 start test", function () {
         console.log("moss address:",moss.address);
 
         StandardToken = await ethers.getContractFactory("MintableToken");
-        standardToken = await StandardToken.deploy("MapToken","MP");
+        standardToken = await StandardToken.deploy("MapToken","MP", 18);
         console.log("StandardToken:",standardToken.address);
 
         UToken = await ethers.getContractFactory("MintableToken");
-        usdt = await  UToken.deploy("U Toeken","USDT");
+        usdt = await  UToken.deploy("U Toeken","USDT", 18);
         console.log("UToken:",usdt.address);
 
         Wrapped = await ethers.getContractFactory("Wrapped");
@@ -289,7 +289,7 @@ describe("MAPOmnichainServiceV2 start test", function () {
     it('swapOutToken test',async function () {
         // deploy test token
         let testTokenContract = await ethers.getContractFactory("MintableToken");
-        let testToken = await testTokenContract.deploy("TestToken","TT");
+        let testToken = await testTokenContract.deploy("TestToken","TT", 18);
 
         // mint 10 test token to addr1
         const mintAmount = "100000000000000000000";
