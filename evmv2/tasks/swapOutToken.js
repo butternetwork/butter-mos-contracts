@@ -20,7 +20,7 @@ module.exports = async (taskArgs) => {
             ]]
             ,
             '0x593F6F6748dc203DFa636c299EeA6a39C0734EEd',
-            '0x6Ac66dCBE1680aAC446B28BE5371Be869B5059cF'
+            '0xe7B9F38C624e54e7024F337B6EDe1Be59ee6d54a'
         ]
     );
     const nearSwapData = abi.encode(
@@ -35,7 +35,7 @@ module.exports = async (taskArgs) => {
             ]]
             ,
             '0x' + stringToHex('abc.testnet'),
-            '0x6Ac66dCBE1680aAC446B28BE5371Be869B5059cF'
+            '0xe7B9F38C624e54e7024F337B6EDe1Be59ee6d54a'
         ]
     )
     const maticSwapData = abi.encode(
@@ -49,7 +49,7 @@ module.exports = async (taskArgs) => {
                 "0" // quickswap
             ]],
             '0xe1D8eAB4e616156E11e1c59D1a0E0EFeD66f4cfa',
-            '0x6Ac66dCBE1680aAC446B28BE5371Be869B5059cF',
+            '0xe7B9F38C624e54e7024F337B6EDe1Be59ee6d54a',
         ]
     );
     console.log('swapdata', maticSwapData)

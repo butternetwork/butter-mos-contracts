@@ -31,9 +31,9 @@ module.exports = async (taskArgs, hre) => {
     let mosProxy = await ethers.getContract('MAPOmnichainServiceProxyV2');
 
     mos = await ethers.getContractAt('MAPOmnichainServiceV2', mosProxy.address);
-
-    await (await mos.connect(deployer).setRelayContract('212', '0x2599Ba29774B01ED26bCf1b8aB92b5Ce90362EBD')).wait();
-    console.log("set realy", "0x2599Ba29774B01ED26bCf1b8aB92b5Ce90362EBD")
+    const relayAddress = '0xE7501974054694cB182b482d3eEd30e6a23cC162';
+    await (await mos.connect(deployer).setRelayContract('212', relayAddress)).wait();
+    console.log("set realy", relayAddress)
 
     let coreAddress;
     let stablecoinAddress;
