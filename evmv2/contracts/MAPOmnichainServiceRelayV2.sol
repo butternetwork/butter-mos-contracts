@@ -55,6 +55,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         bytes from, address to, uint256 amount);
 
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
+
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
     function initialize(address _wToken, address _managerAddress) public initializer
@@ -120,7 +121,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         _withdraw(token, payable(msg.sender), amount);
     }
 
-    function emergencyWithdraw(address _token, address payable _receiver, uint256 _amount) external onlyOwner {
+    function emergencyWithdraw(address _token, address payable _receiver, uint256 _amount) external onlyOwner checkAddress(_receiver) {
         _withdraw(_token, _receiver, _amount);
     }
 
@@ -193,9 +194,13 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         (bool success,string memory message,bytes memory logArray) = lightClientManager.verifyProofData(_chainId, _receiptProof);
         require(success, message);
         if (chainTypes[_chainId] == chainType.NEAR) {
-            (bytes memory mosContract, IEvent.transferOutEvent memory outEvent) = NearDecoder.decodeNearLog(logArray);
-            require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
-            _transferIn(_chainId, outEvent);
+            (bytes memory mosContract, IEvent.transferOutEvent[] memory outEvents) = NearDecoder.decodeNearLog(logArray);
+            for (uint i = 0; i < outEvents.length; i++) {
+                IEvent.transferOutEvent memory outEvent = outEvents[i];
+                if (outEvent.toChain == 0){continue;}
+                require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
+                _transferIn(_chainId, outEvent);
+            }
         } else if (chainTypes[_chainId] == chainType.EVM) {
             IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
             for (uint256 i = 0; i < logs.length; i++) {
@@ -245,10 +250,14 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         (bool success,string memory message,bytes memory logArray) = lightClientManager.verifyProofData(_chainId, _receiptProof);
         require(success, message);
         if (chainTypes[_chainId] == chainType.NEAR) {
-            (bytes memory mosContract, IEvent.depositOutEvent memory depositEvent) = NearDecoder.decodeNearDepositLog(logArray);
-            require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
+            (bytes memory mosContract, IEvent.depositOutEvent[] memory depositEvents) = NearDecoder.decodeNearDepositLog(logArray);
 
-            _depositIn(_chainId, depositEvent);
+            for(uint i = 0;i< depositEvents.length;i++){
+                IEvent.depositOutEvent memory depositEvent = depositEvents[i];
+                if (depositEvent.toChain == 0){continue;}
+                require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
+                _depositIn(_chainId, depositEvent);
+            }
         } else if (chainTypes[_chainId] == chainType.EVM) {
             IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
             for (uint256 i = 0; i < logs.length; i++) {

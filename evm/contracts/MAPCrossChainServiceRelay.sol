@@ -51,6 +51,8 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Initializable, Pausable, 
 
     mapping(bytes => mapping(uint256 => uint256)) tokenOtherChainDecimals;
 
+    address private _pendingAdmin;
+
     struct txLog {
         address addr;
         bytes[] topics;
@@ -88,6 +90,8 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Initializable, Pausable, 
     event mapTokenRegister(bytes32 tokenID, address token);
     event mapDepositIn(address token, bytes from, address indexed to,
         bytes32 orderId, uint256 amount, uint256 fromChain, uint256 toChain);
+    event ChangePendingAdmin(address indexed previousPending, address indexed newPending);
+    event AdminTransferred(address indexed previous, address indexed newAdmin);
 
     bytes32 public mapTransferOutTopic;
     bytes32 public nearTransferOut;
@@ -253,16 +257,20 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Initializable, Pausable, 
         (bool success,string memory message,bytes memory logArray) = lightClientManager.verifyProofData(chainId, receiptProof);
         require(success, message);
         if (chainId == ChainIdTable[1]) {
-            (bytes memory mcsContract, transferOutEvent memory _outEvent) = decodeNearLog(logArray);
-            require(_checkBytes(mcsContract, bridgeAddress[chainId]), "Illegal across the chain");
-            bytes memory toChainToken = tokenRegister.getTargetToken(_outEvent.from_chain, _outEvent.token, _outEvent.to_chain);
-            uint256 outAmount = getToChainAmountOther(_outEvent.token, _outEvent.from_chain, _outEvent.to_chain, _outEvent.amount);
-            if (_outEvent.to_chain == selfChainId) {
-                address payable toAddress = payable(_bytesToAddress(_outEvent.to));
-                _transferIn(_bytesToAddress(toChainToken), _outEvent.from, toAddress, outAmount,
-                    bytes32(_outEvent.order_id), _outEvent.from_chain, _outEvent.to_chain);
-            } else {
-                _transferInOtherChain(_outEvent, outAmount, toChainToken);
+            (bytes memory mcsContract, transferOutEvent[] memory _outEvents) = decodeNearLog(logArray);
+            for (uint i = 0; i < _outEvents.length; i++) {
+                transferOutEvent memory _outEvent = _outEvents[i];
+                if (_outEvent.to_chain == 0){continue;}
+                require(_checkBytes(mcsContract, bridgeAddress[chainId]), "Illegal across the chain");
+                bytes memory toChainToken = tokenRegister.getTargetToken(_outEvent.from_chain, _outEvent.token, _outEvent.to_chain);
+                uint256 outAmount = getToChainAmountOther(_outEvent.token, _outEvent.from_chain, _outEvent.to_chain, _outEvent.amount);
+                if (_outEvent.to_chain == selfChainId) {
+                    address payable toAddress = payable(_bytesToAddress(_outEvent.to));
+                    _transferIn(_bytesToAddress(toChainToken), _outEvent.from, toAddress, outAmount,
+                        bytes32(_outEvent.order_id), _outEvent.from_chain, _outEvent.to_chain);
+                } else {
+                    _transferInOtherChain(_outEvent, outAmount, toChainToken);
+                }
             }
         } else {
             txLog[] memory logs = decodeTxLog(logArray);
@@ -381,23 +389,27 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Initializable, Pausable, 
         require(success, message);
 
         if (_fromChain == ChainIdTable[1]) {
-            (bytes memory mcsContract,nearDepositOutEvent memory _outEvent) = decodeNearDepositLog(logArray);
-            require(selfChainId == _outEvent.to_chain, "Illegal to chainID");
-            require(_fromChain == _outEvent.from_chain, "Illegal from chainID");
-            require(_checkBytes(mcsContract, bridgeAddress[_outEvent.from_chain]), "Illegal across the chain");
-            bytes memory toChainToken = tokenRegister.getTargetToken(_fromChain, _outEvent.token, selfChainId);
-            uint256 outAmount = getToChainAmountOther(_outEvent.token, _fromChain, selfChainId, _outEvent.amount);
-            address payable toAddress = payable(_bytesToAddress(_outEvent.to));
-            _depositIn(_bytesToAddress(toChainToken), _outEvent.from, toAddress, outAmount, bytes32(_outEvent.order_id),
-                _outEvent.from_chain, _outEvent.to_chain);
+            (bytes memory mcsContract,nearDepositOutEvent[] memory _outEvents) = decodeNearDepositLog(logArray);
+            for (uint i = 0; i < _outEvents.length; i++) {
+                nearDepositOutEvent memory _outEvent = _outEvents[i];
+                if (_outEvent.to_chain == 0){continue;}
+                require(selfChainId == _outEvent.to_chain, "Illegal to chainID");
+                require(_fromChain == _outEvent.from_chain, "Illegal from chainID");
+                require(_checkBytes(mcsContract, bridgeAddress[_outEvent.from_chain]), "Illegal across the chain");
+                bytes memory toChainToken = tokenRegister.getTargetToken(_fromChain, _outEvent.token, selfChainId);
+                uint256 outAmount = getToChainAmountOther(_outEvent.token, _fromChain, selfChainId, _outEvent.amount);
+                address payable toAddress = payable(_bytesToAddress(_outEvent.to));
+                _depositIn(_bytesToAddress(toChainToken), _outEvent.from, toAddress, outAmount, bytes32(_outEvent.order_id),
+                    _outEvent.from_chain, _outEvent.to_chain);
+            }
         } else {
             txLog[] memory logs = decodeTxLog(logArray);
             for (uint256 i = 0; i < logs.length; i++) {
                 if (abi.decode(logs[i].topics[0], (bytes32)) == mapDepositOutTopic) {
                     require(_checkBytes(_addressToBytes(logs[i].addr), bridgeAddress[_fromChain]), "Illegal across the chain");
-                    address fromToken = abi.decode(logs[i].topics[1],(address));
-                    ( bytes memory from,bytes32 orderId, uint256 fromChain, uint256 toChain,address to,uint256 amount)
-                    = abi.decode(logs[i].data, ( bytes, bytes32, uint256, uint256, address, uint256));
+                    address fromToken = abi.decode(logs[i].topics[1], (address));
+                    (bytes memory from,bytes32 orderId, uint256 fromChain, uint256 toChain,address to,uint256 amount)
+                    = abi.decode(logs[i].data, (bytes, bytes32, uint256, uint256, address, uint256));
                     require(selfChainId == toChain, "Illegal to chainID");
                     require(_fromChain == fromChain, "Illegal from chainID");
                     bytes memory _fromBytes = _addressToBytes(fromToken);
@@ -441,7 +453,7 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Initializable, Pausable, 
         }
     }
 
-    function emergencyWithdraw(address token, address payable receiver, uint256 amount) public onlyOwner {
+    function emergencyWithdraw(address token, address payable receiver, uint256 amount) public onlyOwner checkAddress(receiver) {
         if (token == address(0)) {
             TransferHelper.safeWithdraw(wToken, amount);
             TransferHelper.safeTransferETH(receiver, amount);
@@ -472,6 +484,7 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Initializable, Pausable, 
         _txLogs = new txLog[](ls.length);
         for (uint256 i = 0; i < ls.length; i++) {
             RLPReader.RLPItem[] memory item = ls[i].toList();
+            require(item.length >= 3, "log length to low");
             RLPReader.RLPItem[] memory firstItemList = item[1].toList();
             bytes[] memory topic = new bytes[](firstItemList.length);
             for (uint256 j = 0; j < firstItemList.length; j++) {
@@ -488,46 +501,51 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Initializable, Pausable, 
     function decodeNearLog(bytes memory logsHash)
     internal
     view
-    returns (bytes memory executorId, transferOutEvent memory _outEvent){
+    returns (bytes memory executorId, transferOutEvent[] memory _outEvents){
         RLPReader.RLPItem[] memory ls = logsHash.toRlpItem().toList();
+
+        require(ls.length >= 2, "logsHash length to low");
 
         executorId = ls[0].toBytes();
 
-        bytes[] memory logs = new bytes[](ls[1].toList().length);
-        for (uint256 i = 0; i < ls[1].toList().length; i++) {
+        RLPReader.RLPItem[] memory listOne = ls[1].toList();
 
-            logs[i] = ls[1].toList()[i].toBytes();
-
+        bytes[] memory logs = new bytes[](listOne.length);
+        for (uint256 i = 0; i < listOne.length; i++) {
+            logs[i] = listOne[i].toBytes();
         }
         bytes memory log;
+
+        _outEvents = new transferOutEvent[](logs.length);
+
         for (uint256 i = 0; i < logs.length; i++) {
 
             (bytes memory temp) = splitExtra(logs[i]);
             if (keccak256(temp) == nearTransferOut) {
                 log = hexStrToBytes(logs[i]);
+                RLPReader.RLPItem[] memory logList = log.toRlpItem().toList();
+                require(logList.length >= 8, "logsHash length to low");
+                transferOutEvent memory _outEvent = transferOutEvent({
+                token : logList[0].toBytes(),
+                from : logList[1].toBytes(),
+                order_id : bytes32(logList[2].toBytes()),
+                from_chain : logList[3].toUint(),
+                to_chain : logList[4].toUint(),
+                to : logList[5].toBytes(),
+                amount : logList[6].toUint(),
+                to_chain_token : logList[7].toBytes()
+                });
+                _outEvents[i] = _outEvent;
             }
         }
-
-        RLPReader.RLPItem[] memory logList = log.toRlpItem().toList();
-
-        _outEvent = transferOutEvent({
-        token : logList[0].toBytes(),
-        from : logList[1].toBytes(),
-        order_id : bytes32(logList[2].toBytes()),
-        from_chain : logList[3].toUint(),
-        to_chain : logList[4].toUint(),
-        to : logList[5].toBytes(),
-        amount : logList[6].toUint(),
-        to_chain_token : logList[7].toBytes()
-        });
-
     }
 
     function decodeNearDepositLog(bytes memory logsHash)
     public
     view
-    returns (bytes memory executorId, nearDepositOutEvent memory _outEvent){
+    returns (bytes memory executorId, nearDepositOutEvent[] memory _outEvents){
         RLPReader.RLPItem[] memory ls = logsHash.toRlpItem().toList();
+        require(ls.length >= 2, "logsHash length to low");
 
         executorId = ls[0].toBytes();
 
@@ -538,26 +556,28 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Initializable, Pausable, 
 
         }
         bytes memory log;
+        _outEvents = new nearDepositOutEvent[](logs.length);
         for (uint256 i = 0; i < logs.length; i++) {
 
             (bytes memory temp) = splitExtra(logs[i]);
             if (keccak256(temp) == nearDepositOut) {
                 log = hexStrToBytes(logs[i]);
+                RLPReader.RLPItem[] memory logList = log.toRlpItem().toList();
+
+                require(logList.length >= 7, "logsHash length to low");
+
+                nearDepositOutEvent memory _outEvent = nearDepositOutEvent({
+                token : logList[0].toBytes(),
+                from : logList[1].toBytes(),
+                order_id : logList[2].toBytes(),
+                from_chain : logList[3].toUint(),
+                to_chain : logList[4].toUint(),
+                to : logList[5].toBytes(),
+                amount : logList[6].toUint()
+                });
+                _outEvents[i] = _outEvent;
             }
         }
-
-        RLPReader.RLPItem[] memory logList = log.toRlpItem().toList();
-
-        _outEvent = nearDepositOutEvent({
-        token : logList[0].toBytes(),
-        from : logList[1].toBytes(),
-        order_id : logList[2].toBytes(),
-        from_chain : logList[3].toUint(),
-        to_chain : logList[4].toUint(),
-        to : logList[5].toBytes(),
-        amount : logList[6].toUint()
-        });
-
     }
 
 
@@ -645,10 +665,21 @@ contract MAPCrossChainServiceRelay is ReentrancyGuard, Initializable, Pausable, 
         require(msg.sender == _getAdmin(), "LightNode: only Admin can upgrade");
     }
 
-    function changeAdmin(address _admin) public onlyOwner {
-        require(_admin != address(0), "zero address");
+    function changeAdmin() public {
+        require(_pendingAdmin == msg.sender, "only pendingAdmin");
+        emit AdminTransferred(_getAdmin(), _pendingAdmin);
+        _changeAdmin(_pendingAdmin);
+    }
 
-        _changeAdmin(_admin);
+
+    function pendingAdmin() external view returns (address){
+        return _pendingAdmin;
+    }
+
+    function setPendingAdmin(address pendingAdmin_) public onlyOwner {
+        require(pendingAdmin_ != address(0), "Ownable: pendingAdmin is the zero address");
+        emit ChangePendingAdmin(_pendingAdmin, pendingAdmin_);
+        _pendingAdmin = pendingAdmin_;
     }
 
     function getAdmin() external view returns (address) {

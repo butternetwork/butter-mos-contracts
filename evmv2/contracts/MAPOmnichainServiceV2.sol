@@ -41,6 +41,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
 
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
+
     function initialize(address _wToken, address _lightNode)
     public initializer checkAddress(_wToken) checkAddress(_lightNode) {
         wToken = _wToken;
@@ -81,6 +82,10 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         _unpause();
     }
 
+    function setLightClient(address _lightNode) external onlyOwner checkAddress(_lightNode) {
+        lightNode = ILightNode(_lightNode);
+    }
+
     function addMintableToken(address[] memory _token) external onlyOwner {
         for (uint i = 0; i < _token.length; i++) {
             mintableTokens[_token[i]] = true;
@@ -106,7 +111,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         tokenMappingList[_toChain][_token] = _enable;
     }
 
-    function emergencyWithdraw(address _token, address payable _receiver, uint256 _amount) external onlyOwner {
+    function emergencyWithdraw(address _token, address payable _receiver, uint256 _amount) external onlyOwner checkAddress(_receiver) {
         if (_token == wToken) {
             TransferHelper.safeWithdraw(wToken, _amount);
             TransferHelper.safeTransferETH(_receiver, _amount);
@@ -364,7 +369,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         require(msg.sender == _getAdmin(), "MAPOmnichainService: only Admin can upgrade");
     }
 
-    function changeAdmin(address _admin) external onlyOwner checkAddress(_admin) {
+    function changeAdmin(address _admin) external onlyOwner checkAddress(_admin){
         _changeAdmin(_admin);
     }
 

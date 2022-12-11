@@ -96,10 +96,10 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         console.log("mossR address:",mossR.address);
 
         StandardToken = await ethers.getContractFactory("MintableToken");
-        standardToken = await  StandardToken.deploy("MapToken","MP");
+        standardToken = await  StandardToken.deploy("MapToken","MP", 18);
 
         UToken = await ethers.getContractFactory("MintableToken");
-        usdt = await  UToken.deploy("U Toeken","USDT");
+        usdt = await  UToken.deploy("U Toeken","USDT", 18);
 
         Wrapped = await ethers.getContractFactory("Wrapped");
         wrapped = await Wrapped.deploy();
@@ -230,7 +230,7 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         //address2Bytes = await mossR._addressToBytes(addr2.address);
         address2Bytes = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
         let testTokenContract = await ethers.getContractFactory("MintableToken");
-        let testToken = await testTokenContract.deploy("TestToken","TT");
+        let testToken = await testTokenContract.deploy("TestToken","TT", 18);
 
         // setup token vault
         let tokenVaultContract = await ethers.getContractFactory("VaultTokenV2");
@@ -578,6 +578,5 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
 
         expect(await wrapped.balanceOf(mossR.address)).to.equal("2100000000000000000")
     });
-
 
 })
