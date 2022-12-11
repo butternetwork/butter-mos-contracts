@@ -6,6 +6,7 @@ function stringToHex(str) {
 }
 
 module.exports = async (taskArgs) => {
+    console.log('hex', stringToHex('wrap.testnetXabc.testnet'))
     const abi = ethers.utils.defaultAbiCoder;
     const bscSwapData = abi.encode(
         ["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"],
@@ -22,18 +23,31 @@ module.exports = async (taskArgs) => {
             '0x6Ac66dCBE1680aAC446B28BE5371Be869B5059cF'
         ]
     );
-
-    const maticSwapData = abi.encode(
+    const nearSwapData = abi.encode(
         ["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"],
 
         [
             [[
                 "1000000000000000000", // 1 USDC
                 "800000000000000000",
-                abi.encode(["address[]"], [['0x1E01CF4503808Fb30F17806035A87cf5A5217727', '0xe1D8eAB4e616156E11e1c59D1a0E0EFeD66f4cfa']]),
-                "0" // quickswap
+                "0x" + stringToHex("wrap.testnetXabc.testnet"),
+                "1233" // quickswap
             ]]
             ,
+            '0x' + stringToHex('abc.testnet'),
+            '0x6Ac66dCBE1680aAC446B28BE5371Be869B5059cF'
+        ]
+    )
+    const maticSwapData = abi.encode(
+        ["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"],
+
+        [
+            [[
+                "10000000000000000000000000", // 1 USDC
+                "8000000000000000000000000",
+                abi.encode(["address[]"], [['0x1E01CF4503808Fb30F17806035A87cf5A5217727', '0xe1D8eAB4e616156E11e1c59D1a0E0EFeD66f4cfa']]),
+                "0" // quickswap
+            ]],
             '0xe1D8eAB4e616156E11e1c59D1a0E0EFeD66f4cfa',
             '0x6Ac66dCBE1680aAC446B28BE5371Be869B5059cF',
         ]
@@ -60,8 +74,10 @@ module.exports = async (taskArgs) => {
     let toChainSwapData;
     if (taskArgs.tochain === '97') {
         toChainSwapData = bscSwapData;
-    } else {
+    } else if (taskArgs.tochain === '80001') {
         toChainSwapData = maticSwapData;
+    } else if (taskArgs.tochain === '5566818579631833089') {
+        toChainSwapData = nearSwapData;
     }
 
     if (taskArgs.token === "0x0000000000000000000000000000000000000000") {
