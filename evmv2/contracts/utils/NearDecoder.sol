@@ -72,14 +72,14 @@ library NearDecoder {
         bytes memory log;
         for (uint256 i = 0; i < logs.length; i++) {
             (bytes memory temp) = Utils.splitExtra(logs[i]);
-            if (keccak256(temp) == NEAR_TRANSFEROUT) {
+            if (keccak256(temp) == NEAR_SWAPOUT) {
                 log = Utils.hexStrToBytes(logs[i]);
             }
         }
 
         RLPReader.RLPItem[] memory logList = log.toRlpItem().toList();
 
-        outEvent = IEvent.transferOutEvent({
+        outEvent = IEvent.swapOutEvent({
         fromChain : logList[0].toUint(),
         toChain : logList[1].toUint(),
         orderId : bytes32(logList[2].toBytes()),
