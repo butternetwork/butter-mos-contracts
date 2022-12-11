@@ -58,40 +58,45 @@ library NearDecoder {
         }
     }
 
-    function decodeNearSwapLog(bytes memory _logs)
+    function decodeNearSwapLog(bytes memory logsHash)
     internal
     pure
-    returns (bytes memory executorId, IEvent.swapOutEvent memory outEvent){
-        RLPReader.RLPItem[] memory ls = _logs.toRlpItem().toList();
+    returns (bytes memory executorId, IEvent.swapOutEvent[] memory _outEvents){
+        RLPReader.RLPItem[] memory ls = logsHash.toRlpItem().toList();
+
+        require(ls.length >= 2, "logsHash length to low");
 
         executorId = ls[0].toBytes();
 
         bytes[] memory logs = new bytes[](ls[1].toList().length);
         for (uint256 i = 0; i < ls[1].toList().length; i++) {
-
             logs[i] = ls[1].toList()[i].toBytes();
-
         }
         bytes memory log;
+
+        _outEvents = new IEvent.swapOutEvent[](logs.length);
         for (uint256 i = 0; i < logs.length; i++) {
+
             (bytes memory temp) = Utils.splitExtra(logs[i]);
             if (keccak256(temp) == NEAR_SWAPOUT) {
                 log = Utils.hexStrToBytes(logs[i]);
+                RLPReader.RLPItem[] memory logList = log.toRlpItem().toList();
+
+                require(logList.length >= 8, "logsHash length to low");
+
+                IEvent.swapOutEvent memory _outEvent = IEvent.swapOutEvent({
+                fromChain : logList[0].toUint(),
+                toChain : logList[1].toUint(),
+                orderId : bytes32(logList[2].toBytes()),
+                token : logList[3].toBytes(),
+                from : logList[4].toBytes(),
+                to : logList[5].toBytes(),
+                amount : logList[6].toUint(),
+                swapData : logList[7].toBytes()
+                });
+                _outEvents[i] = _outEvent;
             }
         }
-
-        RLPReader.RLPItem[] memory logList = log.toRlpItem().toList();
-
-        outEvent = IEvent.swapOutEvent({
-        fromChain : logList[0].toUint(),
-        toChain : logList[1].toUint(),
-        orderId : bytes32(logList[2].toBytes()),
-        token : logList[3].toBytes(),
-        from : logList[4].toBytes(),
-        to : logList[5].toBytes(),
-        amount : logList[6].toUint(),
-        swapData : logList[7].toBytes()
-        });
 
     }
 

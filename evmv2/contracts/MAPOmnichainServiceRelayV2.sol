@@ -224,9 +224,13 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         (bool success,string memory message,bytes memory logArray) = lightClientManager.verifyProofData(_chainId, _receiptProof);
         require(success, message);
         if (chainTypes[_chainId] == chainType.NEAR) {
-            (bytes memory mosContract, IEvent.swapOutEvent memory outEvent) = NearDecoder.decodeNearSwapLog(logArray);
-            require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
-            _swapIn(_chainId, outEvent);
+            (bytes memory mosContract, IEvent.swapOutEvent[] memory outEvents) = NearDecoder.decodeNearSwapLog(logArray);
+            for (uint i = 0; i < outEvents.length; i++) {
+                IEvent.swapOutEvent memory outEvent = outEvents[i];
+                if (outEvent.toChain == 0){continue;}
+                require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
+                _swapIn(_chainId, outEvent);
+            }
         } else if (chainTypes[_chainId] == chainType.EVM) {
             IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
             for (uint256 i = 0; i < logs.length; i++) {
