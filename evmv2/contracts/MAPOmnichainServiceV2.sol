@@ -332,22 +332,21 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
                 IMAPToken(tokenIn).mint(address(this), actualAmountIn);
             }
             uint predicatedAmountIn = Utils.getAmountInSumFromSwapParams(swapParams);
-            if (actualAmountIn >= predicatedAmountIn) {
-                // assemble request to call butter core
-                ButterLib.ButterCoreSwapParam memory butterCoreSwapParam =
-                Utils.assembleButterCoreParam(tokenIn, actualAmountIn, predicatedAmountIn, _outEvent.to, swapData);
-                // low-level call butter core to finish swap
-                TransferHelper.safeApprove(tokenIn, butterCore, actualAmountIn);
-                 (bool success,) = address(butterCore).call(
-                        abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))", butterCoreSwapParam)
-                );
+            // assemble request to call butter core
+            ButterLib.ButterCoreSwapParam memory butterCoreSwapParam =
+            Utils.assembleButterCoreParam(tokenIn, actualAmountIn, predicatedAmountIn, _outEvent.to, swapData);
+            // low-level call butter core to finish swap
+            TransferHelper.safeApprove(tokenIn, butterCore, actualAmountIn);
+            (bool success,) = address(butterCore).call(
+                abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))", butterCoreSwapParam)
+            );
 
-                // if swap succeed, just return
-                if (success) {
-                    emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenOut, _outEvent.from, toAddress, actualAmountIn);
-                    return;
-                }
+            // if swap succeed, just return
+            if (success) {
+                emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenOut, _outEvent.from, toAddress, actualAmountIn);
+                return;
             }
+
             // if swap not succeed or swap not happened, give user the source token
             tokenOut = tokenIn;
         }
@@ -369,7 +368,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         require(msg.sender == _getAdmin(), "MAPOmnichainService: only Admin can upgrade");
     }
 
-    function changeAdmin(address _admin) external onlyOwner checkAddress(_admin){
+    function changeAdmin(address _admin) external onlyOwner checkAddress(_admin) {
         _changeAdmin(_admin);
     }
 

@@ -131,7 +131,7 @@ task("relayMapToken",
     .addParam("token", "token address to relay chain")
     .addParam("chain", "cross-chain id")
     .addParam("chaintoken", "cross-chain token")
-    .addOptionalParam("decimals", "token decimals, default 18", 18, types.int)
+    .addParam("decimals", "token decimals")
 
 
 task("relaySetTokenFee",

@@ -16,7 +16,6 @@ module.exports = async (taskArgs, hre) => {
 
     let mos = await ethers.getContract('MAPOmnichainServiceV2');
 
-    console.log("MAPOmnichainServiceV2 address:", mos.address);
 
 
     let data = mos.interface.encodeFunctionData("initialize", [taskArgs.wrapped, taskArgs.lightnode]);
@@ -29,6 +28,7 @@ module.exports = async (taskArgs, hre) => {
     })
 
     let mosProxy = await ethers.getContract('MAPOmnichainServiceProxyV2');
+    console.log("MAPOmnichainServiceV2 relay address:", mosProxy.address);
 
     mos = await ethers.getContractAt('MAPOmnichainServiceV2', mosProxy.address);
     const relayAddress = '0xE7501974054694cB182b482d3eEd30e6a23cC162';

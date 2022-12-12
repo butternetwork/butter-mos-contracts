@@ -24,6 +24,8 @@ library Utils {
         // modify swapParam amount in, compensate the difference between actual and predicted amount.
         if (_actualAmountIn >= _predicatedAmountIn) {
             swapParams[0].amountIn += (_actualAmountIn - _predicatedAmountIn);
+        } else {
+            swapParams[0].amountIn -= (_predicatedAmountIn - _actualAmountIn);
         }
 
         for (uint i = 0; i < swapParams.length; i++) {
@@ -37,7 +39,7 @@ library Utils {
                 swapParams[i].minAmountOut,
                 abi.decode(swapParams[i].path, (address[])),
                 Utils.fromBytes(_to),
-                block.timestamp + 1000,
+                block.timestamp + 100,
                 _tokenIn,
                 Utils.fromBytes(_swapData.targetToken)
             );

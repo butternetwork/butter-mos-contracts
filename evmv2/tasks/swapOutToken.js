@@ -6,7 +6,6 @@ function stringToHex(str) {
 }
 
 module.exports = async (taskArgs) => {
-    console.log('hex', stringToHex('wrap.testnetXabc.testnet'))
     const abi = ethers.utils.defaultAbiCoder;
     const bscSwapData = abi.encode(
         ["tuple(uint256, uint256, bytes, uint64)[]", "bytes", "address"],
@@ -14,13 +13,13 @@ module.exports = async (taskArgs) => {
         [
             [[
                 "1000000000000000000", // 1 USDC
-                "000000000000000000",
+                "800000000000000000",
                 abi.encode(["address[]"], [['0x3F1E91BFC874625f4ee6EF6D8668E79291882373', '0x593F6F6748dc203DFa636c299EeA6a39C0734EEd']]),
                 "0" // pancake
             ]]
             ,
             '0x593F6F6748dc203DFa636c299EeA6a39C0734EEd',
-            '0xe7B9F38C624e54e7024F337B6EDe1Be59ee6d54a'
+            '0x424D3bcdC96F42aC919F276D7D4f6C94f24e0703'
         ]
     );
     const nearSwapData = abi.encode(
@@ -35,7 +34,7 @@ module.exports = async (taskArgs) => {
             ]]
             ,
             '0x' + stringToHex('abc.testnet'),
-            '0xe7B9F38C624e54e7024F337B6EDe1Be59ee6d54a'
+            '0x424D3bcdC96F42aC919F276D7D4f6C94f24e0703'
         ]
     )
     const maticSwapData = abi.encode(
@@ -43,13 +42,13 @@ module.exports = async (taskArgs) => {
 
         [
             [[
-                "10000000000000000000000000", // 1 USDC
-                "8000000000000000000000000",
+                "1000000000000000000", // 1 USDC
+                "800000000000000000",
                 abi.encode(["address[]"], [['0x1E01CF4503808Fb30F17806035A87cf5A5217727', '0xe1D8eAB4e616156E11e1c59D1a0E0EFeD66f4cfa']]),
                 "0" // quickswap
             ]],
             '0xe1D8eAB4e616156E11e1c59D1a0E0EFeD66f4cfa',
-            '0xe7B9F38C624e54e7024F337B6EDe1Be59ee6d54a',
+            '0x424D3bcdC96F42aC919F276D7D4f6C94f24e0703',
         ]
     );
     console.log('swapdata', maticSwapData)
