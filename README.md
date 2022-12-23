@@ -25,9 +25,9 @@ There are three smart contracts we need to deploy on MAP Relay Chain:
 
 
 
-#### `MAPCrossChainServiceRelay.sol`
+#### `MAPOmnichainServiceRelay.sol`
 
-`MAPCrossChainServiceRelay.sol` is perhaps the most important smart contract in the entire system. It acts as a relay for every single cross-chain transaction. It is responsible for proof verification, what event to emit and processing relative event coming from other blockchains.
+`MAPOmnichainServiceRelay.sol` is perhaps the most important smart contract in the entire system. It acts as a relay for every single cross-chain transaction. It is responsible for proof verification, what event to emit and processing relative event coming from other blockchains.
 
 
 
@@ -49,15 +49,15 @@ There are only one smart contract need to be deployed on EVM compitable blockcha
 
 
 
-#### `MAPCrossChainService.sol`
+#### `MAPOmnichainService.sol`
 
-Just like `MAPCrossChainServiceRelay.sol`, it handles proof verification, what event to emit and processing relative event coming from MAP Relay Chain.
+Just like `MAPOmnichainServiceRelay.sol`, it handles proof verification, what event to emit and processing relative event coming from MAP Relay Chain.
 
 
 
 ### On Near
 
-#### `MAPCrossChainService`
+#### `MAPOmnichainService`
 
 Rust version of MAP Cross-chain Service. It basically does the same thing but written in Rust Language.
 
@@ -73,11 +73,11 @@ Right now we have all necessary contracts deployed. However we have to initializ
 
 ### Call `Initialize(...)`
 
-For every MCS smart contract deployed on each chain, we need to call the `initialize(...)` methods, it takes three parameters:
+For every MOS smart contract deployed on each chain, we need to call the `initialize(...)` methods, it takes three parameters:
 
 `wToken`: address of the wrapped native token, in MAP Relay Chain it will be the address of wMAP, in Ethereum it will be the address of wETH, in Near it will be wrap.near, etc..
 
-`mapToken`: the address of the MAP Token on target chain. For MCSRelay on MAP Relay chain it will be zero address, for MCS smart contract on ethereum this will be the address of MAP Token on Ethereum network.
+`mapToken`: the address of the MAP Token on target chain. For MOSRelay on MAP Relay chain it will be zero address, for MOS smart contract on ethereum this will be the address of MAP Token on Ethereum network.
 
 `lightclient`: the address of light client on target blockchain, light client is responsible for verifying proofs coming from connected blockchains.
 
@@ -85,23 +85,23 @@ For every MCS smart contract deployed on each chain, we need to call the `initia
 
 ### Call `setBridge(...)`
 
-`setBridge` methods mark certain bridge address as 'allowed' in MCS. It allows MCS smart contract know which MCS address(MCS address = Bridge address) is 'legit'. For example if the mcs address on MAP Relay Chain is 0x1234..., then MCS contract on ethereum should call `setBridge('0x1234...') ` in order to allow processing messages from '0x1234...', which is the legit mcs address on MAP Relay Chain.
+`setBridge` methods mark certain bridge address as 'allowed' in MOS. It allows MOS smart contract know which MOS address(MOS address = Bridge address) is 'legit'. For example if the MOS address on MAP Relay Chain is 0x1234..., then MOS contract on ethereum should call `setBridge('0x1234...') ` in order to allow processing messages from '0x1234...', which is the legit MOS address on MAP Relay Chain.
 
 
 
-### Call `setFeeCenter(...)`(only on MCSRelay)
+### Call `setFeeCenter(...)`(only on MOSRelay)
 
-MCSRelay smart contract on MAP relay chain needs to call `setFeeCenter(address)`to set the correct fee center that handles all the fee related functionalities.
-
-
-
-### Call `setTokenRegister(...)`(only on MCSRelay)
-
-MCSRelay smart contract on MAP relay chain needs to call `setTokenRegister(address)`to set the correct token register that handles all the token mappings. i.e. which token on src chain map to which token on target chain.
+MOSRelay smart contract on MAP relay chain needs to call `setFeeCenter(address)`to set the correct fee center that handles all the fee related functionalities.
 
 
 
-Now we have successfully initalized all the smart contracts, but we can't bridge token yet, we need to tell mcs which token can be bridged.
+### Call `setTokenRegister(...)`(only on MOSRelay)
+
+MOSRelay smart contract on MAP relay chain needs to call `setTokenRegister(address)`to set the correct token register that handles all the token mappings. i.e. which token on src chain map to which token on target chain.
+
+
+
+Now we have successfully initalized all the smart contracts, but we can't bridge token yet, we need to tell MOS which token can be bridged.
 
 
 
@@ -109,10 +109,10 @@ Now we have successfully initalized all the smart contracts, but we can't bridge
 
 Add token pairs from two blockchains, this allows our system know which token from blockchain A can be bridged to which token from blockchain B. Serveral smart contract methods need to be called:
 
-1. Call MCS's `setCanBridgeToken(...)` on non-MAP blockchain to indicate which token can be bridged out. For instance, if you want to bridge tokenA from Ethereum, you need to call `setCanBridgeToken(tokenA.address, toChainId, true)` to let ethereum's mcs know tokenA can be bridged to blockchain with `toChainId`
+1. Call MOS's `setCanBridgeToken(...)` on non-MAP blockchain to indicate which token can be bridged out. For instance, if you want to bridge tokenA from Ethereum, you need to call `setCanBridgeToken(tokenA.address, toChainId, true)` to let ethereum's MOS know tokenA can be bridged to blockchain with `toChainId`
 2. Call FeeCenter's `setChainTokenGasFee(toChainId, srcToken, feeRate)` to set up fee rate for certain token.
 3. Call TokenRegister's `registerToken()` method to register token pair.
-4. Call MCSRelay's `setTOkenOtherChainDecimals()` for different token unit convertion.
+4. Call MOSRelay's `setTOkenOtherChainDecimals()` for different token unit convertion.
 
 Now we can bridge certain token from one chain to another. Next we need to add some funds to our `Vault`
 
@@ -142,4 +142,4 @@ For messenger between MAP and Near, we need more supported services.
 2. Redis: store near block info
 
 ## To Add a Token Pair<a name = "tokenpair"/>
-1. you need a token on MAP Chain, either the token controlled by MCS Relay contract on MAP(mcs relay is able to mint or burn the token), or you have a MAPVaultToken to hold that token.
+1. you need a token on MAP Chain, either the token controlled by MOS Relay contract on MAP(MOS relay is able to mint or burn the token), or you have a MAPVaultToken to hold that token.
