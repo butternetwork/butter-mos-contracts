@@ -218,3 +218,8 @@ task("swapIn",
     "swapIn",
     require("./swapIn.js")
 )
+
+task("vaultDeposit",
+    "vaultDeposit",
+    require("./vaultDeposit.js")
+).addParam("fromchain", "fromchainId")
