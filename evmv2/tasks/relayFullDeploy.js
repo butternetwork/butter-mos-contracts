@@ -91,7 +91,7 @@ module.exports = async (taskArgs,hre) => {
     // map token
     const bscUSDCAddress = '0x3F1E91BFC874625f4ee6EF6D8668E79291882373'
     const maticUSDCAddress = '0x1E01CF4503808Fb30F17806035A87cf5A5217727'
-
+    const goerliUSDCAddress = '0x86CBE739888bFbC0bcA6e2D6106cfC5B3B1F69A5'
     await (await tokenManager.connect(deployer).mapToken(
         usdc.address,
         '97',
@@ -107,6 +107,15 @@ module.exports = async (taskArgs,hre) => {
         18
     )).wait()
     console.log(`map 80001 ${maticUSDCAddress} to mUSDC on map`)
+
+
+    await (await tokenManager.connect(deployer).mapToken(
+        usdc.address,
+        '5',
+        goerliUSDCAddress,
+        18
+    )).wait()
+    console.log(`map 5 ${goerliUSDCAddress} to mUSDC on map`)
 
     // set token fee
     await (await tokenManager.connect(deployer).setTokenFee(
@@ -126,6 +135,15 @@ module.exports = async (taskArgs,hre) => {
         '100'
     )).wait()
     console.log(`set mUSDC fee to 80001`)
+
+    await (await tokenManager.connect(deployer).setTokenFee(
+        usdc.address,
+        '5',
+        '200000000000000000',
+        '10000000000000000000',
+        '100'
+    )).wait()
+    console.log(`set mUSDC fee to 5`)
 
 
     await (await tokenManager.connect(deployer).setTokenFee(
