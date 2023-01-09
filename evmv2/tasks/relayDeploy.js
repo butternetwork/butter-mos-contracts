@@ -17,8 +17,6 @@ module.exports = async (taskArgs,hre) => {
 
     console.log("MAPOmnichainServiceRelayV2 address:",mosRelay.address);
 
-    let data = mosRelay.interface.encodeFunctionData("initialize", [taskArgs.wrapped, taskArgs.lightnode]);
-
     let proxy = await deployments.get("MAPOmnichainServiceProxyV2")
 
     let mosRelayProxy = await ethers.getContractAt('MAPOmnichainServiceRelayV2',proxy.address);
