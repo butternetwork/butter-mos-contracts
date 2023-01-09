@@ -1,7 +1,7 @@
 
-task("mosDeploy",
+task("mosFullDeploy",
     "Deploy the upgradeable MapCrossChainService contract and initialize it",
-    require("./mosDeploy")
+    require("./mosFullDeploy")
 )
     .addParam("wrapped", "native wrapped token address")
     .addParam("lightnode", "lightNode contract address")
@@ -207,6 +207,11 @@ task("mosList",
 )
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
     .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
+
+task("mosDeploy",
+    "deploy just mos",
+    require("./mosDeploy")
+)
 
 task("upgradeMOS",
     "upgrade mos evm contract in proxy",

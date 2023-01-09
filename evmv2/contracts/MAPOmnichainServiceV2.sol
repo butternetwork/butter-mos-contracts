@@ -147,6 +147,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     }
 
     function swapOutToken(
+        address _initiatorAddress, // swap initiator address
         address _token, // src token
         bytes memory _to,
         uint256 _amount,
@@ -175,7 +176,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
             _toChain,
             orderId,
             Utils.toBytes(_token),
-            Utils.toBytes(msg.sender),
+            Utils.toBytes(_initiatorAddress),
             _to,
             _amount,
             swapData
@@ -183,6 +184,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     }
 
     function swapOutNative(
+        address _initiatorAddress, // swap initiator address
         bytes memory _to,
         uint256 _toChain, // target chain id
         bytes calldata swapData
@@ -204,7 +206,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
             _toChain,
             orderId,
             Utils.toBytes(wToken),
-            Utils.toBytes(msg.sender),
+            Utils.toBytes(_initiatorAddress),
             _to,
             amount,
             swapData

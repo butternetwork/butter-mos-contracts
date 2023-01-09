@@ -7,6 +7,7 @@ interface IMOSV2 {
     function transferOutNative(bytes memory _to, uint _toChain) external payable;
 
     function swapOutToken(
+        address _initiatorAddress,
         address _token, // src token
         bytes memory _to,
         uint256 _amount,
@@ -15,6 +16,7 @@ interface IMOSV2 {
     ) external;
 
     function swapOutNative(
+        address _initiatorAddress,
         bytes memory _to,
         uint256 _toChain, // target chain id
         bytes calldata swapData

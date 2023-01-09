@@ -42,12 +42,14 @@ module.exports = async (taskArgs,hre) => {
     let tokenRegister = await ethers.getContract('TokenRegisterV2');
     console.log("TokenRegisterV2 address:",tokenRegister.address);
     data = tokenRegister.interface.encodeFunctionData("initialize", []);
+
     await deploy('TokenRegisterProxy', {
         from: deployer.address,
         args: [tokenRegister.address,data],
         log: true,
         contract: 'TokenRegisterProxy',
     })
+
     let tokenRegisterProxy = await ethers.getContract('TokenRegisterProxy');
     const tokenManager = await ethers.getContractAt('TokenRegisterV2', tokenRegisterProxy.address);
     console.log("TokenRegisterProxy address:",tokenRegisterProxy.address);
