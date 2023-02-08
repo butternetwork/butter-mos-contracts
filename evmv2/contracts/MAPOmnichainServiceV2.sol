@@ -158,6 +158,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     nonReentrant
     whenNotPaused
     checkBridgeable(_token, _toChain)
+    returns(bytes32 orderId)
     {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
@@ -168,7 +169,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
             TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
         }
 
-        bytes32 orderId = _getOrderID(msg.sender, _to, _toChain);
+        orderId = _getOrderID(msg.sender, _to, _toChain);
 
         emit mapSwapOut(
             selfChainId,
@@ -193,12 +194,13 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     nonReentrant
     whenNotPaused
     checkBridgeable(wToken, _toChain)
+    returns(bytes32 orderId)
     {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         uint amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWToken(wToken).deposit{value : amount}();
-        bytes32 orderId = _getOrderID(msg.sender, _to, _toChain);
+        orderId = _getOrderID(msg.sender, _to, _toChain);
         emit mapSwapOut(
             selfChainId,
             _toChain,
@@ -338,7 +340,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
             // low-level call butter core to finish swap
             TransferHelper.safeApprove(tokenIn, butterCore, actualAmountIn);
             (bool success,) = address(butterCore).call(
-                abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))", butterCoreSwapParam)
+                abi.encodeWithSignature("multiSwap(bytes32,(uint256[],bytes[],uint32[],address[2]))",_outEvent.orderId,butterCoreSwapParam)
             );
 
             // if swap succeed, just return

@@ -155,24 +155,24 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata swapData
-    ) external override whenNotPaused {
+    ) external override whenNotPaused returns(bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
 
         TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
-        _swapOut(_token, _to, msg.sender, _amount, _toChain, swapData);
+        orderId = _swapOut(_token, _to, msg.sender, _amount, _toChain, swapData);
     }
 
     function swapOutNative(
         bytes memory _to,
         uint256 _toChain, // target chain id
         bytes calldata swapData
-    ) external override payable whenNotPaused {
+    ) external override payable whenNotPaused returns(bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWToken(wToken).deposit{value : amount}();
-        _swapOut(wToken, _to, msg.sender, amount, _toChain, swapData);
+        orderId = _swapOut(wToken, _to, msg.sender, amount, _toChain, swapData);
     }
 
     function depositToken(address _token, address _to, uint _amount) external override nonReentrant whenNotPaused {
@@ -453,7 +453,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata swapData
-    ) internal {
+    ) internal returns(bytes32 orderId) {
         bytes memory toToken = tokenRegister.getToChainToken(_token, _toChain);
         // bytes memory toToken = "0x0";
         require(!Utils.checkBytes(toToken, bytes("")), "Out token not registered");
@@ -464,7 +464,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             IMAPToken(_token).burn(mapOutAmount);
         }
 
-        bytes32 orderId = _getOrderId(_from, _to, _toChain);
+        orderId = _getOrderId(_from, _to, _toChain);
         emit mapSwapOut(
             selfChainId,
             _toChain,
