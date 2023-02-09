@@ -12,13 +12,13 @@ interface IMOSV2 {
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata swapData
-    ) external;
+    ) external returns(bytes32 orderId);
 
     function swapOutNative(
         bytes memory _to,
         uint256 _toChain, // target chain id
         bytes calldata swapData
-    ) external payable;
+    ) external payable returns(bytes32 orderId);
 
     function depositToken(address _token, address to, uint _amount) external;
     function depositNative(address _to) external payable ;
