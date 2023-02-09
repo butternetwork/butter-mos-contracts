@@ -348,13 +348,13 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
             if(butterCoreSwapParam.inputOutAddre[1] == address(0)){
                balanceChangeAfterSwap = toAddress.balance;
                (success,) = address(butterCore).call(
-                abi.encodeWithSignature("multiSwap(bytes32,(uint256[],bytes[],uint32[],address[2]))",_outEvent.orderId,butterCoreSwapParam)
+                abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))",_outEvent.orderId,butterCoreSwapParam)
                );  
                balanceChangeAfterSwap = toAddress.balance - balanceChangeAfterSwap;
             }else {
                balanceChangeAfterSwap = IERC20(tokenOut).balanceOf(toAddress);
                (success,) = address(butterCore).call(
-                abi.encodeWithSignature("multiSwap(bytes32,(uint256[],bytes[],uint32[],address[2]))",_outEvent.orderId,butterCoreSwapParam)
+                abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))",_outEvent.orderId,butterCoreSwapParam)
                );  
                balanceChangeAfterSwap = IERC20(tokenOut).balanceOf(toAddress) - balanceChangeAfterSwap;    
             }
