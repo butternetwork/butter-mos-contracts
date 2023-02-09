@@ -333,19 +333,34 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
             if (isMintable(tokenIn)) {
                 IMAPToken(tokenIn).mint(address(this), actualAmountIn);
             }
-            uint predicatedAmountIn = Utils.getAmountInSumFromSwapParams(swapParams);
-            // assemble request to call butter core
-            ButterLib.ButterCoreSwapParam memory butterCoreSwapParam =
-            Utils.assembleButterCoreParam(tokenIn, actualAmountIn, predicatedAmountIn, _outEvent.to, swapData);
-            // low-level call butter core to finish swap
-            TransferHelper.safeApprove(tokenIn, butterCore, actualAmountIn);
-            (bool success,) = address(butterCore).call(
-                abi.encodeWithSignature("multiSwap(bytes32,(uint256[],bytes[],uint32[],address[2]))",_outEvent.orderId,butterCoreSwapParam)
-            );
+            //avoids stack too deep errors
+            ButterLib.ButterCoreSwapParam memory butterCoreSwapParam;
+            {
+              uint predicatedAmountIn = Utils.getAmountInSumFromSwapParams(swapParams);
+              // assemble request to call butter core
+              butterCoreSwapParam = Utils.assembleButterCoreParam(tokenIn, actualAmountIn, predicatedAmountIn, _outEvent.to, swapData);
+            }
 
+            TransferHelper.safeApprove(tokenIn, butterCore, actualAmountIn);
+            bool success;
+            uint256 balanceChangeAfterSwap;
+             // low-level call butter core to finish swap
+            if(butterCoreSwapParam.inputOutAddre[1] == address(0)){
+               balanceChangeAfterSwap = toAddress.balance;
+               (success,) = address(butterCore).call(
+                abi.encodeWithSignature("multiSwap(bytes32,(uint256[],bytes[],uint32[],address[2]))",_outEvent.orderId,butterCoreSwapParam)
+               );  
+               balanceChangeAfterSwap = toAddress.balance - balanceChangeAfterSwap;
+            }else {
+               balanceChangeAfterSwap = IERC20(tokenOut).balanceOf(toAddress);
+               (success,) = address(butterCore).call(
+                abi.encodeWithSignature("multiSwap(bytes32,(uint256[],bytes[],uint32[],address[2]))",_outEvent.orderId,butterCoreSwapParam)
+               );  
+               balanceChangeAfterSwap = IERC20(tokenOut).balanceOf(toAddress) - balanceChangeAfterSwap;    
+            }
             // if swap succeed, just return
             if (success) {
-                emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenOut, _outEvent.from, toAddress, actualAmountIn);
+                emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenOut, _outEvent.from, toAddress, balanceChangeAfterSwap);
                 return;
             }
 
