@@ -150,6 +150,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     }
 
     function swapOutToken(
+        address _initiatorAddress,
         address _token, // src token
         bytes memory _to,
         uint256 _amount,
@@ -160,10 +161,11 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
 
         TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
-        orderId = _swapOut(_token, _to, msg.sender, _amount, _toChain, swapData);
+        orderId = _swapOut(_token, _to, _initiatorAddress, _amount, _toChain, swapData);
     }
 
     function swapOutNative(
+        address _initiatorAddress,
         bytes memory _to,
         uint256 _toChain, // target chain id
         bytes calldata swapData
@@ -172,7 +174,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWToken(wToken).deposit{value : amount}();
-        orderId = _swapOut(wToken, _to, msg.sender, amount, _toChain, swapData);
+        orderId = _swapOut(wToken, _to, _initiatorAddress, amount, _toChain, swapData);
     }
 
     function depositToken(address _token, address _to, uint _amount) external override nonReentrant whenNotPaused {
