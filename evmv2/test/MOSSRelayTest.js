@@ -254,7 +254,7 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         expect(await tokenVault.vaultBalance(97)).to.equal(0)
 
         const mapTargetToken = '0x0000000000000000000000000000000000000000';
-        await mossR.connect(owner).swapOutToken(testToken.address, owner.address, swapAmount, 97, swapData)
+        await mossR.connect(owner).swapOutToken(owner.address,testToken.address, owner.address, swapAmount, 97, swapData)
         //
         expect(await testToken.balanceOf(mossR.address)).to.equal(mintAmount);
         expect(await tokenVault.vaultBalance(97)).to.equal("-1000000000000000000");
@@ -574,7 +574,7 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
     it('swapOutNative test ', async function () {
         const mapTargetToken = '0x0000000000000000000000000000000000000000'
 
-        await mossR.connect(owner).swapOutNative(owner.address,1313161555, swapData, {value:"100000000000000000"});
+        await mossR.connect(owner).swapOutNative(owner.address,owner.address,1313161555, swapData, {value:"100000000000000000"});
 
         expect(await wrapped.balanceOf(mossR.address)).to.equal("2100000000000000000")
     });

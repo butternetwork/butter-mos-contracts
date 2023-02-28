@@ -200,6 +200,35 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         feeRate = tokenList[_token].fees[_toChain];
     }
 
+    function getFeeAmountAndVaultBalance(uint256 _srcChain,bytes memory _srcToken,uint256 _srcAmount,uint256 _targetChain) 
+    external
+    view
+    returns(uint256 _feeAmount,uint256 _relayChainAmount,int256 _vaultBalance,bytes memory _toChainToken){
+         address map_token = tokenMappingList[_srcChain][_srcToken];
+         _relayChainAmount = this.getRelayChainAmount(map_token,_srcChain,_srcAmount);
+         _feeAmount = this.getTokenFee(map_token,_relayChainAmount,_targetChain);
+         _feeAmount = this.getToChainAmount(map_token,_feeAmount,_srcChain);
+         address vault = this.getVaultToken(map_token);
+         (bool result,bytes memory data) =  vault.staticcall(abi.encodeWithSignature("vaultBalance(uint256)",_targetChain));
+         if(result && data.length > 0) {
+            _vaultBalance = abi.decode(data,(int256));
+            if(_vaultBalance > 0) {
+                uint256 tem = this.getToChainAmount(map_token,uint256(_vaultBalance),_targetChain);
+                require(tem <= uint256(type(int256).max), "value doesn't fit in an int256");
+                _vaultBalance = int256(tem);
+            } else {
+                  _vaultBalance = 0;
+            }
+         } else {
+             _vaultBalance = 0;
+         }
+         if(_targetChain == selfChainId) {
+           _toChainToken = Utils.toBytes(map_token);
+         } else {
+            _toChainToken = tokenList[map_token].mappingTokens[_targetChain];
+         } 
+    }
+
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {
         require(msg.sender == _getAdmin(), "TokenRegister: only Admin can upgrade");
