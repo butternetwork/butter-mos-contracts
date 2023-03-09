@@ -360,6 +360,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
                );  
                balanceChangeAfterSwap = IERC20(tokenOut).balanceOf(toAddress) - balanceChangeAfterSwap;    
             }
+            TransferHelper.safeApprove(tokenIn, butterCore, 0);
             // if swap succeed, just return
             if (success) {
                 emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenOut, _outEvent.from, toAddress, balanceChangeAfterSwap);
