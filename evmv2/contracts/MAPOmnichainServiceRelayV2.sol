@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "./interface/IWToken.sol";
 import "./interface/IMAPToken.sol";
 import "./interface/IVaultTokenV2.sol";
@@ -24,6 +25,7 @@ import "./utils/Utils.sol";
 
 contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable, IMOSV2, UUPSUpgradeable {
     using SafeMath for uint256;
+    using Address for address;
 
     struct Rate {
         address receiver;
@@ -56,6 +58,11 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
+    event SetTokenRegister(address tokenRegister);
+    event SetLightClientManager(address lightClient);
+    event RegisterChain(uint256 _chainId, bytes _address, chainType _type);
+    event SetDistributeRate(uint _id, address _to, uint _rate);
+    
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
     function initialize(address _wToken, address _managerAddress) public initializer
@@ -98,15 +105,18 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
     function setTokenManager(address _register) external onlyOwner checkAddress(_register) {
         tokenRegister = ITokenRegisterV2(_register);
+        emit SetTokenRegister(_register);
     }
 
     function setLightClientManager(address _managerAddress) external onlyOwner checkAddress(_managerAddress) {
         lightClientManager = ILightClientManager(_managerAddress);
+        emit SetLightClientManager(_managerAddress);
     }
 
     function registerChain(uint256 _chainId, bytes memory _address, chainType _type) external onlyOwner {
         mosContracts[_chainId] = _address;
         chainTypes[_chainId] = _type;
+        emit RegisterChain(_chainId, _address, _type);
     }
 
     // withdraw deposit token using vault token.
@@ -131,11 +141,13 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         distributeRate[_id] = Rate(_to, _rate);
 
         require((distributeRate[0].rate).add(distributeRate[1].rate).add(distributeRate[2].rate) <= 1000000, 'invalid rate value');
+        emit SetDistributeRate(_id, _to, _rate);
     }
 
     function transferOutToken(address _token, bytes memory _to, uint256 _amount, uint256 _toChain) external override whenNotPaused {
         require(_toChain != selfChainId, "only other chain");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "balance too low");
+        require(_token.isContract(), "token is not contract");
 
         TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
         _transferOut(_token, msg.sender, _to, _amount, _toChain);
@@ -179,6 +191,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
     function depositToken(address _token, address _to, uint _amount) external override nonReentrant whenNotPaused {
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "balance too low");
+
+        require(_token.isContract(), "token is not contract");
 
         TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
 

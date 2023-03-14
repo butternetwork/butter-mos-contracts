@@ -51,6 +51,9 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         _;
     }
 
+    event RegisterToken(address _token, address _vaultToken, bool _mintable);
+    event SetTokenFee(address _token, uint256 _toChain, uint _lowest, uint _highest, uint _rate);
+
     function initialize() public initializer
     {
         _changeAdmin(msg.sender);
@@ -67,6 +70,7 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         token.vaultToken = _vaultToken;
         token.decimals = IERC20Metadata(_token).decimals();
         token.mintable = _mintable;
+        emit RegisterToken(_token, _vaultToken, _mintable);
     }
 
     function mapToken(address _token, uint256 _fromChain, bytes memory _fromToken, uint8 _decimals)
@@ -93,6 +97,8 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         require(_rate <= MAX_RATE_UNI, 'invalid proportion value');
 
         token.fees[_toChain] = FeeRate(_lowest, _highest, _rate);
+
+        emit SetTokenFee(_token, _toChain, _lowest, _highest, _rate);
     }
 
 
@@ -118,7 +124,12 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         }
         uint256 decimalsFrom = tokenList[_token].decimals;
 
+        require(decimalsFrom > 0, "from token decimals not register");
+
         uint256 decimalsTo = tokenList[_token].tokenDecimals[_toChain];
+
+        require(decimalsTo > 0, "from token decimals not register");
+
         if (decimalsFrom == decimalsTo) {
             return _amount;
         }

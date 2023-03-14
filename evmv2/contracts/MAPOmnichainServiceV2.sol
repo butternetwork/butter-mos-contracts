@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "./interface/IWToken.sol";
 import "./utils/ButterLib.sol";
 import "./interface/IMAPToken.sol";
@@ -25,6 +26,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     using SafeMath for uint;
     using RLPReader for bytes;
     using RLPReader for RLPReader.RLPItem;
+    using Address for address;
 
     uint public immutable selfChainId = block.chainid;
     uint public nonce;
@@ -33,6 +35,12 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     uint256 public relayChainId;
     ILightNode public lightNode;
 
+    enum chainType{
+        NULL,
+        EVM,
+        NEAR
+    }
+
     mapping(bytes32 => bool) public orderList;
     mapping(address => bool) public mintableTokens;
     mapping(uint256 => mapping(address => bool)) public tokenMappingList;
@@ -40,6 +48,13 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     address public butterCore;
 
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
+    event SetLightClient(address _lightNode);
+    event AddMintableToken(address[] _token);
+    event RemoveMintableToken(address[] _token);
+    event SetRelayContract(uint256 _chainId, address _relay);
+    event RegisterToken(address _token, uint _toChain, bool _enable);
+    event RegisterChain(uint256 _chainId, chainType _type);
+    
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
     function initialize(address _wToken, address _lightNode)
@@ -84,23 +99,28 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
 
     function setLightClient(address _lightNode) external onlyOwner checkAddress(_lightNode) {
         lightNode = ILightNode(_lightNode);
+        emit SetLightClient(_lightNode);
     }
 
     function addMintableToken(address[] memory _token) external onlyOwner {
         for (uint i = 0; i < _token.length; i++) {
             mintableTokens[_token[i]] = true;
         }
+        emit AddMintableToken(_token);
     }
 
     function removeMintableToken(address[] memory _token) external onlyOwner {
         for (uint i = 0; i < _token.length; i++) {
             mintableTokens[_token[i]] = false;
         }
+        emit RemoveMintableToken(_token);
     }
 
     function setRelayContract(uint256 _chainId, address _relay) external onlyOwner checkAddress(_relay) {
         relayContract = _relay;
         relayChainId = _chainId;
+	
+	emit SetRelayContract(_chainId,_relay);
     }
 
     function setButterCoreAddress(address _butterCoreAddress) external onlyOwner checkAddress(_butterCoreAddress) {
@@ -108,7 +128,9 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     }
 
     function registerToken(address _token, uint _toChain, bool _enable) external onlyOwner {
+        require(_token.isContract(),"token is not contract");
         tokenMappingList[_toChain][_token] = _enable;
+        emit RegisterToken(_token,_toChain,_enable);
     }
 
     function emergencyWithdraw(address _token, address payable _receiver, uint256 _amount) external onlyOwner checkAddress(_receiver) {
