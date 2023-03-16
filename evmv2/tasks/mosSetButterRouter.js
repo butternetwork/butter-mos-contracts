@@ -11,8 +11,8 @@ module.exports = async (taskArgs,hre) => {
 
     let mos = await ethers.getContractAt('MAPOmnichainServiceV2', proxy.address);
 
-    await (await mos.connect(deployer).setButterCoreAddress(taskArgs.core)).wait();
+    await (await mos.connect(deployer).setButterRouterAddress(taskArgs.router)).wait();
 
-    console.log(`mos set butter core to ${taskArgs.core} `);
+    console.log(`mos set butter router to ${taskArgs.router} `);
 
 }

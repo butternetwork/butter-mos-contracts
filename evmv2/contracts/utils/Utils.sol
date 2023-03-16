@@ -2,69 +2,69 @@
 
 pragma solidity 0.8.7;
 
-import "./ButterLib.sol";
+// import "./ButterLib.sol";
 
 library Utils {
-    function assembleButterCoreParam(
-        address _tokenIn,
-        uint _actualAmountIn,
-        uint _predicatedAmountIn,
-        bytes memory _to,
-        ButterLib.SwapData memory _swapData
-    )
-    internal
-    view
-    returns (ButterLib.ButterCoreSwapParam memory) {
-        ButterLib.SwapParam[] memory swapParams = _swapData.swapParams;
-        uint256[]  memory amountInArr = new uint256[](swapParams.length);
-        bytes[]  memory paramsArr = new bytes[](swapParams.length);
-        uint32[]  memory routerIndex = new uint32[](swapParams.length);
+    // function assembleButterCoreParam(
+    //     address _tokenIn,
+    //     uint _actualAmountIn,
+    //     uint _predicatedAmountIn,
+    //     bytes memory _to,
+    //     ButterLib.SwapData memory _swapData
+    // )
+    // internal
+    // view
+    // returns (ButterLib.ButterCoreSwapParam memory) {
+    //     ButterLib.SwapParam[] memory swapParams = _swapData.swapParams;
+    //     uint256[]  memory amountInArr = new uint256[](swapParams.length);
+    //     bytes[]  memory paramsArr = new bytes[](swapParams.length);
+    //     uint32[]  memory routerIndex = new uint32[](swapParams.length);
 
 
-        // modify swapParam amount in, compensate the difference between actual and predicted amount.
-        if (_actualAmountIn >= _predicatedAmountIn) {
-            swapParams[0].amountIn += (_actualAmountIn - _predicatedAmountIn);
-        } else {
-            swapParams[0].amountIn -= (_predicatedAmountIn - _actualAmountIn);
-        }
+    //     // modify swapParam amount in, compensate the difference between actual and predicted amount.
+    //     if (_actualAmountIn >= _predicatedAmountIn) {
+    //         swapParams[0].amountIn += (_actualAmountIn - _predicatedAmountIn);
+    //     } else {
+    //         swapParams[0].amountIn -= (_predicatedAmountIn - _actualAmountIn);
+    //     }
 
-        for (uint i = 0; i < swapParams.length; i++) {
+    //     for (uint i = 0; i < swapParams.length; i++) {
 
-            amountInArr[i] = swapParams[i].amountIn;
+    //         amountInArr[i] = swapParams[i].amountIn;
 
-            routerIndex[i] = uint32(swapParams[i].routerIndex);
+    //         routerIndex[i] = uint32(swapParams[i].routerIndex);
 
-            paramsArr[i] = abi.encode(
-                amountInArr[i],
-                swapParams[i].minAmountOut,
-                abi.decode(swapParams[i].path, (address[])),
-                Utils.fromBytes(_to),
-                block.timestamp + 100,
-                _tokenIn,
-                Utils.fromBytes(_swapData.targetToken)
-            );
-        }
+    //         paramsArr[i] = abi.encode(
+    //             amountInArr[i],
+    //             swapParams[i].minAmountOut,
+    //             abi.decode(swapParams[i].path, (address[])),
+    //             Utils.fromBytes(_to),
+    //             block.timestamp + 100,
+    //             _tokenIn,
+    //             Utils.fromBytes(_swapData.targetToken)
+    //         );
+    //     }
 
-        ButterLib.ButterCoreSwapParam memory params = ButterLib.ButterCoreSwapParam({
-            amountInArr : amountInArr,
-            paramsArr : paramsArr,
-            routerIndex : routerIndex,
-            inputOutAddre : [_tokenIn, Utils.fromBytes(_swapData.targetToken)]
-        });
-        return params;
+    //     ButterLib.ButterCoreSwapParam memory params = ButterLib.ButterCoreSwapParam({
+    //         amountInArr : amountInArr,
+    //         paramsArr : paramsArr,
+    //         routerIndex : routerIndex,
+    //         inputOutAddre : [_tokenIn, Utils.fromBytes(_swapData.targetToken)]
+    //     });
+    //     return params;
 
-    }
+    // }
 
-    function getAmountInSumFromSwapParams(ButterLib.SwapParam[] memory swapParams)
-    internal
-    pure
-    returns (uint sum_)
-    {
-        sum_ = 0;
-        for (uint i = 0; i < swapParams.length; i++) {
-            sum_ += swapParams[i].amountIn;
-        }
-    }
+    // function getAmountInSumFromSwapParams(ButterLib.SwapParam[] memory swapParams)
+    // internal
+    // pure
+    // returns (uint sum_)
+    // {
+    //     sum_ = 0;
+    //     for (uint i = 0; i < swapParams.length; i++) {
+    //         sum_ += swapParams[i].amountIn;
+    //     }
+    // }
 
     function checkBytes(bytes memory b1, bytes memory b2) internal pure returns (bool){
         return keccak256(b1) == keccak256(b2);

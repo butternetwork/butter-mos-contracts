@@ -82,11 +82,11 @@ task("mosRegisterToken",
     .addParam("chains", "chain ids allowed to cross, separated by ',', ex. `1,2,3` ")
     .addOptionalParam("enable", "true or false", true, types.boolean)
 
-task("mosSetButterCore",
-    "Set core contract address in MOS",
-    require("./mosSetButterCore")
+task("mosSetButterRouter",
+    "Set router contract address in MOS",
+    require("./mosSetButterRouter")
 )
-    .addParam("core", "butter core address")
+    .addParam("router", "butter router address")
 
 task("mosSetMintableToken",
     "MapCrossChainService settings mintable token",
