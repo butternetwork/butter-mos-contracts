@@ -65,6 +65,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
+    event Fee(bytes32 orderId,address token,uint256 fee);
+
     function initialize(address _wToken, address _managerAddress) public initializer
     checkAddress(_wToken) checkAddress(_managerAddress) {
         wToken = _wToken;
@@ -305,7 +307,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 
-    function _collectFee(address _token, uint256 _mapAmount, uint256 _fromChain, uint256 _toChain) internal returns (uint256, uint256) {
+    function _collectFee(bytes32 _orderId,address _token, uint256 _mapAmount, uint256 _fromChain, uint256 _toChain) internal returns (uint256, uint256) {
         address token = _token;
         address vaultToken = tokenRegister.getVaultToken(token);
         require(vaultToken != address(0), "vault token not registered");
@@ -320,7 +322,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         } else {
             fee = _mapAmount;
         }
-
+        emit Fee(_orderId,_token,fee);
         uint256 otherFee = 0;
         if (fee > 0) {
             (uint256 vaultFee,) = getFee(0, fee);
@@ -349,7 +351,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         bytes32 orderId = _getOrderId(_from, _to, _toChain);
         emit mapTransferRelay(selfChainId, _toChain, orderId, _token, Utils.toBytes(_from), _to, _amount);
 
-        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(_token, _amount, selfChainId, _toChain);
+        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(orderId,_token, _amount, selfChainId, _toChain);
 
         if (tokenRegister.checkMintable(_token)) {
             IMAPToken(_token).burn(mapOutAmount);
@@ -378,7 +380,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
         emit mapTransferRelay(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, _outEvent.to, mapAmount);
 
-        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
+        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(_outEvent.orderId,token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
 
         if (_outEvent.toChain == selfChainId) {
             address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
@@ -433,7 +435,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
         // emit mapTransferRelay(mapAmount, _outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, _outEvent.toAddress, mapAmount);
 
-        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
+        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(_outEvent.orderId,token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
 
         if (_outEvent.toChain == selfChainId) {
             address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
@@ -473,14 +475,13 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         bytes memory toToken = tokenRegister.getToChainToken(_token, _toChain);
         // bytes memory toToken = "0x0";
         require(!Utils.checkBytes(toToken, bytes("")), "Out token not registered");
-
-        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(_token, _amount, selfChainId, _toChain);
+        orderId = _getOrderId(_from, _to, _toChain);
+        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(orderId,_token, _amount, selfChainId, _toChain);
 
         if (tokenRegister.checkMintable(_token)) {
             IMAPToken(_token).burn(mapOutAmount);
         }
 
-        orderId = _getOrderId(_from, _to, _toChain);
         emit mapSwapOut(
             selfChainId,
             _toChain,
