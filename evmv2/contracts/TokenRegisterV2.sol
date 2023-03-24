@@ -216,6 +216,9 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
     view
     returns(uint256 _feeAmount,uint256 _relayChainAmount,int256 _vaultBalance,bytes memory _toChainToken){
          address map_token = tokenMappingList[_srcChain][_srcToken];
+        if (_srcChain == selfChainId) {
+            map_token = Utils.fromBytes(_srcToken);
+        }
          _relayChainAmount = this.getRelayChainAmount(map_token,_srcChain,_srcAmount);
          _feeAmount = this.getTokenFee(map_token,_relayChainAmount,_targetChain);
          _feeAmount = this.getToChainAmount(map_token,_feeAmount,_srcChain);
