@@ -65,7 +65,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
-    event Fee(bytes32 orderId,address token,uint256 fee);
+    event CollectFee(bytes32 indexed orderId,address indexed token,uint256 value);
 
     function initialize(address _wToken, address _managerAddress) public initializer
     checkAddress(_wToken) checkAddress(_managerAddress) {
@@ -73,7 +73,6 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         lightClientManager = ILightClientManager(_managerAddress);
         _changeAdmin(msg.sender);
     }
-
 
     receive() external payable {
         require(msg.sender == wToken, "only wToken");
@@ -351,7 +350,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         emit mapTransferRelay(selfChainId, _toChain, orderId, _token, Utils.toBytes(_from), _to, _amount);
 
         (uint256 mapOutAmount, uint256 outAmount) = _collectFee(_token, _amount, selfChainId, _toChain);
-        emit Fee(orderId,_token,(_amount - mapOutAmount));
+        emit CollectFee(orderId, _token, (_amount - mapOutAmount));
+
         if (tokenRegister.checkMintable(_token)) {
             IMAPToken(_token).burn(mapOutAmount);
         }
@@ -380,7 +380,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         emit mapTransferRelay(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, _outEvent.to, mapAmount);
 
         (uint256 mapOutAmount, uint256 outAmount) = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
-        emit Fee(_outEvent.orderId,token,(mapAmount - mapOutAmount));
+        emit CollectFee(_outEvent.orderId, token, (mapAmount - mapOutAmount));
+
         if (_outEvent.toChain == selfChainId) {
             address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
             if (token == wToken) {
@@ -435,7 +436,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         // emit mapTransferRelay(mapAmount, _outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, _outEvent.toAddress, mapAmount);
 
         (uint256 mapOutAmount, uint256 outAmount) = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
-        emit Fee(_outEvent.orderId,token,(mapAmount - mapOutAmount));
+        emit CollectFee(_outEvent.orderId, token, (mapAmount - mapOutAmount));
+
         if (_outEvent.toChain == selfChainId) {
             address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
             if (token == wToken) {
@@ -476,7 +478,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(!Utils.checkBytes(toToken, bytes("")), "Out token not registered");
         orderId = _getOrderId(_from, _to, _toChain);
         (uint256 mapOutAmount, uint256 outAmount) = _collectFee(_token, _amount, selfChainId, _toChain);
-        emit Fee(orderId,_token,(_amount - mapOutAmount));
+        emit CollectFee(orderId, _token, (_amount - mapOutAmount));
+
         if (tokenRegister.checkMintable(_token)) {
             IMAPToken(_token).burn(mapOutAmount);
         }
