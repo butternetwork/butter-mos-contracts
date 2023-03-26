@@ -101,6 +101,7 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         emit SetTokenFee(_token, _toChain, _lowest, _highest, _rate);
     }
 
+    // --------------------------------------------------------
 
     function getToChainToken(address _token, uint256 _toChain)
     external 
@@ -211,23 +212,33 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         feeRate = tokenList[_token].fees[_toChain];
     }
 
+    function getFeeAmountAndInfo(uint256 _fromChain, bytes memory _fromToken, uint256 _fromAmount, uint256 _toChain)
+    external
+    view
+    returns (uint256 _feeAmount, FeeRate memory _feeRate, address _relayToken, uint8 _relayTokenDecimals, bytes memory _toToken, uint8 _toTokenDecimals) {
+
+        (_relayToken, , _feeAmount) =  this.getRelayFee(_fromChain, _fromToken, _fromAmount, _toChain);
+        (_toToken, _toTokenDecimals, _feeRate) = this.getToChainTokenInfo(_relayToken, _toChain);
+
+        _relayTokenDecimals = tokenList[_relayToken].decimals;
+    }
+
     function getFeeAmountAndVaultBalance(uint256 _srcChain,bytes memory _srcToken,uint256 _srcAmount,uint256 _targetChain) 
     external
     view
-    returns(uint256 _feeAmount,uint256 _relayChainAmount,int256 _vaultBalance,bytes memory _toChainToken){
-         address map_token = tokenMappingList[_srcChain][_srcToken];
-        if (_srcChain == selfChainId) {
-            map_token = Utils.fromBytes(_srcToken);
-        }
-         _relayChainAmount = this.getRelayChainAmount(map_token,_srcChain,_srcAmount);
-         _feeAmount = this.getTokenFee(map_token,_relayChainAmount,_targetChain);
-         _feeAmount = this.getToChainAmount(map_token,_feeAmount,_srcChain);
-         address vault = this.getVaultToken(map_token);
+    returns(uint256 _srcFeeAmount,uint256 _relayChainAmount,int256 _vaultBalance,bytes memory _toChainToken){
+        address relayToken;
+        uint256 feeAmount;
+
+        (relayToken, _relayChainAmount, feeAmount) = this.getRelayFee(_srcChain, _srcToken, _srcAmount, _targetChain);
+         _srcFeeAmount = this.getToChainAmount(relayToken, feeAmount, _srcChain);
+
+         address vault = this.getVaultToken(relayToken);
          (bool result,bytes memory data) =  vault.staticcall(abi.encodeWithSignature("vaultBalance(uint256)",_targetChain));
          if(result && data.length > 0) {
             _vaultBalance = abi.decode(data,(int256));
             if(_vaultBalance > 0) {
-                uint256 tem = this.getToChainAmount(map_token,uint256(_vaultBalance),_targetChain);
+                uint256 tem = this.getToChainAmount(relayToken,uint256(_vaultBalance),_targetChain);
                 require(tem <= uint256(type(int256).max), "value doesn't fit in an int256");
                 _vaultBalance = int256(tem);
             } else {
@@ -236,11 +247,22 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
          } else {
              _vaultBalance = 0;
          }
-         if(_targetChain == selfChainId) {
-           _toChainToken = Utils.toBytes(map_token);
-         } else {
-            _toChainToken = tokenList[map_token].mappingTokens[_targetChain];
-         } 
+
+        _toChainToken = this.getToChainToken(relayToken, _targetChain);
+    }
+
+    // -----------------------------------------------------
+
+    function getRelayFee(uint256 _fromChain,bytes memory _fromToken,uint256 _fromAmount,uint256 _toChain)
+    external
+    view
+    returns(address _relayToken, uint256 _relayChainAmount, uint256 _feeAmount) {
+
+        _relayToken = this.getRelayChainToken(_fromChain, _fromToken);
+
+        _relayChainAmount = this.getRelayChainAmount(_relayToken, _fromChain, _fromAmount);
+
+        _feeAmount = this.getTokenFee(_relayToken, _relayChainAmount, _toChain);
     }
 
     /** UUPS *********************************************************/

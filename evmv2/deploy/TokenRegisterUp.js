@@ -19,6 +19,7 @@ module.exports = async function ({ethers, deployments}) {
 
 
     let proxy = await deployments.get("TokenRegisterProxy");
+    console.log("TokenRegisterV2 proxy address:",proxy.address);
 
     let tokenRegisterProxy = await ethers.getContractAt('TokenRegisterV2', proxy.address);
 
