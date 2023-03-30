@@ -45,7 +45,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     mapping(address => bool) public mintableTokens;
     mapping(uint256 => mapping(address => bool)) public tokenMappingList;
 
-    address public butterCore;
+    address public butterRouter;
 
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
     event SetLightClient(address _lightNode);
@@ -123,8 +123,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
 	emit SetRelayContract(_chainId,_relay);
     }
 
-    function setButterCoreAddress(address _butterCoreAddress) external onlyOwner checkAddress(_butterCoreAddress) {
-        butterCore = _butterCoreAddress;
+    function setButterRouterAddress(address _butterRouterAddress) external onlyOwner checkAddress(_butterRouterAddress) {
+        butterRouter = _butterRouterAddress;
     }
 
     function registerToken(address _token, uint _toChain, bool _enable) external onlyOwner {
@@ -342,65 +342,46 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         // decode params
         ButterLib.SwapData memory swapData;
         (swapData.swapParams, swapData.targetToken, swapData.mapTargetToken) = abi.decode(_outEvent.swapData,
-            ((ButterLib.SwapParam)[], bytes, address));
-
+            (bytes, bytes, address));
         address tokenOut = Utils.fromBytes(swapData.targetToken);
-
         // receiving address
         address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
         // amount of token need to be sent
         uint actualAmountIn = _outEvent.amount;
 
-        ButterLib.SwapParam[] memory swapParams = swapData.swapParams;
-        // if swap params is not empty, then we need to do swap on current chain
-        if (swapParams.length > 0) {
-            if (isMintable(tokenIn)) {
-                IMAPToken(tokenIn).mint(address(this), actualAmountIn);
-            }
-            //avoids stack too deep errors
-            ButterLib.ButterCoreSwapParam memory butterCoreSwapParam;
-            {
-              uint predicatedAmountIn = Utils.getAmountInSumFromSwapParams(swapParams);
-              // assemble request to call butter core
-              butterCoreSwapParam = Utils.assembleButterCoreParam(tokenIn, actualAmountIn, predicatedAmountIn, _outEvent.to, swapData);
-            }
-
-            TransferHelper.safeApprove(tokenIn, butterCore, actualAmountIn);
-            bool success;
-            uint256 balanceChangeAfterSwap;
-             // low-level call butter core to finish swap
-            if(butterCoreSwapParam.inputOutAddre[1] == address(0)){
-               balanceChangeAfterSwap = toAddress.balance;
-               (success,) = address(butterCore).call(
-                abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))",butterCoreSwapParam)
+         // if swap params is not empty, then we need to do swap on current chain
+        if (swapData.swapParams.length > 0) {
+             bool success;
+             if(tokenOut == wToken) {
+                tokenOut = address(0);
+             }
+             if(tokenIn == wToken) {
+                TransferHelper.safeWithdraw(wToken, actualAmountIn);
+                //  low-level call butter router to finish swap and pay
+                (success,)  = address(butterRouter).call{value:actualAmountIn}(
+                abi.encodeWithSignature("swapAndPay(bytes32,bytes,address,address,address,uint256)",_outEvent.orderId,swapData.swapParams,toAddress,address(0),tokenOut,actualAmountIn)
                );  
-               balanceChangeAfterSwap = toAddress.balance - balanceChangeAfterSwap;
-            }else {
-               balanceChangeAfterSwap = IERC20(tokenOut).balanceOf(toAddress);
-               (success,) = address(butterCore).call(
-                abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))",butterCoreSwapParam)
-               );  
-               balanceChangeAfterSwap = IERC20(tokenOut).balanceOf(toAddress) - balanceChangeAfterSwap;    
-            }
-            TransferHelper.safeApprove(tokenIn, butterCore, 0);
-            // if swap succeed, just return
-            if (success) {
-                emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenOut, _outEvent.from, toAddress, balanceChangeAfterSwap);
-                return;
-            }
-
-            // if swap not succeed or swap not happened, give user the source token
-            tokenOut = tokenIn;
-        }
-
-        // transfer token if swap did not happen
-        if (tokenOut == wToken) {
-            TransferHelper.safeWithdraw(wToken, actualAmountIn);
-            TransferHelper.safeTransferETH(toAddress, actualAmountIn);
-        } else if (isMintable(tokenOut) && swapParams.length == 0) {
-            IMAPToken(tokenOut).mint(toAddress, actualAmountIn);
+             }else {
+                if (isMintable(tokenIn)) {
+                    IMAPToken(tokenIn).mint(butterRouter, actualAmountIn);
+                } else {
+                   TransferHelper.safeTransfer(tokenIn, butterRouter, actualAmountIn);
+                }
+                // low-level call butter router to finish swap and pay
+                (success,) = address(butterRouter).call(
+                abi.encodeWithSignature("swapAndPay(bytes32,bytes,address,address,address,uint256)",_outEvent.orderId,swapData.swapParams,toAddress,tokenIn,tokenOut,actualAmountIn)
+                );
+             }
+              
         } else {
-            TransferHelper.safeTransfer(tokenOut, toAddress, actualAmountIn);
+           if (tokenIn == wToken) {
+              TransferHelper.safeWithdraw(wToken, actualAmountIn);
+              TransferHelper.safeTransferETH(toAddress, actualAmountIn);
+           } else if (isMintable(tokenOut)) {
+              IMAPToken(tokenOut).mint(toAddress, actualAmountIn);
+           } else {
+              TransferHelper.safeTransfer(tokenOut, toAddress, actualAmountIn);
+           }
         }
         emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenOut, _outEvent.from, toAddress, actualAmountIn);
     }
