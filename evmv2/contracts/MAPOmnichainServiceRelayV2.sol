@@ -449,7 +449,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
               (bool success,) = address(butterCore).call(
                   abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))",butterCoreSwapParam)
                   );  
-              balanceChangeAfterSwap = _getBalance(butterCoreSwapParam.inputOutAddre[1],toAddress); 
+              balanceChangeAfterSwap = _getBalance(butterCoreSwapParam.inputOutAddre[1],toAddress) - balanceChangeAfterSwap; 
     
               TransferHelper.safeApprove(token, butterCore, 0);
                 // if swap succeed, just return
