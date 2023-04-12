@@ -50,6 +50,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     mapping(uint256 => bytes) public mosContracts;
     mapping(uint256 => chainType) public chainTypes;
 
+    address public butterCore;
+
     event mapTransferRelay(uint256 indexed fromChain, uint256 indexed toChain, bytes32 orderId,
         address token, bytes from, bytes to, uint256 amount);
 
@@ -118,6 +120,10 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         mosContracts[_chainId] = _address;
         chainTypes[_chainId] = _type;
         emit RegisterChain(_chainId, _address, _type);
+    }
+
+    function setButterCoreAddress(address _butterCoreAddress) external onlyOwner checkAddress(_butterCoreAddress) {
+        butterCore = _butterCoreAddress;
     }
 
     // withdraw deposit token using vault token.
@@ -408,38 +414,53 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(_chainId == _outEvent.fromChain, "invalid chain id");
         address token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
         require(token != address(0), "map token not registered");
-        // does not support swap on map for now.
-        ButterLib.SwapData memory swapData;
-        (swapData.swapParams, swapData.targetToken, swapData.mapTargetToken) = abi.decode(_outEvent.swapData,
-            ((ButterLib.SwapParam)[], bytes, address));
-        require(swapData.mapTargetToken == token, "Swap on Map Relay Chain not supported yet");
-
-        // if source token's relay chain mapping token is NOT mapTargetToken, then swap needed.
-        //        if (_outEvent.mapTargetToken != token) {
-        //            // swap logic goes here...
-        //            token = _outEvent.mapTargetToken;
-        //        }
-
-        bytes memory toChainToken;
-        if (_outEvent.toChain == selfChainId) {
-            toChainToken = Utils.toBytes(token);
-        } else {
-            toChainToken = tokenRegister.getToChainToken(token, _outEvent.toChain);
-            require(!Utils.checkBytes(toChainToken, bytes("")), "out token not registered");
-        }
-
-        uint256 mapAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
-        if (tokenRegister.checkMintable(token)) {
+       //require(swapData.mapTargetToken == token, "Swap on Map Relay Chain not supported yet");
+        uint256 mapOutAmount;
+        uint256 outAmount;
+        {
+          uint256 mapAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
+          if (tokenRegister.checkMintable(token)) {
             IMAPToken(token).mint(address(this), mapAmount);
+          }
+
+          (mapOutAmount,outAmount) = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
+          emit CollectFee(_outEvent.orderId, token, (mapAmount - mapOutAmount));
         }
 
-        // emit mapTransferRelay(mapAmount, _outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, _outEvent.toAddress, mapAmount);
-
-        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
-        emit CollectFee(_outEvent.orderId, token, (mapAmount - mapOutAmount));
-
         if (_outEvent.toChain == selfChainId) {
-            address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
+           ButterLib.SwapData memory swapData;
+           (swapData.swapParams, swapData.targetToken, swapData.mapTargetToken) = abi.decode(_outEvent.swapData,
+           ((ButterLib.SwapParam)[], bytes, address));
+           address tokenOut = Utils.fromBytes(swapData.targetToken);
+           address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
+           if (swapData.swapParams.length > 0 && token != tokenOut) {
+              
+              //avoids stack too deep errors
+              ButterLib.ButterCoreSwapParam memory butterCoreSwapParam;
+              {
+                uint predicatedAmountIn = Utils.getAmountInSumFromSwapParams(swapData.swapParams);
+                // assemble request to call butter core
+                butterCoreSwapParam = Utils.assembleButterCoreParam(token, mapOutAmount, predicatedAmountIn, _outEvent.to, swapData);
+              }
+
+              TransferHelper.safeApprove(token, butterCore, mapOutAmount);
+              // low-level call butter core to finish swap
+              uint256 balanceChangeAfterSwap = _getBalance(butterCoreSwapParam.inputOutAddre[1],toAddress);
+              (bool success,) = address(butterCore).call(
+                  abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))",butterCoreSwapParam)
+                  );  
+              balanceChangeAfterSwap = _getBalance(butterCoreSwapParam.inputOutAddre[1],toAddress); 
+    
+              TransferHelper.safeApprove(token, butterCore, 0);
+                // if swap succeed, just return
+                if (success) {
+                  emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenOut, _outEvent.from, toAddress, balanceChangeAfterSwap);
+                  return;
+                }
+                // if swap not succeed or swap not happened, give user the source token
+                tokenOut = token;
+            }
+           
             if (token == wToken) {
                 TransferHelper.safeWithdraw(wToken, mapOutAmount);
                 TransferHelper.safeTransferETH(toAddress, mapOutAmount);
@@ -452,6 +473,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             if (tokenRegister.checkMintable(token)) {
                 IMAPToken(token).burn(mapOutAmount);
             }
+            bytes memory toChainToken = tokenRegister.getToChainToken(token, _outEvent.toChain);
+            require(!Utils.checkBytes(toChainToken, bytes("")), "out token not registered");
             emit mapSwapOut(
                 _outEvent.fromChain,
                 _outEvent.toChain,
@@ -526,6 +549,15 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             TransferHelper.safeTransferETH(_receiver, _amount);
         } else {
             TransferHelper.safeTransfer(_token, _receiver, _amount);
+        }
+    }
+
+    
+    function _getBalance(address _token,address _account) internal view returns (uint256) {
+        if (_token == address(0)) {
+            return _account.balance;
+        } else {
+            return IERC20(_token).balanceOf(_account);
         }
     }
 
