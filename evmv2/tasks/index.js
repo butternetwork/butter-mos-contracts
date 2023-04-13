@@ -152,6 +152,11 @@ task("relaySetDistributeRate",
     .addOptionalParam("address", "receiver address", "0x0000000000000000000000000000000000000DEF", types.string)
     .addParam("rate", "The percentage value of the fee charged, unit 0.000001")
 
+task("relaySetButterCore",
+    "Set core contract address in Relay",
+    require("./relaySetButterCore")
+)
+    .addParam("core", "butter core address")
 
 task("transferOutToken",
     "Cross-chain transfer token",
