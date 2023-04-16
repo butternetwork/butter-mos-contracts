@@ -394,15 +394,15 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         }
 
         // transfer token if swap did not happen
-        if (tokenOut == wToken) {
+        if (tokenIn == wToken) {
             TransferHelper.safeWithdraw(wToken, actualAmountIn);
             TransferHelper.safeTransferETH(toAddress, actualAmountIn);
-        } else if (isMintable(tokenOut) && swapParams.length == 0) {
-            IMAPToken(tokenOut).mint(toAddress, actualAmountIn);
+        } else if (isMintable(tokenIn) && swapParams.length == 0) {
+            IMAPToken(tokenIn).mint(toAddress, actualAmountIn);
         } else {
-            TransferHelper.safeTransfer(tokenOut, toAddress, actualAmountIn);
+            TransferHelper.safeTransfer(tokenIn, toAddress, actualAmountIn);
         }
-        emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenOut, _outEvent.from, toAddress, actualAmountIn);
+        emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenIn, _outEvent.from, toAddress, actualAmountIn);
     }
 
     /** UUPS *********************************************************/
