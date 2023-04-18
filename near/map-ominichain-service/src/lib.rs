@@ -325,40 +325,8 @@ impl MAPOServiceV2 {
         }
     }
 
-    /// Transfer from Map to NEAR based on the proof of the locked tokens or messages.
-    /// Must attach enough NEAR funds to cover for storage of the proof.
-    #[payable]
-    pub fn transfer_in(&mut self, receipt_proof: ReceiptProof, index: usize) -> Promise {
-        self.check_not_paused(PAUSE_TRANSFER_IN);
-
-        let logs = &receipt_proof.receipt.logs;
-        assert!(index < logs.len(), "index exceeds event size");
-
-        let hash = receipt_proof.hash();
-        assert!(
-            self.proof_hashes.contains(&hash),
-            "receipt proof has not been verified yet"
-        );
-
-        let (map_bridge_address, event) =
-            TransferOutEvent::from_log_entry_data(logs.get(index).unwrap())
-                .unwrap_or_else(|| panic_str("not map transfer out event"));
-        assert_eq!(
-            self.map_bridge_address,
-            map_bridge_address,
-            "unexpected map mcs address: {}",
-            hex::encode(map_bridge_address)
-        );
-        self.check_map_transfer_out_event(&event);
-
-        log!(
-            "get transfer in event: {}",
-            serde_json::to_string(&event).unwrap()
-        );
-
-        self.process_transfer_in(&event)
-    }
-
+    /// Swap from Map to NEAR based on the proof of the messages.
+    /// Must attach enough NEAR funds to cover for storage.
     #[payable]
     pub fn swap_in(&mut self, receipt_proof: ReceiptProof, index: usize) -> Promise {
         self.check_not_paused(PAUSE_SWAP_IN);
@@ -393,19 +361,6 @@ impl MAPOServiceV2 {
         } else {
             self.process_swap_in(&event)
         }
-    }
-
-    #[payable]
-    pub fn transfer_out_token(
-        &mut self,
-        token: AccountId,
-        to: Vec<u8>,
-        amount: U128,
-        to_chain: U128,
-    ) -> Promise {
-        assert_one_yocto();
-        self.check_not_paused(PAUSE_TRANSFER_OUT_TOKEN);
-        self.mcs_token_out(token, to, amount, to_chain, MsgType::Transfer)
     }
 
     #[payable]
@@ -467,12 +422,6 @@ impl MAPOServiceV2 {
 
             PromiseOrValue::Value(U128(0))
         }
-    }
-
-    #[payable]
-    pub fn transfer_out_native(&mut self, to: Vec<u8>, to_chain: U128) -> Promise {
-        self.check_not_paused(PAUSE_TRANSFER_OUT_NATIVE);
-        self.native_token_out(to, env::attached_deposit(), to_chain, MsgType::Transfer)
     }
 
     #[payable]
@@ -959,23 +908,6 @@ impl MAPOServiceV2 {
         } else {
             0
         }
-    }
-
-    fn check_map_transfer_out_event(&self, event: &TransferOutEvent) {
-        assert_eq!(
-            self.near_chain_id, event.to_chain.0,
-            "unexpected to chain: {}",
-            event.to_chain.0
-        );
-        assert!(
-            !self.is_used_event(&event.order_id),
-            "the event with order id {} is used",
-            hex::encode(event.order_id)
-        );
-
-        event.basic_check();
-
-        self.check_token(&event.get_to_chain_token());
     }
 
     fn check_map_swap_out_event(&self, event: &SwapOutEvent) {
