@@ -255,7 +255,7 @@ impl MAPOServiceV2 {
     }
 
     pub fn valid_mcs_token_out(&self, token: &AccountId, to_chain: U128) -> bool {
-        if let Some(to_chain_set) = self.mcs_tokens.get(&token) {
+        if let Some(to_chain_set) = self.mcs_tokens.get(token) {
             to_chain_set.contains(&to_chain.into())
         } else {
             false

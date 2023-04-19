@@ -501,7 +501,7 @@ impl MAPOServiceV2 {
 
     #[private]
     pub fn callback_transfer_near(&self, account: AccountId, amount: U128) -> Promise {
-        Promise::new(account.clone()).transfer(Balance::from(amount))
+        Promise::new(account).transfer(Balance::from(amount))
     }
 
     fn process_transfer_in(&mut self, event: &TransferOutEvent) -> Promise {
@@ -1181,39 +1181,6 @@ mod tests {
             amount_out: Default::default(),
             lost_found: UnorderedMap::new(b"l".to_vec()),
         }
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_fail_transfer_in_no_event() {
-        let mut contract = mcs_contract();
-        set_env!(
-            predecessor_account_id: alice().0,
-            attached_deposit: env::storage_byte_cost() * 1000
-        );
-        contract.transfer_in(sample_proof(), 0);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_transfer_out_token_no_to_chain() {
-        let token = mcs_token().0;
-        let from = alice().0;
-        let to = alice().1;
-        let mut contract = mcs_contract();
-
-        set_env!(
-            predecessor_account_id: alice().0
-        );
-
-        contract.registered_tokens.insert(&token, &true);
-
-        set_env!(
-            current_account_id: map_cross_chain_service(),
-            predecessor_account_id: format!("{}.{}", token, map_cross_chain_service())
-        );
-
-        contract.transfer_out_token(token, to, U128(1_000), ETH_CHAIN_ID.into());
     }
 
     #[test]

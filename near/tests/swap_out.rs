@@ -128,10 +128,11 @@ async fn test_swap_out_mcs_token() -> anyhow::Result<()> {
     assert!(res.is_success(), "ft_transfer_call should succeed");
     println!("logs {:?}", res.logs());
     assert!(
-        res.logs().last().unwrap().contains(SWAP_OUT_TYPE),
+        res.logs().get(res.logs().len() - 2).unwrap().contains(SWAP_OUT_TYPE),
         "can not get swap out log"
     );
-    println!("{}", res.logs().last().unwrap());
+
+    println!("{}", res.logs().get(res.logs().len() - 3).unwrap());
 
     let mcs_balance_1 = mcs.view_account(&worker).await?.balance;
     let user_balance_1 = user.view_account(&worker).await?.balance;
@@ -447,10 +448,10 @@ async fn test_swap_out_ft_token() -> anyhow::Result<()> {
     assert!(res.is_success(), "ft_transfer_call should succeed");
     println!("logs {:?}", res.logs());
     assert!(
-        res.logs().last().unwrap().contains(SWAP_OUT_TYPE),
+        res.logs().get(res.logs().len() - 2).unwrap().contains(SWAP_OUT_TYPE),
         "can not get swap out log"
     );
-    println!("{}", res.logs().last().unwrap());
+    println!("{}", res.logs().get(res.logs().len() - 3).unwrap());
 
     let mcs_balance_1 = mcs.view_account(&worker).await?.balance;
     let user_balance_1 = user.view_account(&worker).await?.balance;

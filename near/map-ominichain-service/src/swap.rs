@@ -7,7 +7,6 @@ use near_sdk::json_types::U128;
 use near_sdk::{env, AccountId, Gas, PromiseResult};
 use std::collections::HashMap;
 
-const FT_TRANSFER_CALL_CORE_GAS: Gas = Gas(210_000_000_000_000);
 const CALL_CORE_SWAP_IN_DIRECTLY_GAS: Gas = Gas(180_000_000_000_000);
 const CALL_CORE_SWAP_OUT_DIRECTLY_GAS: Gas = Gas(175_000_000_000_000);
 /// Gas to call callback_swap_out_token method.
@@ -313,7 +312,7 @@ impl MAPOServiceV2 {
         let ret_deposit = env::attached_deposit();
         match env::promise_result(0) {
             PromiseResult::NotReady => env::abort(),
-            PromiseResult::Successful(x) => {
+            PromiseResult::Successful(_x) => {
                 ext_butter_core::ext(core.clone())
                     .with_static_gas(CALL_CORE_SWAP_IN_DIRECTLY_GAS)
                     .swap(amount, msg.clone())

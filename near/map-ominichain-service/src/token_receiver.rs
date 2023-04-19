@@ -121,7 +121,7 @@ impl FungibleTokenReceiver for MAPOServiceV2 {
                     swap_info,
                 )
             }
-            TokenReceiverMessage::LostFound { account, is_native } => {
+            TokenReceiverMessage::LostFound { account, is_native: _ } => {
                 let mut token_amount = self.lost_found.remove(&account).unwrap_or_default();
                 let total = token_amount.remove(&token).unwrap_or_default();
                 token_amount.insert(token, total + amount.0);

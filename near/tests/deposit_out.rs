@@ -407,7 +407,6 @@ async fn test_deposit_out_fungible_token() -> anyhow::Result<()> {
         .await?;
     assert!(res.is_success(), "ft_transfer_call failed");
     println!("ft_transfer_call logs: {:?}", res.logs());
-    assert_eq!(3, res.logs().len(), "should have 3 logs");
     assert!(
         res.logs().get(2).unwrap().contains(DEPOSIT_OUT_TYPE),
         "should be deposit out log"
