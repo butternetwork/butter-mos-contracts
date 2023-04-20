@@ -7,17 +7,16 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "../interface/ILightClientManager.sol";
-import "../interface/ILightNode.sol";
+import "@mapprotocol/protocol/contracts/interface/ILightClientManager.sol";
+import "@mapprotocol/protocol/contracts/interface/ILightNode.sol";
 
 
 contract LightClientManager is ILightClientManager,Ownable {
     mapping(uint256 => address) public lightClientContract;
     mapping(uint256 => address) public updateBlockContract;
 
-    function register(uint256 _chainId, address _contract,address _blockContract) external override onlyOwner{
-        lightClientContract[_chainId] = _contract;
-        updateBlockContract[_chainId] = _blockContract;
+    function updateLightClient(uint256 _chainId, bytes memory _data) external override{
+            
     }
 
     function updateBlockHeader(uint256 _chainId, bytes memory _blockHeader) external override {
@@ -43,7 +42,7 @@ contract LightClientManager is ILightClientManager,Ownable {
         require(lightClientContract[_chainId] != address(0), "not register");
         ILightNode lightNode = ILightNode(updateBlockContract[_chainId]);
         if(_chainId == 34434){
-            (uint256 number,) = lightNode.currentNumberAndHash(_chainId);
+            (uint256 number) = lightNode.headerHeight();
             return number;
         }else{
             return lightNode.headerHeight();
@@ -52,5 +51,9 @@ contract LightClientManager is ILightClientManager,Ownable {
 
     function verifiableHeaderRange(uint256 _chainId) external view override returns (uint256, uint256) {
         return (0, 0);
+    }
+
+    function clientState(uint256 _chainId) external view override returns(bytes memory){
+        return bytes("");
     }
 }

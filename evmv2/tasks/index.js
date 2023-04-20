@@ -82,11 +82,11 @@ task("mosRegisterToken",
     .addParam("chains", "chain ids allowed to cross, separated by ',', ex. `1,2,3` ")
     .addOptionalParam("enable", "true or false", true, types.boolean)
 
-task("mosSetButterCore",
-    "Set core contract address in MOS",
-    require("./mosSetButterCore")
+task("mosSetButterRouter",
+    "Set router contract address in MOS",
+    require("./mosSetButterRouter")
 )
-    .addParam("core", "butter core address")
+    .addParam("router", "butter router address")
 
 task("mosSetMintableToken",
     "MapCrossChainService settings mintable token",
@@ -152,11 +152,11 @@ task("relaySetDistributeRate",
     .addOptionalParam("address", "receiver address", "0x0000000000000000000000000000000000000DEF", types.string)
     .addParam("rate", "The percentage value of the fee charged, unit 0.000001")
 
-task("relaySetButterCore",
-    "Set core contract address in Relay",
-    require("./relaySetButterCore")
+task("relaySetButterRouter",
+    "Set router contract address in Relay",
+    require("./relaySetButterRouter")
 )
-    .addParam("core", "butter core address")
+    .addParam("router", "butter router address")
 
 task("transferOutToken",
     "Cross-chain transfer token",

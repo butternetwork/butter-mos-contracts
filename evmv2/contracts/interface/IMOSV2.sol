@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
-import "../utils/ButterLib.sol";
 pragma solidity 0.8.7;
 
 interface IMOSV2 {
-    function transferOutToken(address _token, bytes memory _to, uint _amount, uint _toChain) external;
-    function transferOutNative(bytes memory _to, uint _toChain) external payable;
 
     function swapOutToken(
         address _initiatorAddress,
@@ -12,14 +9,14 @@ interface IMOSV2 {
         bytes memory _to,
         uint256 _amount,
         uint256 _toChain, // target chain id
-        bytes calldata swapData
+        bytes calldata _swapData
     ) external returns(bytes32 orderId);
 
     function swapOutNative(
         address _initiatorAddress,
         bytes memory _to,
         uint256 _toChain, // target chain id
-        bytes calldata swapData
+        bytes calldata _swapData
     ) external payable returns(bytes32 orderId);
 
     function depositToken(address _token, address to, uint _amount) external;
@@ -37,8 +34,6 @@ interface IMOSV2 {
         bytes toChainToken
     );
 
-    event mapTransferIn(uint256 indexed fromChain, uint256 indexed toChain, bytes32 orderId,
-        address token, bytes from,  address to, uint256 amount);
 
     event mapDepositOut(uint256 indexed fromChain, uint256 indexed toChain, bytes32 orderId,
         address token, bytes from, address to, uint256 amount);

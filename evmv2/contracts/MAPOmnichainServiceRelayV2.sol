@@ -4,6 +4,7 @@ pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -11,16 +12,16 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@mapprotocol/protocol/contracts/interface/ILightClientManager.sol";
+import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "./interface/IWToken.sol";
 import "./interface/IMAPToken.sol";
 import "./interface/IVaultTokenV2.sol";
 import "./interface/ITokenRegisterV2.sol";
-import "./interface/ILightClientManager.sol";
 import "./interface/IMOSV2.sol";
-import "./utils/TransferHelper.sol";
 import "./utils/EvmDecoder.sol";
 import "./utils/NearDecoder.sol";
-import "./utils/Utils.sol";
+
 
 
 contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable, IMOSV2, UUPSUpgradeable {
@@ -50,10 +51,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     mapping(uint256 => bytes) public mosContracts;
     mapping(uint256 => chainType) public chainTypes;
 
-    address public butterCore;
+    address public butterRouter;
 
-    event mapTransferRelay(uint256 indexed fromChain, uint256 indexed toChain, bytes32 orderId,
-        address token, bytes from, bytes to, uint256 amount);
 
     event mapDepositIn(uint256 indexed fromChain, uint256 indexed toChain, address indexed token, bytes32 orderId,
         bytes from, address to, uint256 amount);
@@ -122,8 +121,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         emit RegisterChain(_chainId, _address, _type);
     }
 
-    function setButterCoreAddress(address _butterCoreAddress) external onlyOwner checkAddress(_butterCoreAddress) {
-        butterCore = _butterCoreAddress;
+    function setButterRouterAddress(address _butterRouter) external onlyOwner checkAddress(_butterRouter) {
+        butterRouter = _butterRouter;
     }
 
     // withdraw deposit token using vault token.
@@ -151,22 +150,6 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         emit SetDistributeRate(_id, _to, _rate);
     }
 
-    function transferOutToken(address _token, bytes memory _to, uint256 _amount, uint256 _toChain) external override whenNotPaused {
-        require(_toChain != selfChainId, "only other chain");
-        require(IERC20(_token).balanceOf(msg.sender) >= _amount, "balance too low");
-        require(_token.isContract(), "token is not contract");
-
-        TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
-        _transferOut(_token, msg.sender, _to, _amount, _toChain);
-    }
-
-    function transferOutNative(bytes memory _to, uint256 _toChain) external override payable whenNotPaused {
-        require(_toChain != selfChainId, "only other chain");
-        uint256 amount = msg.value;
-        require(amount > 0, "value too low");
-        IWToken(wToken).deposit{value : amount}();
-        _transferOut(wToken, msg.sender, _to, amount, _toChain);
-    }
 
     function swapOutToken(
         address _initiatorAddress,
@@ -174,35 +157,33 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         bytes memory _to,
         uint256 _amount,
         uint256 _toChain, // target chain id
-        bytes calldata swapData
+        bytes calldata _swapData
     ) external override whenNotPaused returns(bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
-
-        TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
-        orderId = _swapOut(_token, _to, _initiatorAddress, _amount, _toChain, swapData);
+        SafeERC20.safeTransferFrom(IERC20(_token),msg.sender,address(this),_amount);
+        orderId = _swapOut(_token, _to, _initiatorAddress, _amount, _toChain, _swapData);
     }
 
     function swapOutNative(
         address _initiatorAddress,
         bytes memory _to,
         uint256 _toChain, // target chain id
-        bytes calldata swapData
+        bytes calldata _swapData
     ) external override payable whenNotPaused returns(bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWToken(wToken).deposit{value : amount}();
-        orderId = _swapOut(wToken, _to, _initiatorAddress, amount, _toChain, swapData);
+        orderId = _swapOut(wToken, _to, _initiatorAddress, amount, _toChain, _swapData);
     }
 
     function depositToken(address _token, address _to, uint _amount) external override nonReentrant whenNotPaused {
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "balance too low");
 
         require(_token.isContract(), "token is not contract");
-
-        TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
-
+        SafeERC20.safeTransferFrom(IERC20(_token),msg.sender,address(this),_amount);
+       
         _deposit(_token, Utils.toBytes(msg.sender), _to, _amount, bytes32(""), selfChainId);
     }
 
@@ -213,35 +194,6 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         _deposit(wToken, Utils.toBytes(msg.sender), _to, amount, bytes32(""), selfChainId);
     }
 
-    function transferIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
-        (bool success,string memory message,bytes memory logArray) = lightClientManager.verifyProofData(_chainId, _receiptProof);
-        require(success, message);
-        if (chainTypes[_chainId] == chainType.NEAR) {
-            (bytes memory mosContract, IEvent.transferOutEvent[] memory outEvents) = NearDecoder.decodeNearLog(logArray);
-            for (uint i = 0; i < outEvents.length; i++) {
-                IEvent.transferOutEvent memory outEvent = outEvents[i];
-                if (outEvent.toChain == 0){continue;}
-                require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
-                _transferIn(_chainId, outEvent);
-            }
-        } else if (chainTypes[_chainId] == chainType.EVM) {
-            IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
-            for (uint256 i = 0; i < logs.length; i++) {
-                IEvent.txLog memory log = logs[i];
-                bytes32 topic = abi.decode(log.topics[0], (bytes32));
-                if (topic == EvmDecoder.MAP_TRANSFEROUT_TOPIC) {
-                    (bytes memory mosContract, IEvent.transferOutEvent memory outEvent) = EvmDecoder.decodeTransferOutLog(log);
-                    //require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
-                    if (Utils.checkBytes(mosContract, mosContracts[_chainId])) {
-                        _transferIn(_chainId, outEvent);
-                    }
-                }
-            }
-        } else {
-            require(false, "chain type error");
-        }
-        emit mapTransferExecute(_chainId, selfChainId, msg.sender);
-    }
 
     function swapIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
         (bool success,string memory message,bytes memory logArray) = lightClientManager.verifyProofData(_chainId, _receiptProof);
@@ -348,73 +300,12 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         return (mapOutAmount, outAmount);
     }
 
-    function _transferOut(address _token, address _from, bytes memory _to, uint256 _amount, uint256 _toChain) internal {
-        bytes memory toToken = tokenRegister.getToChainToken(_token, _toChain);
-        require(!Utils.checkBytes(toToken, bytes("")), "out token not registered");
-
-        bytes32 orderId = _getOrderId(_from, _to, _toChain);
-        emit mapTransferRelay(selfChainId, _toChain, orderId, _token, Utils.toBytes(_from), _to, _amount);
-
-        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(_token, _amount, selfChainId, _toChain);
-        emit CollectFee(orderId, _token, (_amount - mapOutAmount));
-
-        if (tokenRegister.checkMintable(_token)) {
-            IMAPToken(_token).burn(mapOutAmount);
-        }
-
-        emit mapTransferOut(selfChainId, _toChain, orderId, Utils.toBytes(_token), Utils.toBytes(_from), _to, outAmount, toToken);
-    }
-
-    function _transferIn(uint256 _chainId, IEvent.transferOutEvent memory _outEvent)
-    internal checkOrder(_outEvent.orderId) {
-        require(_chainId == _outEvent.fromChain, "invalid chain id");
-        address token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
-        require(token != address(0), "map token not registered");
-        bytes memory toChainToken;
-        if (_outEvent.toChain == selfChainId) {
-            toChainToken = Utils.toBytes(token);
-        } else {
-            toChainToken = tokenRegister.getToChainToken(token, _outEvent.toChain);
-            require(!Utils.checkBytes(toChainToken, bytes("")), "out token not registered");
-        }
-
-        uint256 mapAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
-        if (tokenRegister.checkMintable(token)) {
-            IMAPToken(token).mint(address(this), mapAmount);
-        }
-
-        emit mapTransferRelay(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, _outEvent.to, mapAmount);
-
-        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
-        emit CollectFee(_outEvent.orderId, token, (mapAmount - mapOutAmount));
-
-        if (_outEvent.toChain == selfChainId) {
-            address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
-            if (token == wToken) {
-                TransferHelper.safeWithdraw(wToken, mapOutAmount);
-                TransferHelper.safeTransferETH(toAddress, mapOutAmount);
-            } else {
-                require(IERC20(token).balanceOf(address(this)) >= mapOutAmount, "balance too low");
-                TransferHelper.safeTransfer(token, toAddress, mapOutAmount);
-            }
-            emit mapTransferIn(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from,
-                toAddress, mapOutAmount);
-        } else {
-            if (tokenRegister.checkMintable(token)) {
-                IMAPToken(token).burn(mapOutAmount);
-            }
-
-            emit mapTransferOut(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, _outEvent.token, _outEvent.from,
-                _outEvent.to, outAmount, toChainToken);
-        }
-    }
 
     function _swapIn(uint256 _chainId, IEvent.swapOutEvent memory _outEvent)
     internal checkOrder(_outEvent.orderId) {
         require(_chainId == _outEvent.fromChain, "invalid chain id");
         address token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
         require(token != address(0), "map token not registered");
-       //require(swapData.mapTargetToken == token, "Swap on Map Relay Chain not supported yet");
         uint256 mapOutAmount;
         uint256 outAmount;
         {
@@ -428,45 +319,18 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         }
 
         if (_outEvent.toChain == selfChainId) {
-           ButterLib.SwapData memory swapData;
-           (swapData.swapParams, swapData.targetToken, swapData.mapTargetToken) = abi.decode(_outEvent.swapData,
-           ((ButterLib.SwapParam)[], bytes, address));
-           address tokenOut = Utils.fromBytes(swapData.targetToken);
            address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
-           if (swapData.swapParams.length > 0 && token != tokenOut) {
-              
-              //avoids stack too deep errors
-              ButterLib.ButterCoreSwapParam memory butterCoreSwapParam;
-              {
-                uint predicatedAmountIn = Utils.getAmountInSumFromSwapParams(swapData.swapParams);
-                // assemble request to call butter core
-                butterCoreSwapParam = Utils.assembleButterCoreParam(token, mapOutAmount, predicatedAmountIn, _outEvent.to, swapData);
-              }
-
-              TransferHelper.safeApprove(token, butterCore, mapOutAmount);
-              // low-level call butter core to finish swap
-              uint256 balanceChangeAfterSwap = _getBalance(butterCoreSwapParam.inputOutAddre[1],toAddress);
-              (bool success,) = address(butterCore).call(
-                  abi.encodeWithSignature("multiSwap((uint256[],bytes[],uint32[],address[2]))",butterCoreSwapParam)
-                  );  
-              balanceChangeAfterSwap = _getBalance(butterCoreSwapParam.inputOutAddre[1],toAddress) - balanceChangeAfterSwap; 
-    
-              TransferHelper.safeApprove(token, butterCore, 0);
-                // if swap succeed, just return
-                if (success) {
-                  emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenOut, _outEvent.from, toAddress, balanceChangeAfterSwap);
-                  return;
-                }
-                // if swap not succeed or swap not happened, give user the source token
-                tokenOut = token;
-            }
-           
-            if (token == wToken) {
-                TransferHelper.safeWithdraw(wToken, mapOutAmount);
-                TransferHelper.safeTransferETH(toAddress, mapOutAmount);
+           if (_outEvent.swapData.length > 0) {
+              SafeERC20.safeTransfer(IERC20(token),butterRouter,mapOutAmount);
+              (bool result,) = butterRouter.call(abi.encodeWithSignature("remoteSwapAndCall(bytes32,address,uint256,bytes)",_outEvent.orderId,token,mapOutAmount,_outEvent.swapData));
             } else {
-                require(IERC20(token).balanceOf(address(this)) >= mapOutAmount, "balance too low");
-                TransferHelper.safeTransfer(token, toAddress, mapOutAmount);
+               if (token == wToken) {
+                  IWToken(wToken).withdraw(mapOutAmount);
+                  Address.sendValue(payable(toAddress),mapOutAmount); 
+               } else {
+                  require(IERC20(token).balanceOf(address(this)) >= mapOutAmount, "balance too low");
+                  SafeERC20.safeTransfer(IERC20(token),toAddress,mapOutAmount);
+               }
             }
             emit mapSwapIn(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, toAddress, mapOutAmount);
         } else {
@@ -494,7 +358,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         address _from,
         uint256 _amount,
         uint256 _toChain, // target chain id
-        bytes calldata swapData
+        bytes calldata _swapData
     ) internal returns(bytes32 orderId) {
         bytes memory toToken = tokenRegister.getToChainToken(_token, _toChain);
         // bytes memory toToken = "0x0";
@@ -515,7 +379,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             Utils.toBytes(_from),
             _to,
             outAmount,
-            swapData
+            _swapData
         );
     }
 
@@ -545,19 +409,10 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
     function _withdraw(address _token, address payable _receiver, uint256 _amount) internal {
         if (_token == wToken) {
-            TransferHelper.safeWithdraw(wToken, _amount);
-            TransferHelper.safeTransferETH(_receiver, _amount);
+            IWToken(wToken).withdraw(_amount);
+            Address.sendValue(payable(_receiver),_amount);
         } else {
-            TransferHelper.safeTransfer(_token, _receiver, _amount);
-        }
-    }
-
-    
-    function _getBalance(address _token,address _account) internal view returns (uint256) {
-        if (_token == address(0)) {
-            return _account.balance;
-        } else {
-            return IERC20(_token).balanceOf(_account);
+            SafeERC20.safeTransfer(IERC20(_token),_receiver,_amount);
         }
     }
 
