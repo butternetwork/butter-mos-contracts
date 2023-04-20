@@ -30,5 +30,5 @@ module.exports = async (taskArgs,hre) => {
         taskArgs.decimals
     )).wait()
 
-    console.log(`Token register manager maps chain ${taskArgs.chain} token ${chaintoken} to relay chain token ${taskArgs.mapToken}  success `)
+    console.log(`Token register manager maps chain ${taskArgs.chain} token ${chaintoken} to relay chain token ${taskArgs.token}  success `)
 }

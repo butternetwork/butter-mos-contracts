@@ -5,10 +5,15 @@ let mosNear = "0x6d6f73322e6d6661632e6d61703030312e746573746e6574";
 
 let ethUsdtToken = "0x06d9f8c950058b4ecdff1534caf1ef1ccf87f4f9";
 let ethStanardToken = "0x0f256fa34e55f33c6a3a0c7baa383925a8f04704";
+
+let bscTestToken = "0x8c9b3cAf7DedD3003f53312779c1b92ba1625D94"
 //mcs_token_0.mos2.mfac.map001.testnet
 let nearUsdtToken = "0x6d63735f746f6b656e5f302e6d6f73322e6d6661632e6d61703030312e746573746e6574"
 //ft0.map001.testnet
 let nearStandToken = "0x6674302e6d61703030312e746573746e6574"
+
+let nearTestToken = "0x777261702e746573746e6575"
+
 //wrap.testnet
 let nearWethToken = "0x777261702e746573746e6574"
 
@@ -85,6 +90,7 @@ module.exports = {
     nearUsdtToken,
     nearStandToken,
     nearWethToken,
+    nearTestToken,
     eth2mapMapToken,
     eth2mapStandardToken,
     eth2mapNative,
@@ -98,5 +104,6 @@ module.exports = {
     near2mapDepositeM01,
     eth2mapDepositeU,
     eth2mapDepositeS,
-    eth2mapDepositeW
+    eth2mapDepositeW,
+    bscTestToken
 }

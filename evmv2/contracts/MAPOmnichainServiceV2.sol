@@ -4,26 +4,28 @@ pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+import "@mapprotocol/protocol/contracts/interface/ILightNode.sol";
+import "@mapprotocol/protocol/contracts/utils/Utils.sol";
+import "@mapprotocol/protocol/contracts/lib/RLPReader.sol";
 import "./interface/IWToken.sol";
 import "./interface/IMAPToken.sol";
-import "./utils/TransferHelper.sol";
-import "./interface/IMOSV2.sol";
-import "./interface/ILightNode.sol";
-import "./utils/RLPReader.sol";
-import "./utils/Utils.sol";
+import "./interface/IButterMosV2.sol";
 import "./utils/EvmDecoder.sol";
 
 
-contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOSV2, UUPSUpgradeable {
+contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IButterMosV2, UUPSUpgradeable {
     using SafeMath for uint;
     using RLPReader for bytes;
     using RLPReader for RLPReader.RLPItem;
+    using Address for address;
 
     uint public immutable selfChainId = block.chainid;
     uint public nonce;
@@ -32,11 +34,26 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
     uint256 public relayChainId;
     ILightNode public lightNode;
 
+    enum chainType{
+        NULL,
+        EVM,
+        NEAR
+    }
+
     mapping(bytes32 => bool) public orderList;
     mapping(address => bool) public mintableTokens;
     mapping(uint256 => mapping(address => bool)) public tokenMappingList;
 
+    address public butterRouter;
+
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
+    event SetLightClient(address _lightNode);
+    event AddMintableToken(address[] _token);
+    event RemoveMintableToken(address[] _token);
+    event SetRelayContract(uint256 _chainId, address _relay);
+    event RegisterToken(address _token, uint _toChain, bool _enable);
+    event RegisterChain(uint256 _chainId, chainType _type);
+    event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
     function initialize(address _wToken, address _lightNode)
     public initializer checkAddress(_wToken) checkAddress(_lightNode) {
@@ -60,7 +77,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         _;
     }
 
-    modifier checkAddress(address _address){
+    modifier checkAddress(address _address) {
         require(_address != address(0), "address is zero");
         _;
     }
@@ -80,77 +97,134 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
 
     function setLightClient(address _lightNode) external onlyOwner checkAddress(_lightNode) {
         lightNode = ILightNode(_lightNode);
+        emit SetLightClient(_lightNode);
     }
 
     function addMintableToken(address[] memory _token) external onlyOwner {
         for (uint i = 0; i < _token.length; i++) {
             mintableTokens[_token[i]] = true;
         }
+        emit AddMintableToken(_token);
     }
 
     function removeMintableToken(address[] memory _token) external onlyOwner {
         for (uint i = 0; i < _token.length; i++) {
             mintableTokens[_token[i]] = false;
         }
+        emit RemoveMintableToken(_token);
     }
 
     function setRelayContract(uint256 _chainId, address _relay) external onlyOwner checkAddress(_relay) {
         relayContract = _relay;
         relayChainId = _chainId;
+	
+	emit SetRelayContract(_chainId,_relay);
+    }
+
+    function setButterRouterAddress(address _butterRouter) external onlyOwner checkAddress(_butterRouter) {
+        butterRouter = _butterRouter;
     }
 
     function registerToken(address _token, uint _toChain, bool _enable) external onlyOwner {
+        require(_token.isContract(),"token is not contract");
         tokenMappingList[_toChain][_token] = _enable;
+        emit RegisterToken(_token,_toChain,_enable);
     }
 
     function emergencyWithdraw(address _token, address payable _receiver, uint256 _amount) external onlyOwner checkAddress(_receiver) {
         if (_token == wToken) {
-            TransferHelper.safeWithdraw(wToken, _amount);
-            TransferHelper.safeTransferETH(_receiver, _amount);
-        } else if(_token == address(0)){
-            TransferHelper.safeTransferETH(_receiver, _amount);
-        }else {
-            TransferHelper.safeTransfer(_token,_receiver,_amount);
+            IWToken(wToken).withdraw(_amount);
+            Address.sendValue(payable(_receiver),_amount);
+        } else if (_token == address(0)) {
+            Address.sendValue(payable(_receiver),_amount);
+        } else {
+            SafeERC20.safeTransfer(IERC20(_token),_receiver,_amount);
         }
     }
 
-    function transferOutToken(address _token, bytes memory _to, uint256 _amount, uint256 _toChain) external override nonReentrant whenNotPaused
-    checkBridgeable(_token, _toChain) {
-        require(_toChain != selfChainId, "only other chain");
-        require(IERC20(_token).balanceOf(msg.sender) >= _amount, "balance too low");
+    function swapOutToken(
+        address _initiatorAddress, // swap initiator address
+        address _token, // src token
+        bytes memory _to,
+        uint256 _amount,
+        uint256 _toChain, // target chain id
+        bytes calldata _swapData
+    )
+    external
+    override
+    nonReentrant
+    whenNotPaused
+    checkBridgeable(_token, _toChain)
+    returns(bytes32 orderId)
+    {
+        require(_toChain != selfChainId, "Cannot swap to self chain");
+        require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
 
         if (isMintable(_token)) {
             IMAPToken(_token).burnFrom(msg.sender, _amount);
         } else {
-            TransferHelper.safeTransferFrom(_token, msg.sender, address(this), _amount);
+            SafeERC20.safeTransferFrom(IERC20(_token),msg.sender,address(this),_amount);
         }
-        bytes32 orderId = _getOrderID(msg.sender, _to, _toChain);
-        emit mapTransferOut(selfChainId, _toChain, orderId, Utils.toBytes(_token), Utils.toBytes(msg.sender),  _to, _amount, Utils.toBytes(address(0)));
+
+        orderId = _getOrderID(msg.sender, _to, _toChain);
+
+        emit mapSwapOut(
+            selfChainId,
+            _toChain,
+            orderId,
+            Utils.toBytes(_token),
+            Utils.toBytes(_initiatorAddress),
+            _to,
+            _amount,
+            _swapData
+        );
     }
 
-    function transferOutNative(bytes memory _to, uint _toChain) external override payable nonReentrant whenNotPaused
-    checkBridgeable(wToken, _toChain) {
-        require(_toChain != selfChainId, "only other chain");
+    function swapOutNative(
+        address _initiatorAddress, // swap initiator address
+        bytes memory _to,
+        uint256 _toChain, // target chain id
+        bytes calldata _swapData
+    )
+    external
+    override
+    payable
+    nonReentrant
+    whenNotPaused
+    checkBridgeable(wToken, _toChain)
+    returns(bytes32 orderId)
+    {
+        require(_toChain != selfChainId, "Cannot swap to self chain");
         uint amount = msg.value;
-        require(amount > 0, "balance is zero");
+        require(amount > 0, "Sending value is zero");
         IWToken(wToken).deposit{value : amount}();
-        bytes32 orderId = _getOrderID(msg.sender, _to, _toChain);
-        emit mapTransferOut(selfChainId, _toChain, orderId, Utils.toBytes(wToken), Utils.toBytes(msg.sender),  _to, amount, Utils.toBytes(address(0)));
+        orderId = _getOrderID(msg.sender, _to, _toChain);
+        emit mapSwapOut(
+            selfChainId,
+            _toChain,
+            orderId,
+            Utils.toBytes(wToken),
+            Utils.toBytes(_initiatorAddress),
+            _to,
+            amount,
+            _swapData
+        );
+
     }
 
     function depositToken(address _token, address _to, uint _amount) external override nonReentrant whenNotPaused
-    checkBridgeable(_token, relayChainId){
+    checkBridgeable(_token, relayChainId) {
         address from = msg.sender;
         //require(IERC20(token).balanceOf(_from) >= _amount, "balance too low");
 
         if (isMintable(_token)) {
             IMAPToken(_token).burnFrom(from, _amount);
         } else {
-            TransferHelper.safeTransferFrom(_token, from, address(this), _amount);
+            SafeERC20.safeTransferFrom(IERC20(_token),from,address(this),_amount);
         }
 
         bytes32 orderId = _getOrderID(from, Utils.toBytes(_to), relayChainId);
-        emit mapDepositOut(selfChainId, relayChainId, orderId, _token, Utils.toBytes(from),  _to, _amount);
+        emit mapDepositOut(selfChainId, relayChainId, orderId, _token, Utils.toBytes(from), _to, _amount);
     }
 
     function depositNative(address _to) external override payable nonReentrant whenNotPaused
@@ -163,28 +237,26 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         emit mapDepositOut(selfChainId, relayChainId, orderId, wToken, Utils.toBytes(from), _to, amount);
     }
 
-    function transferIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
+    function swapIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
         require(_chainId == relayChainId, "invalid chain id");
-        (bool sucess, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
-        require(sucess, message);
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
+        require(success, message);
         IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
-
         for (uint i = 0; i < logs.length; i++) {
             IEvent.txLog memory log = logs[i];
             bytes32 topic = abi.decode(log.topics[0], (bytes32));
-
-            if (topic == EvmDecoder.MAP_TRANSFEROUT_TOPIC && relayContract == log.addr) {
-                (, IEvent.transferOutEvent memory outEvent) = EvmDecoder.decodeTransferOutLog(log);
-                // there might be more than on events to multi-chains
+            if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
+                (, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
+                // there might be more than one events to multi-chains
                 // only process the event for this chain
                 if (selfChainId == outEvent.toChain) {
-                    _transferIn(outEvent);
+                    _swapIn(outEvent);
                 }
             }
         }
-        emit mapTransferExecute(_chainId, selfChainId, msg.sender);
-    }
 
+        emit mapSwapExecute(_chainId, selfChainId, msg.sender);
+    }
 
     function isMintable(address _token) public view returns (bool) {
         return mintableTokens[_token];
@@ -194,36 +266,47 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOS
         return tokenMappingList[_toChain][_token];
     }
 
-
     function _getOrderID(address _from, bytes memory _to, uint _toChain) internal returns (bytes32){
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 
-    function _transferIn(IEvent.transferOutEvent memory _outEvent)
-    internal checkOrder(_outEvent.orderId) {
-        //require(_chainId == _outEvent.toChain, "invalid chain id");
-        address token = Utils.fromBytes(_outEvent.toChainToken);
+    function _swapIn(IEvent.swapOutEvent memory _outEvent) internal checkOrder(_outEvent.orderId) {
+        address tokenIn = Utils.fromBytes(_outEvent.token);
+        // receiving address
         address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
-        uint256 amount = _outEvent.amount;
-        if (token == wToken) {
-            TransferHelper.safeWithdraw(wToken, amount);
-            TransferHelper.safeTransferETH(toAddress, amount);
-        } else if (isMintable(token)) {
-            IMAPToken(token).mint(toAddress, amount);
+        // amount of token need to be sent
+        uint actualAmountIn = _outEvent.amount;
+
+        if (isMintable(tokenIn)) {
+            IMAPToken(tokenIn).mint(address(this), actualAmountIn);
+        }
+        
+        // if swap params is not empty, then we need to do swap on current chain
+        if (_outEvent.swapData.length > 0) {
+
+            SafeERC20.safeTransfer(IERC20(tokenIn),butterRouter,actualAmountIn);
+
+            (bool result,) = butterRouter.call(abi.encodeWithSignature("remoteSwapAndCall(bytes32,address,uint256,bytes)",_outEvent.orderId,tokenIn,actualAmountIn,_outEvent.swapData));
+
         } else {
-            TransferHelper.safeTransfer(token, toAddress, amount);
+            // transfer token if swap did not happen
+            if (tokenIn == wToken) {
+               IWToken(wToken).withdraw(actualAmountIn);
+               Address.sendValue(payable(toAddress),actualAmountIn);
+            } else {
+               SafeERC20.safeTransfer(IERC20(tokenIn),toAddress,actualAmountIn);
+            }
         }
 
-        emit mapTransferIn( _outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, toAddress, amount);
+        emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenIn, _outEvent.from, toAddress, actualAmountIn);
     }
-
 
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {
         require(msg.sender == _getAdmin(), "MAPOmnichainService: only Admin can upgrade");
     }
 
-    function changeAdmin(address _admin) external onlyOwner checkAddress(_admin){
+    function changeAdmin(address _admin) external onlyOwner checkAddress(_admin) {
         _changeAdmin(_admin);
     }
 

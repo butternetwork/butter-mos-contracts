@@ -2,6 +2,8 @@
 
 pragma solidity 0.8.7;
 
+import "@mapprotocol/protocol/contracts/interface/ILightNode.sol";
+
 contract LightNode {
     function verifyProofData(bytes memory _receiptProof)
     external

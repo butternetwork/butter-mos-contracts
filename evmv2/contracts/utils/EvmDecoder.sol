@@ -2,17 +2,17 @@
 
 pragma solidity 0.8.7;
 
-import "../interface/IEvent.sol";
-import "./RLPReader.sol";
-import "./Utils.sol";
 
+import "@mapprotocol/protocol/contracts/utils/Utils.sol";
+import "@mapprotocol/protocol/contracts/lib/RLPReader.sol";
+import "../interface/IEvent.sol";
 library EvmDecoder {
 
     using RLPReader for bytes;
     using RLPReader for RLPReader.RLPItem;
 
-    bytes32 constant MAP_TRANSFEROUT_TOPIC = keccak256(bytes('mapTransferOut(uint256,uint256,bytes32,bytes,bytes,bytes,uint256,bytes)'));
     bytes32 constant MAP_DEPOSITOUT_TOPIC = keccak256(bytes('mapDepositOut(uint256,uint256,bytes32,address,bytes,address,uint256)'));
+    bytes32 constant MAP_SWAPOUT_TOPIC = keccak256(bytes('mapSwapOut(uint256,uint256,bytes32,bytes,bytes,bytes,uint256,bytes)'));
 
 
     function decodeTxLogs(bytes memory logsHash)
@@ -39,15 +39,16 @@ library EvmDecoder {
         }
     }
 
-    function decodeTransferOutLog(IEvent.txLog memory log)
+
+    function decodeSwapOutLog(IEvent.txLog memory log)
     internal
     pure
-    returns (bytes memory executorId, IEvent.transferOutEvent memory outEvent){
+    returns (bytes memory executorId, IEvent.swapOutEvent memory outEvent) {
         executorId = Utils.toBytes(log.addr);
         outEvent.fromChain = abi.decode(log.topics[1], (uint256));
         outEvent.toChain = abi.decode(log.topics[2], (uint256));
 
-        (outEvent.orderId, outEvent.token, outEvent.from, outEvent.to, outEvent.amount, outEvent.toChainToken)
+        (outEvent.orderId, outEvent.token, outEvent.from, outEvent.to, outEvent.amount,outEvent.swapData)
         = abi.decode(log.data, (bytes32, bytes, bytes, bytes, uint256, bytes));
     }
 

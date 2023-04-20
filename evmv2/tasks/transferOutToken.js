@@ -13,7 +13,7 @@ module.exports = async (taskArgs) => {
 
     let token = await ethers.getContractAt("IERC20", taskArgs.token);
 
-    let mos = await ethers.getContractAt('IMOSV2',taskArgs.mos);
+    let mos = await ethers.getContractAt('IButterMosV2',taskArgs.mos);
 
     let address = taskArgs.address;
     if (taskArgs.address === "") {

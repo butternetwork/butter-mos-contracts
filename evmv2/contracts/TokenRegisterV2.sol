@@ -6,9 +6,10 @@ import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "./interface/ITokenRegisterV2.sol";
 import "./interface/IVaultTokenV2.sol";
-import "./utils/Utils.sol";
+
 
 contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
     using SafeMath for uint;
@@ -51,6 +52,9 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         _;
     }
 
+    event RegisterToken(address _token, address _vaultToken, bool _mintable);
+    event SetTokenFee(address _token, uint256 _toChain, uint _lowest, uint _highest, uint _rate);
+
     function initialize() public initializer
     {
         _changeAdmin(msg.sender);
@@ -67,6 +71,7 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         token.vaultToken = _vaultToken;
         token.decimals = IERC20Metadata(_token).decimals();
         token.mintable = _mintable;
+        emit RegisterToken(_token, _vaultToken, _mintable);
     }
 
     function mapToken(address _token, uint256 _fromChain, bytes memory _fromToken, uint8 _decimals)
@@ -93,8 +98,11 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         require(_rate <= MAX_RATE_UNI, 'invalid proportion value');
 
         token.fees[_toChain] = FeeRate(_lowest, _highest, _rate);
+
+        emit SetTokenFee(_token, _toChain, _lowest, _highest, _rate);
     }
 
+    // --------------------------------------------------------
 
     function getToChainToken(address _token, uint256 _toChain)
     external 
@@ -118,7 +126,12 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         }
         uint256 decimalsFrom = tokenList[_token].decimals;
 
+        require(decimalsFrom > 0, "from token decimals not register");
+
         uint256 decimalsTo = tokenList[_token].tokenDecimals[_toChain];
+
+        require(decimalsTo > 0, "from token decimals not register");
+
         if (decimalsFrom == decimalsTo) {
             return _amount;
         }
@@ -198,6 +211,59 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         }
 
         feeRate = tokenList[_token].fees[_toChain];
+    }
+
+    function getFeeAmountAndInfo(uint256 _fromChain, bytes memory _fromToken, uint256 _fromAmount, uint256 _toChain)
+    external
+    view
+    returns (uint256 _feeAmount, FeeRate memory _feeRate, address _relayToken, uint8 _relayTokenDecimals, bytes memory _toToken, uint8 _toTokenDecimals) {
+
+        (_relayToken, , _feeAmount) =  this.getRelayFee(_fromChain, _fromToken, _fromAmount, _toChain);
+        (_toToken, _toTokenDecimals, _feeRate) = this.getToChainTokenInfo(_relayToken, _toChain);
+
+        _relayTokenDecimals = tokenList[_relayToken].decimals;
+    }
+
+    function getFeeAmountAndVaultBalance(uint256 _srcChain,bytes memory _srcToken,uint256 _srcAmount,uint256 _targetChain) 
+    external
+    view
+    returns(uint256 _srcFeeAmount,uint256 _relayChainAmount,int256 _vaultBalance,bytes memory _toChainToken){
+        address relayToken;
+        uint256 feeAmount;
+
+        (relayToken, _relayChainAmount, feeAmount) = this.getRelayFee(_srcChain, _srcToken, _srcAmount, _targetChain);
+         _srcFeeAmount = this.getToChainAmount(relayToken, feeAmount, _srcChain);
+
+         address vault = this.getVaultToken(relayToken);
+         (bool result,bytes memory data) =  vault.staticcall(abi.encodeWithSignature("vaultBalance(uint256)",_targetChain));
+         if(result && data.length > 0) {
+            _vaultBalance = abi.decode(data,(int256));
+            if(_vaultBalance > 0) {
+                uint256 tem = this.getToChainAmount(relayToken,uint256(_vaultBalance),_targetChain);
+                require(tem <= uint256(type(int256).max), "value doesn't fit in an int256");
+                _vaultBalance = int256(tem);
+            } else {
+                  _vaultBalance = 0;
+            }
+         } else {
+             _vaultBalance = 0;
+         }
+
+        _toChainToken = this.getToChainToken(relayToken, _targetChain);
+    }
+
+    // -----------------------------------------------------
+
+    function getRelayFee(uint256 _fromChain,bytes memory _fromToken,uint256 _fromAmount,uint256 _toChain)
+    external
+    view
+    returns(address _relayToken, uint256 _relayChainAmount, uint256 _feeAmount) {
+
+        _relayToken = this.getRelayChainToken(_fromChain, _fromToken);
+
+        _relayChainAmount = this.getRelayChainAmount(_relayToken, _fromChain, _fromAmount);
+
+        _feeAmount = this.getTokenFee(_relayToken, _relayChainAmount, _toChain);
     }
 
     /** UUPS *********************************************************/

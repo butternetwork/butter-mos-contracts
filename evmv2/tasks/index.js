@@ -13,6 +13,13 @@ task("relayDeploy",
     .addParam("wrapped", "native wrapped token address")
     .addParam("lightnode", "lightNodeManager contract address")
 
+task("relayFullDeploy",
+    "Deploy the upgradeable MapCrossChainServiceRelay contract and initialize it",
+    require("./relayFullDeploy")
+)
+    .addParam("wrapped", "native wrapped token address")
+    .addParam("lightnode", "lightNodeManager contract address")
+
 
 task("vaultDeploy",
     "Deploy the vault token",
@@ -75,6 +82,12 @@ task("mosRegisterToken",
     .addParam("chains", "chain ids allowed to cross, separated by ',', ex. `1,2,3` ")
     .addOptionalParam("enable", "true or false", true, types.boolean)
 
+task("mosSetButterRouter",
+    "Set router contract address in MOS",
+    require("./mosSetButterRouter")
+)
+    .addParam("router", "butter router address")
+
 task("mosSetMintableToken",
     "MapCrossChainService settings mintable token",
     require("./mosSetMintableToken")
@@ -111,9 +124,6 @@ task("relayRegisterToken",
     .addParam("vault", "vault token address")
     .addParam("mintable", "token mintable",false,types.boolean)
 
-
-
-
 task("relayMapToken",
     "Map the altchain token to the token on relay chain",
     require("./relayMapToken")
@@ -142,6 +152,11 @@ task("relaySetDistributeRate",
     .addOptionalParam("address", "receiver address", "0x0000000000000000000000000000000000000DEF", types.string)
     .addParam("rate", "The percentage value of the fee charged, unit 0.000001")
 
+task("relaySetButterRouter",
+    "Set router contract address in Relay",
+    require("./relaySetButterRouter")
+)
+    .addParam("router", "butter router address")
 
 task("transferOutToken",
     "Cross-chain transfer token",
@@ -152,6 +167,19 @@ task("transferOutToken",
     .addOptionalParam("address", "The receiver address, default is msg.sender","",types.string)
     .addParam("value", "transfer value, unit WEI")
     .addParam("chain", "target chain id")
+
+task("swapOutToken",
+    "Cross-chain token swap",
+    require("./swapOutToken")
+)
+    .addParam("mos", "the mos address")
+    .addOptionalParam("token", "The token address","0x0000000000000000000000000000000000000000",types.string)
+    .addOptionalParam("value", "token amount in Wei", '1000000000000000000')
+    .addOptionalParam("mapTargetToken", "target token on map", "0x0000000000000000000000000000000000000000",types.string)
+    .addOptionalParam("address", "The receiver address, default is msg.sender","",types.string)
+    .addParam("tochain", "target chain id")
+    // .addParam("swapData", "swap data route")
+
 
 task("depositOutToken",
     "Cross-chain deposit token",
@@ -184,3 +212,19 @@ task("mosList",
 )
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
     .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
+
+task("upgradeMOS",
+    "upgrade mos evm contract in proxy",
+    require("./upgradeMOS")
+)
+    .addParam("mos", "The mos address")
+
+task("swapIn",
+    "swapIn",
+    require("./swapIn.js")
+)
+
+task("vaultDeposit",
+    "vaultDeposit",
+    require("./vaultDeposit.js")
+).addParam("fromchain", "fromchainId")
