@@ -17,11 +17,11 @@ import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "@mapprotocol/protocol/contracts/lib/RLPReader.sol";
 import "./interface/IWToken.sol";
 import "./interface/IMAPToken.sol";
-import "./interface/IMOSV2.sol";
+import "./interface/IButterMosV2.sol";
 import "./utils/EvmDecoder.sol";
 
 
-contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IMOSV2, UUPSUpgradeable {
+contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IButterMosV2, UUPSUpgradeable {
     using SafeMath for uint;
     using RLPReader for bytes;
     using RLPReader for RLPReader.RLPItem;

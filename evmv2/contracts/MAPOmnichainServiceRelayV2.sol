@@ -18,13 +18,13 @@ import "./interface/IWToken.sol";
 import "./interface/IMAPToken.sol";
 import "./interface/IVaultTokenV2.sol";
 import "./interface/ITokenRegisterV2.sol";
-import "./interface/IMOSV2.sol";
+import "./interface/IButterMosV2.sol";
 import "./utils/EvmDecoder.sol";
 import "./utils/NearDecoder.sol";
 
 
 
-contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable, IMOSV2, UUPSUpgradeable {
+contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable, IButterMosV2, UUPSUpgradeable {
     using SafeMath for uint256;
     using Address for address;
 

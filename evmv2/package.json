@@ -1,5 +1,5 @@
 {
-  "name": "MAPOmnichainService",
+  "name": "@butternetwork/bridge",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -12,14 +12,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mapprotocol/map-contracts.git"
+    "url": "https://github.com/butternetwork/butter-mos-contracts.git"
   },
-  "author": "MAP Protocol",
+  "author": "Butter Network",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/mapprotocol/map-contracts/issues"
+    "url": "https://github.com/butternetwork/butter-mos-contractsissues"
   },
-  "homepage": "https://github.com/mapprotocol/map-contracts#readme.md",
+  "homepage": "https://github.com/butternetwork/butter-mos-contracts#readme.md",
   "dependencies": {
     "@mapprotocol/protocol": "^0.2.1",
     "@nomiclabs/hardhat-etherscan": "^2.1.8",

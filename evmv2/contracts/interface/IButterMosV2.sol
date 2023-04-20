@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.7;
 
-interface IMOSV2 {
-
+interface IButterMosV2 {
     function swapOutToken(
         address _initiatorAddress,
         address _token, // src token

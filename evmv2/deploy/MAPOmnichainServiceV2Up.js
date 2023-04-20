@@ -16,6 +16,8 @@ module.exports = async function ({ethers, deployments}) {
 
 
     let proxy = await deployments.get("MAPOmnichainServiceProxyV2");
+    console.log("Proxy address:", proxy.address);
+
     let mosProxy = await ethers.getContractAt('MAPOmnichainServiceV2', proxy.address);
 
     await (await mosProxy.upgradeTo(mos.address)).wait();

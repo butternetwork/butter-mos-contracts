@@ -5,7 +5,7 @@ module.exports = async (taskArgs) => {
 
     console.log("deposit address:",deployer.address);
 
-    let mos = await ethers.getContractAt('IMOSV2', taskArgs.mos);
+    let mos = await ethers.getContractAt('IButterMosV2', taskArgs.mos);
 
     let address = taskArgs.address;
     if (taskArgs.address === "") {
