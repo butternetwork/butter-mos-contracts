@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "../interface/IVaultTokenV2.sol";
-import "../utils/TransferHelper.sol";
+
 
 
 contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable,ERC20Burnable {

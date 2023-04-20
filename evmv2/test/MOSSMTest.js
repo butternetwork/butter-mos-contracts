@@ -121,73 +121,6 @@ describe("MAPOmnichainServiceV2 start test", function () {
         expect(await standardToken.balanceOf(addr1.address)).to.equal("100000000000000000000000000");
     });
 
-    it('transferOutToken test',async function () {
-        //console.log(addr2.address);
-        //address2Bytes = await moss._addressToBytes(addr2.address);
-        address2Bytes = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
-
-        await standardToken.connect(addr1).approve(moss.address,"10000000000000000000000000000000000")
-
-        //transferOutToken to "100000000000000000000000"
-        await moss.connect(addr1).transferOutToken(standardToken.address,address2Bytes,"100000000000000000000000",34434);
-
-        //MintableToken true totalSupply burn 100000000000000000000000
-        expect(await standardToken.totalSupply()).to.equal(BigNumber.from("99900000000000000000000000"));
-
-        expect(await standardToken.balanceOf(moss.address)).to.equal("0")
-        await moss.removeMintableToken([standardToken.address]);
-
-        expect(await moss.mintableTokens(standardToken.address)).to.equal(false);
-
-        await moss.connect(addr1).transferOutToken(standardToken.address,address2Bytes,"900000000000000000000000",34434);
-        //MintableToken false totalSupply no change
-        expect(await standardToken.totalSupply()).to.equal(BigNumber.from("99900000000000000000000000"));
-        //addr1 balance 99900000000000000000000000 subtract 900000000000000000000000
-        expect(await standardToken.connect(addr1).balanceOf(addr1.address)).to.equal("99000000000000000000000000")
-
-        expect(await standardToken.balanceOf(moss.address)).to.equal("900000000000000000000000");
-    });
-
-
-    it('map transferIn test ', async function () {
-        await moss.addMintableToken([standardToken.address]);
-
-        //standardToken transferIn 100000000000000000
-        await moss.transferIn(212,mosData.map2ethStandardToken);
-
-        //MintableToken true mint 100000000000000000
-        expect(await standardToken.totalSupply()).to.equal("99900000100000000000000000");
-        //900000000000000000000000
-        expect(await standardToken.balanceOf(moss.address)).to.equal("900000000000000000000000");
-
-        expect(await usdt.balanceOf(moss.address)).to.equal("0");
-
-        expect(await usdt.balanceOf(moss.address)).to.equal("0");
-
-        // await moss.transferIn(212,mosData.map2ethMapToken0);
-        //
-        // expect(await standardToken.totalSupply()).to.equal("99900000100000000000000000");
-        // expect(await usdt.balanceOf(moss.address)).to.equal("0");
-
-        await wrapped.deposit({value:"300000000000000000"});
-        await wrapped.transfer(moss.address,"300000000000000000");
-
-        //wtoken transferIn 300000000000000000
-        await moss.transferIn(212,mosData.map2ethNative);
-
-        expect(await wrapped.balanceOf(moss.address)).to.equal("0")
-
-        expect(await ethers.provider.getBalance(receiver)).to.equal("300000000000000000")
-
-        await usdt.mint(moss.address,"5000000000000000000")
-
-        // usdt transferIn 5000000000000000000
-        await moss.transferIn(212,mosData.map2ethMapToken);
-        expect(await usdt.balanceOf(moss.address)).to.equal("0");
-        expect(await usdt.balanceOf(receiver)).to.equal("5000000000000000000");
-        expect(await usdt.totalSupply()).to.equal("5000000000000000000");
-
-    });
 
     // it('map swapIn test ', async function () {
     //     await moss.addMintableToken([standardToken.address]);
@@ -230,12 +163,16 @@ describe("MAPOmnichainServiceV2 start test", function () {
     // });
 
     it('depositOut test', async function () {
+
+        let balance = await standardToken.balanceOf(addr1.address) ;
+        await standardToken.mint(addr1.address,"100000000000000000000000000");
+        await standardToken.connect(addr1).approve(moss.address,"100000000000000000000000000")
         await moss.connect(addr1).depositToken(
             standardToken.address,
             addr3.address,
-            "2000000000000000000000"
+            "100000000000000000000000000"
         )
-        expect(await standardToken.balanceOf(addr1.address)).to.equal("98998000000000000000000000");
+        expect(await standardToken.balanceOf(addr1.address)).to.equal(balance);
 
         console.log( BigNumber.from(await ethers.provider.getBalance(addr2.address)));
         await moss.connect(addr2).depositNative(
@@ -247,42 +184,6 @@ describe("MAPOmnichainServiceV2 start test", function () {
 
         // expect(await ethers.provider.getBalance(moss.address)).to.equal("9998999928426602550800");
         expect(await wrapped.balanceOf(moss.address)).to.equal("1000000000000000000")
-    });
-
-    it('near transferIn test ', async function () {
-        //250000000000000000
-        await usdt.mint(moss.address,"250000000000000000")
-        await moss.transferIn(212,mosData.near2ethW);
-        expect(await usdt.totalSupply()).to.equal("5250000000000000000");
-        expect(await usdt.balanceOf(moss.address)).to.equal("0");
-        expect(await standardToken.totalSupply()).to.equal("99898000100000000000000000");
-
-        //250000000000000000
-        await moss.transferIn(212,mosData.near2eth001);
-
-        expect(await standardToken.totalSupply()).to.equal("99898000350000000000000000");
-        //100000000000000000
-        //250000000000000000
-        expect(await standardToken.balanceOf(receiver)).to.equal("350000000000000000");
-
-        //250000000000000000
-        await moss.transferIn(212,mosData.near2et000);
-
-        expect(await wrapped.balanceOf(moss.address)).to.equal("750000000000000000");
-
-        expect(await ethers.provider.getBalance(receiver)).to.equal("550000000000000000")
-
-    });
-
-
-    it('transferOutNative', async function () {
-        await moss.registerToken(wrapped.address,1313161555,"true");
-
-        await moss.connect(owner).transferOutNative(address2Bytes,1313161555,{value:"100000000000000000"});
-
-        //100000000000000000
-        expect(await wrapped.balanceOf(moss.address)).to.equal("850000000000000000")
-
     });
 
 
@@ -329,22 +230,26 @@ describe("MAPOmnichainServiceV2 start test", function () {
     });
 
     it('withdraw test', async function () {
-        console.log(await ethers.provider.getBalance(moss.address));
+        let b = await ethers.provider.getBalance(addr9.address);
+        let before = await wrapped.balanceOf(moss.address);
+        console.log(before)
         await moss.emergencyWithdraw(
             wrapped.address,
             addr9.address,
-            "850000000000000000"
+            before
         )
-        expect(await ethers.provider.getBalance(moss.address)).to.equal("0");
-        expect(await ethers.provider.getBalance(addr9.address)).to.equal("10000850000000000000000");
+        expect(await wrapped.balanceOf(moss.address)).to.equal("0");
+        expect(await ethers.provider.getBalance(addr9.address)).to.equal(b.add(before));
 
+        let mos_s_before = await standardToken.balanceOf(moss.address);
+        let addr5_s_before = await standardToken.balanceOf(addr5.address)
         await moss.emergencyWithdraw(
             standardToken.address,
             addr5.address,
-            "2000000000000000000000"
+            mos_s_before
         )
-        expect(await standardToken.balanceOf(moss.address)).to.equal("898000000000000000000000");
-
+        expect(await standardToken.balanceOf(moss.address)).to.equal("0");
+        expect(await standardToken.balanceOf(addr5.address)).to.equal(mos_s_before.add(addr5_s_before));
         await addr1.sendTransaction({
             to:moss.address,
             value: ethers.utils.parseEther("2")
@@ -356,8 +261,7 @@ describe("MAPOmnichainServiceV2 start test", function () {
             addr9.address,
             "2000000000000000000"
         )
-
-        expect(await ethers.provider.getBalance(addr9.address)).to.equal("10002850000000000000000");
+        expect(await ethers.provider.getBalance(moss.address)).to.equal("0");
 
     });
 
@@ -390,7 +294,6 @@ describe("MAPOmnichainServiceV2 start test", function () {
 
         expect(await moss.getImplementation()).to.equal(mossUpGrade.address);
 
-        await expect(moss.transferIn(212,mosData.near2et000)).to.be.revertedWith("order exist");
 
     });
 

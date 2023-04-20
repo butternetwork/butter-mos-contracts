@@ -6,9 +6,10 @@ import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "./interface/ITokenRegisterV2.sol";
 import "./interface/IVaultTokenV2.sol";
-import "./utils/Utils.sol";
+
 
 contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
     using SafeMath for uint;
