@@ -131,16 +131,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         emit RegisterToken(_token,_toChain,_enable);
     }
 
-    function emergencyWithdraw(address _token, address payable _receiver, uint256 _amount) external onlyOwner checkAddress(_receiver) {
-        if (_token == wToken) {
-            IWToken(wToken).withdraw(_amount);
-            Address.sendValue(payable(_receiver),_amount);
-        } else if (_token == address(0)) {
-            Address.sendValue(payable(_receiver),_amount);
-        } else {
-            SafeERC20.safeTransfer(IERC20(_token),_receiver,_amount);
-        }
-    }
+    // ------------------------------------------
 
     function swapOutToken(
         address _initiatorAddress, // swap initiator address
