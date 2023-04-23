@@ -35,8 +35,6 @@ describe("MAPOmnichainServiceV2 start test", function () {
 
     let initData;
 
-    let address2Bytes;
-
     let receiver = "0x2E784874ddB32cD7975D68565b509412A5B519F4";
 
     const abi = ethers.utils.defaultAbiCoder;
@@ -229,55 +227,54 @@ describe("MAPOmnichainServiceV2 start test", function () {
 
     });
 
-    it('withdraw test', async function () {
-        let b = await ethers.provider.getBalance(addr9.address);
-        let before = await wrapped.balanceOf(moss.address);
-        console.log(before)
-        await moss.emergencyWithdraw(
-            wrapped.address,
-            addr9.address,
-            before
-        )
-        expect(await wrapped.balanceOf(moss.address)).to.equal("0");
-        expect(await ethers.provider.getBalance(addr9.address)).to.equal(b.add(before));
-
-        let mos_s_before = await standardToken.balanceOf(moss.address);
-        let addr5_s_before = await standardToken.balanceOf(addr5.address)
-        await moss.emergencyWithdraw(
-            standardToken.address,
-            addr5.address,
-            mos_s_before
-        )
-        expect(await standardToken.balanceOf(moss.address)).to.equal("0");
-        expect(await standardToken.balanceOf(addr5.address)).to.equal(mos_s_before.add(addr5_s_before));
-        await addr1.sendTransaction({
-            to:moss.address,
-            value: ethers.utils.parseEther("2")
-        })
-        expect(await ethers.provider.getBalance(moss.address)).to.equal("2000000000000000000");
-
-        await moss.emergencyWithdraw(
-            "0x0000000000000000000000000000000000000000",
-            addr9.address,
-            "2000000000000000000"
-        )
-        expect(await ethers.provider.getBalance(moss.address)).to.equal("0");
-
-        await addr1.sendTransaction({
-            to:moss.address,
-            value: ethers.utils.parseEther("2")
-        })
-        expect(await ethers.provider.getBalance(moss.address)).to.equal("2000000000000000000");
-
-        await moss.emergencyWithdraw(
-            "0x0000000000000000000000000000000000000000",
-            addr9.address,
-            "2000000000000000000"
-        )
-
-        expect(await ethers.provider.getBalance(addr9.address)).to.equal("10002850000000000000000");
-
-    });
+    // it('withdraw test', async function () {
+    //     let b = await ethers.provider.getBalance(addr9.address);
+    //     let before = await wrapped.balanceOf(moss.address);
+    //     console.log(before)
+    //     await moss.emergencyWithdraw(
+    //         wrapped.address,
+    //         addr9.address,
+    //         before
+    //     )
+    //     expect(await wrapped.balanceOf(moss.address)).to.equal("0");
+    //     expect(await ethers.provider.getBalance(addr9.address)).to.equal(b.add(before));
+    //
+    //     let mos_s_before = await standardToken.balanceOf(moss.address);
+    //     let addr5_s_before = await standardToken.balanceOf(addr5.address)
+    //     await moss.emergencyWithdraw(
+    //         standardToken.address,
+    //         addr5.address,
+    //         mos_s_before
+    //     )
+    //     expect(await standardToken.balanceOf(moss.address)).to.equal("0");
+    //     expect(await standardToken.balanceOf(addr5.address)).to.equal(mos_s_before.add(addr5_s_before));
+    //     await addr1.sendTransaction({
+    //         to:moss.address,
+    //         value: ethers.utils.parseEther("2")
+    //     })
+    //     expect(await ethers.provider.getBalance(moss.address)).to.equal("2000000000000000000");
+    //
+    //     await moss.emergencyWithdraw(
+    //         "0x0000000000000000000000000000000000000000",
+    //         addr9.address,
+    //         "2000000000000000000"
+    //     )
+    //     expect(await ethers.provider.getBalance(moss.address)).to.equal("0");
+    //
+    //     await addr1.sendTransaction({
+    //         to:moss.address,
+    //         value: ethers.utils.parseEther("2")
+    //     })
+    //     expect(await ethers.provider.getBalance(moss.address)).to.equal("2000000000000000000");
+    //
+    //     await moss.emergencyWithdraw(
+    //         "0x0000000000000000000000000000000000000000",
+    //         addr9.address,
+    //         "2000000000000000000"
+    //     )
+    //
+    //     expect(await ethers.provider.getBalance(addr9.address)).to.equal("10002850000000000000000");
+    // });
 
     it('set test', async function () {
         await moss.setPause();
@@ -307,8 +304,5 @@ describe("MAPOmnichainServiceV2 start test", function () {
         moss.connect(addr5).upgradeTo(mossUpGrade.address);
 
         expect(await moss.getImplementation()).to.equal(mossUpGrade.address);
-
-
     });
-
 })

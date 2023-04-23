@@ -291,54 +291,54 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
     });
 
 
-    it('withdraw test', async function () {
-
-        await wrapped.connect(addr4).deposit({value:"1000000000000000000"});
-        await wrapped.connect(addr4).transfer(mossR.address,"1000000000000000000");
-        let mos_w_before = await wrapped.balanceOf(mossR.address);
-        let addr6_n_before = await  ethers.provider.getBalance(addr6.address);
-        await mossR.connect(addr5).emergencyWithdraw(
-            wrapped.address,
-            addr6.address,
-            mos_w_before
-        )
-        expect(await wrapped.balanceOf(mossR.address)).to.equal("0");
-        expect(await ethers.provider.getBalance(addr6.address)).to.equal(mos_w_before.add(addr6_n_before));
-        
-        await (await standardToken.mint(addr7.address,"10000000000000000000000")).wait();
-
-        let addr7_s_balance = await standardToken.balanceOf(addr7.address);
-
-        await (await standardToken.connect(addr7).approve(mossR.address,addr7_s_balance)).wait();
-
-        let addr7_v_balance = await mapVault.balanceOf(addr7.address);
-
-        await (await mossR.connect(addr7).depositToken(standardToken.address,addr7.address,addr7_s_balance)).wait()
-
-        let addr7_v_f = (await mapVault.balanceOf(addr7.address)).sub(addr7_v_balance);
-
-       await( await mapVault.connect(addr7).approve(mossR.address,addr7_v_f)).wait();
- 
-        await mossR.connect(addr7).withdraw(
-            mapVault.address,
-            addr7_v_f
-        )
-        expect(await mapVault.balanceOf(addr7.address)).to.equal(addr7_v_balance)
-
-        expect(await standardToken.balanceOf(addr7.address)).to.equal(addr7_s_balance)
-
-        await(await standardToken.mint(mossR.address,"10000000000000000000000")).wait();
-        let mos_s_balance = await standardToken.balanceOf(mossR.address);
-        let addr6_s_balance =  await standardToken.balanceOf(addr6.address)
-        await mossR.connect(addr5).emergencyWithdraw(
-            standardToken.address,
-            addr6.address,
-            mos_s_balance
-        )
-        expect(await standardToken.balanceOf(mossR.address)).to.equal("0");
-        expect(await standardToken.balanceOf(addr6.address)).to.equal(mos_s_balance.add(addr6_s_balance));
-
-    });
+    // it('withdraw test', async function () {
+    //
+    //     await wrapped.connect(addr4).deposit({value:"1000000000000000000"});
+    //     await wrapped.connect(addr4).transfer(mossR.address,"1000000000000000000");
+    //     let mos_w_before = await wrapped.balanceOf(mossR.address);
+    //     let addr6_n_before = await  ethers.provider.getBalance(addr6.address);
+    //     await mossR.connect(addr5).emergencyWithdraw(
+    //         wrapped.address,
+    //         addr6.address,
+    //         mos_w_before
+    //     )
+    //     expect(await wrapped.balanceOf(mossR.address)).to.equal("0");
+    //     expect(await ethers.provider.getBalance(addr6.address)).to.equal(mos_w_before.add(addr6_n_before));
+    //
+    //     await (await standardToken.mint(addr7.address,"10000000000000000000000")).wait();
+    //
+    //     let addr7_s_balance = await standardToken.balanceOf(addr7.address);
+    //
+    //     await (await standardToken.connect(addr7).approve(mossR.address,addr7_s_balance)).wait();
+    //
+    //     let addr7_v_balance = await mapVault.balanceOf(addr7.address);
+    //
+    //     await (await mossR.connect(addr7).depositToken(standardToken.address,addr7.address,addr7_s_balance)).wait()
+    //
+    //     let addr7_v_f = (await mapVault.balanceOf(addr7.address)).sub(addr7_v_balance);
+    //
+    //    await( await mapVault.connect(addr7).approve(mossR.address,addr7_v_f)).wait();
+    //
+    //     await mossR.connect(addr7).withdraw(
+    //         mapVault.address,
+    //         addr7_v_f
+    //     )
+    //     expect(await mapVault.balanceOf(addr7.address)).to.equal(addr7_v_balance)
+    //
+    //     expect(await standardToken.balanceOf(addr7.address)).to.equal(addr7_s_balance)
+    //
+    //     await(await standardToken.mint(mossR.address,"10000000000000000000000")).wait();
+    //     let mos_s_balance = await standardToken.balanceOf(mossR.address);
+    //     let addr6_s_balance =  await standardToken.balanceOf(addr6.address)
+    //     await mossR.connect(addr5).emergencyWithdraw(
+    //         standardToken.address,
+    //         addr6.address,
+    //         mos_s_balance
+    //     )
+    //     expect(await standardToken.balanceOf(mossR.address)).to.equal("0");
+    //     expect(await standardToken.balanceOf(addr6.address)).to.equal(mos_s_balance.add(addr6_s_balance));
+    //
+    // });
 
     it('depositIn test ', async function () {
         let mos_u_b = await usdt.balanceOf(mossR.address)

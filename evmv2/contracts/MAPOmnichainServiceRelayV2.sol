@@ -14,8 +14,8 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightClientManager.sol";
 import "@mapprotocol/protocol/contracts/utils/Utils.sol";
-import "./interface/IWToken.sol";
-import "./interface/IMAPToken.sol";
+import "./interface/IWrappedToken.sol";
+import "./interface/IMintableToken.sol";
 import "./interface/IVaultTokenV2.sol";
 import "./interface/ITokenRegisterV2.sol";
 import "./interface/IButterMosV2.sol";
@@ -52,7 +52,6 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     mapping(uint256 => chainType) public chainTypes;
 
     address public butterRouter;
-
 
     event mapDepositIn(uint256 indexed fromChain, uint256 indexed toChain, address indexed token, bytes32 orderId,
         bytes from, address to, uint256 amount);
@@ -173,7 +172,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(_toChain != selfChainId, "Cannot swap to self chain");
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
-        IWToken(wToken).deposit{value : amount}();
+        IWrappedToken(wToken).deposit{value : amount}();
         orderId = _swapOut(wToken, _to, _initiatorAddress, amount, _toChain, _swapData);
     }
 
@@ -189,7 +188,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     function depositNative(address _to) external override payable nonReentrant whenNotPaused {
         uint256 amount = msg.value;
         require(amount > 0, "value too low");
-        IWToken(wToken).deposit{value : amount}();
+        IWrappedToken(wToken).deposit{value : amount}();
         _deposit(wToken, Utils.toBytes(msg.sender), _to, amount, bytes32(""), selfChainId);
     }
 
@@ -308,33 +307,42 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         uint256 mapOutAmount;
         uint256 outAmount;
         {
-          uint256 mapAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
-          if (tokenRegister.checkMintable(token)) {
-            IMAPToken(token).mint(address(this), mapAmount);
-          }
+            uint256 mapAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
+            if (tokenRegister.checkMintable(token)) {
+                IMintableToken(token).mint(address(this), mapAmount);
+            }
 
-          (mapOutAmount,outAmount) = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
-          emit CollectFee(_outEvent.orderId, token, (mapAmount - mapOutAmount));
+            (mapOutAmount, outAmount) = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
+            emit CollectFee(_outEvent.orderId, token, (mapAmount - mapOutAmount));
         }
 
         if (_outEvent.toChain == selfChainId) {
-           address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
-           if (_outEvent.swapData.length > 0) {
-              SafeERC20.safeTransfer(IERC20(token),butterRouter,mapOutAmount);
-              (bool result,) = butterRouter.call(abi.encodeWithSignature("remoteSwapAndCall(bytes32,address,uint256,bytes)",_outEvent.orderId,token,mapOutAmount,_outEvent.swapData));
+            address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
+            if (_outEvent.swapData.length > 0) {
+                SafeERC20.safeTransfer(IERC20(token),butterRouter,mapOutAmount);
+                (bool result,) = butterRouter.call(
+                    abi.encodeWithSignature(
+                        "remoteSwapAndCall(bytes32,address,uint256,uint256,bytes,bytes)",
+                        _outEvent.orderId,
+                        token,
+                        mapOutAmount,
+                        _outEvent.fromChain,
+                        _outEvent.from,
+                        _outEvent.swapData)
+                );
             } else {
-               if (token == wToken) {
-                  IWToken(wToken).withdraw(mapOutAmount);
-                  Address.sendValue(payable(toAddress),mapOutAmount); 
-               } else {
-                  require(IERC20(token).balanceOf(address(this)) >= mapOutAmount, "balance too low");
-                  SafeERC20.safeTransfer(IERC20(token),toAddress,mapOutAmount);
-               }
+                if (token == wToken) {
+                    IWrappedToken(wToken).withdraw(mapOutAmount);
+                    Address.sendValue(payable(toAddress),mapOutAmount);
+                } else {
+                    require(IERC20(token).balanceOf(address(this)) >= mapOutAmount, "balance too low");
+                    SafeERC20.safeTransfer(IERC20(token),toAddress,mapOutAmount);
+                }
             }
             emit mapSwapIn(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, toAddress, mapOutAmount);
         } else {
             if (tokenRegister.checkMintable(token)) {
-                IMAPToken(token).burn(mapOutAmount);
+                IMintableToken(token).burn(mapOutAmount);
             }
             bytes memory toChainToken = tokenRegister.getToChainToken(token, _outEvent.toChain);
             require(!Utils.checkBytes(toChainToken, bytes("")), "out token not registered");
@@ -367,7 +375,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         emit CollectFee(orderId, _token, (_amount - mapOutAmount));
 
         if (tokenRegister.checkMintable(_token)) {
-            IMAPToken(_token).burn(mapOutAmount);
+            IMintableToken(_token).burn(mapOutAmount);
         }
 
         emit mapSwapOut(
@@ -391,7 +399,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
         uint256 mapAmount = tokenRegister.getRelayChainAmount(token, _depositEvent.fromChain, _depositEvent.amount);
         if (tokenRegister.checkMintable(token)) {
-            IMAPToken(token).mint(address(this), mapAmount);
+            IMintableToken(token).mint(address(this), mapAmount);
         }
 
         _deposit(token, _depositEvent.from, Utils.fromBytes(_depositEvent.to), mapAmount, _depositEvent.orderId, _depositEvent.fromChain);
@@ -408,7 +416,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
     function _withdraw(address _token, address payable _receiver, uint256 _amount) internal {
         if (_token == wToken) {
-            IWToken(wToken).withdraw(_amount);
+            IWrappedToken(wToken).withdraw(_amount);
             Address.sendValue(payable(_receiver),_amount);
         } else {
             SafeERC20.safeTransfer(IERC20(_token),_receiver,_amount);

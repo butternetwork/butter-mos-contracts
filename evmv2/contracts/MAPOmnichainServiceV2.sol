@@ -15,8 +15,8 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightNode.sol";
 import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "@mapprotocol/protocol/contracts/lib/RLPReader.sol";
-import "./interface/IWToken.sol";
-import "./interface/IMAPToken.sol";
+import "./interface/IWrappedToken.sol";
+import "./interface/IMintableToken.sol";
 import "./interface/IButterMosV2.sol";
 import "./utils/EvmDecoder.sol";
 
@@ -152,7 +152,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
 
         if (isMintable(_token)) {
-            IMAPToken(_token).burnFrom(msg.sender, _amount);
+            IMintableToken(_token).burnFrom(msg.sender, _amount);
         } else {
             SafeERC20.safeTransferFrom(IERC20(_token),msg.sender,address(this),_amount);
         }
@@ -188,7 +188,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         require(_toChain != selfChainId, "Cannot swap to self chain");
         uint amount = msg.value;
         require(amount > 0, "Sending value is zero");
-        IWToken(wToken).deposit{value : amount}();
+        IWrappedToken(wToken).deposit{value : amount}();
         orderId = _getOrderID(msg.sender, _to, _toChain);
         emit mapSwapOut(
             selfChainId,
@@ -209,7 +209,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         //require(IERC20(token).balanceOf(_from) >= _amount, "balance too low");
 
         if (isMintable(_token)) {
-            IMAPToken(_token).burnFrom(from, _amount);
+            IMintableToken(_token).burnFrom(from, _amount);
         } else {
             SafeERC20.safeTransferFrom(IERC20(_token),from,address(this),_amount);
         }
@@ -224,7 +224,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         uint amount = msg.value;
         bytes32 orderId = _getOrderID(from, Utils.toBytes(_to), relayChainId);
 
-        IWToken(wToken).deposit{value : amount}();
+        IWrappedToken(wToken).deposit{value : amount}();
         emit mapDepositOut(selfChainId, relayChainId, orderId, wToken, Utils.toBytes(from), _to, amount);
     }
 
@@ -269,23 +269,30 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         uint actualAmountIn = _outEvent.amount;
 
         if (isMintable(tokenIn)) {
-            IMAPToken(tokenIn).mint(address(this), actualAmountIn);
+            IMintableToken(tokenIn).mint(address(this), actualAmountIn);
         }
         
         // if swap params is not empty, then we need to do swap on current chain
         if (_outEvent.swapData.length > 0) {
+            SafeERC20.safeTransfer(IERC20(tokenIn),butterRouter, actualAmountIn);
 
-            SafeERC20.safeTransfer(IERC20(tokenIn),butterRouter,actualAmountIn);
-
-            (bool result,) = butterRouter.call(abi.encodeWithSignature("remoteSwapAndCall(bytes32,address,uint256,bytes)",_outEvent.orderId,tokenIn,actualAmountIn,_outEvent.swapData));
-
+            (bool result,) = butterRouter.call(
+                abi.encodeWithSignature(
+                    "remoteSwapAndCall(bytes32,address,uint256,uint256,bytes,bytes)",
+                    _outEvent.orderId,
+                    tokenIn,
+                    actualAmountIn,
+                    _outEvent.from,
+                    _outEvent.fromChain,
+                    _outEvent.swapData)
+            );
         } else {
             // transfer token if swap did not happen
             if (tokenIn == wToken) {
-               IWToken(wToken).withdraw(actualAmountIn);
-               Address.sendValue(payable(toAddress),actualAmountIn);
+               IWrappedToken(wToken).withdraw(actualAmountIn);
+               Address.sendValue(payable(toAddress), actualAmountIn);
             } else {
-               SafeERC20.safeTransfer(IERC20(tokenIn),toAddress,actualAmountIn);
+               SafeERC20.safeTransfer(IERC20(tokenIn), toAddress, actualAmountIn);
             }
         }
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.7;
+pragma solidity ^0.8.0;
 
 interface IButterMosV2 {
     function swapOutToken(
-        address _initiatorAddress,
+        address _sender,
         address _token, // src token
         bytes memory _to,
         uint256 _amount,
@@ -12,7 +12,7 @@ interface IButterMosV2 {
     ) external returns(bytes32 orderId);
 
     function swapOutNative(
-        address _initiatorAddress,
+        address _sender,
         bytes memory _to,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
