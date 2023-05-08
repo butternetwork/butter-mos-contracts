@@ -21,6 +21,7 @@ interface IButterMosV2 {
     function depositToken(address _token, address to, uint _amount) external;
     function depositNative(address _to) external payable ;
 
+    event SetButterRouterAddress(address indexed _newRouter);
 
     event mapTransferOut(
         uint256 indexed fromChain,

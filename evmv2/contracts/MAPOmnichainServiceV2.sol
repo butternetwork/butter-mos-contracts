@@ -123,6 +123,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
 
     function setButterRouterAddress(address _butterRouter) external onlyOwner checkAddress(_butterRouter) {
         butterRouter = _butterRouter;
+        emit SetButterRouterAddress(_butterRouter);
     }
 
     function registerToken(address _token, uint _toChain, bool _enable) external onlyOwner {
@@ -282,8 +283,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
                     _outEvent.orderId,
                     tokenIn,
                     actualAmountIn,
-                    _outEvent.from,
                     _outEvent.fromChain,
+                    _outEvent.from,
                     _outEvent.swapData)
             );
         } else {

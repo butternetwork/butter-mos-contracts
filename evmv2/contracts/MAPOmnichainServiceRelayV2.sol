@@ -122,6 +122,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
     function setButterRouterAddress(address _butterRouter) external onlyOwner checkAddress(_butterRouter) {
         butterRouter = _butterRouter;
+        emit SetButterRouterAddress(_butterRouter);
     }
 
     // withdraw deposit token using vault token.
