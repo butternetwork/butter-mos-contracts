@@ -104,7 +104,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         _unpause();
     }
 
-    function setTokenManager(address _register) external onlyOwner checkAddress(_register) {
+    function setTokenRegister(address _register) external onlyOwner checkAddress(_register) {
         tokenRegister = ITokenRegisterV2(_register);
         emit SetTokenRegister(_register);
     }

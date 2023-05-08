@@ -54,7 +54,7 @@ async function main(network: string) {
     // @ts-ignore
     await mosRelayContract.initialize(deploy_config.namedAccounts.wcoin[mapChainId], deploy_config.namedAccounts.lightclient[mapChainId])
     console.log("set token register")
-    await mosRelayContract.setTokenManager(tokenRegisterContract.address);
+    await mosRelayContract.setTokenRegister(tokenRegisterContract.address);
     console.log("register chain")
     await mosRelayContract.registerChain(bscChainId, mosEVMContract.address, 1);
     /**
