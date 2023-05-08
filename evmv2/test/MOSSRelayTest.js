@@ -140,7 +140,7 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
     });
 
     it('mosRelay contract set ', async function () {
-        await mossR.setTokenManager(tokenRegister.address);
+        await mossR.setTokenRegister(tokenRegister.address);
 
         expect(await mossR.tokenRegister()).to.equal(tokenRegister.address);
 

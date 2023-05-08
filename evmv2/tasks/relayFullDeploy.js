@@ -53,7 +53,7 @@ module.exports = async (taskArgs,hre) => {
     console.log("TokenRegisterProxy address:",tokenRegisterProxy.address);
 
     // set token manager
-    await (await mos.connect(deployer).setTokenManager(tokenRegisterProxy.address)).wait();
+    await (await mos.connect(deployer).setTokenRegister(tokenRegisterProxy.address)).wait();
     console.log("set token manager:", tokenRegisterProxy.address);
 
     // deploy mintable token mapping usdc on map
