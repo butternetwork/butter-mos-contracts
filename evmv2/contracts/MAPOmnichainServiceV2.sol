@@ -150,6 +150,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     returns(bytes32 orderId)
     {
         require(_toChain != selfChainId, "Cannot swap to self chain");
+        require(_amount > 0, "Sending value is zero");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
 
         if (isMintable(_token)) {
@@ -207,6 +208,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     function depositToken(address _token, address _to, uint _amount) external override nonReentrant whenNotPaused
     checkBridgeable(_token, relayChainId) {
         address from = msg.sender;
+        require(_amount > 0, "Sending value is zero");
         //require(IERC20(token).balanceOf(_from) >= _amount, "balance too low");
 
         if (isMintable(_token)) {
@@ -223,6 +225,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     checkBridgeable(wToken, relayChainId) {
         address from = msg.sender;
         uint amount = msg.value;
+        require(amount > 0, "Sending value is zero");
         bytes32 orderId = _getOrderID(from, Utils.toBytes(_to), relayChainId);
 
         IWrappedToken(wToken).deposit{value : amount}();

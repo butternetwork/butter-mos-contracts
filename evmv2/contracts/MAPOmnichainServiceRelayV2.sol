@@ -159,6 +159,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         bytes calldata _swapData
     ) external override whenNotPaused returns(bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
+        require(_amount > 0, "Sending value is zero");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
         SafeERC20.safeTransferFrom(IERC20(_token),msg.sender,address(this),_amount);
         orderId = _swapOut(_token, _to, _initiatorAddress, _amount, _toChain, _swapData);
@@ -179,7 +180,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
     function depositToken(address _token, address _to, uint _amount) external override nonReentrant whenNotPaused {
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "balance too low");
-
+        require(_amount > 0, "value too low");  
         require(_token.isContract(), "token is not contract");
         SafeERC20.safeTransferFrom(IERC20(_token),msg.sender,address(this),_amount);
        
