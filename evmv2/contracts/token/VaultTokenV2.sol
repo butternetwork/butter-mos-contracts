@@ -4,6 +4,7 @@ pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
@@ -13,6 +14,7 @@ import "../interface/IVaultTokenV2.sol";
 
 contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable,ERC20Burnable {
     using SafeMath for uint256;
+    using SafeCast for uint256;
 
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
@@ -85,7 +87,7 @@ contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable,ERC20Burnable {
         uint256 amount = getVaultTokenAmount(_amount);
         _mint(_to, amount);
 
-        vaultBalance[_fromChain] += int256(_amount);
+        vaultBalance[_fromChain] += _amount.toInt256();
         totalVault += _amount;
 
         emit DepositVault(underlying, _to, _amount, amount);
@@ -95,18 +97,18 @@ contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable,ERC20Burnable {
         uint256 amount = getTokenAmount(_vaultAmount);
         _burn(_to, _vaultAmount);
 
-        vaultBalance[_toChain] -= int256(amount);
+        vaultBalance[_toChain] -= amount.toInt256();
         totalVault -= amount;
 
         emit WithdrawVault(underlying, _to, _vaultAmount, amount);
     }
 
     function transferToken(uint256 _fromChain, uint256 _amount,  uint256 _toChain, uint256 _outAmount, uint256 _relayChain, uint256 _fee) external override onlyManager {
-        vaultBalance[_fromChain] += int256(_amount);
-        vaultBalance[_toChain] -= int256(_outAmount);
+        vaultBalance[_fromChain] += _amount.toInt256();
+        vaultBalance[_toChain] -= _outAmount.toInt256();
 
         uint256 fee = _amount - _outAmount - _fee;
-        vaultBalance[_relayChain] += int256(fee);
+        vaultBalance[_relayChain] += fee.toInt256();
         totalVault += fee;
     }
 }
