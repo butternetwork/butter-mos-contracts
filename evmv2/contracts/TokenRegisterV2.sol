@@ -234,7 +234,7 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         (relayToken, _relayChainAmount, feeAmount) = this.getRelayFee(_srcChain, _srcToken, _srcAmount, _targetChain);
          _srcFeeAmount = this.getToChainAmount(relayToken, feeAmount, _srcChain);
 
-         _vaultBalance = _getVaultBalance(relayToken,_targetChain);
+         _vaultBalance = getVaultBalance(relayToken,_targetChain);
 
         _toChainToken = this.getToChainToken(relayToken, _targetChain);
     }
@@ -250,7 +250,7 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         _srcFeeAmount = this.getToChainAmount(relayToken, amountBeforeFee.sub(relayChainAmount), _srcChain);
         _srcChainAmount = this.getToChainAmount(relayToken,amountBeforeFee,_srcChain);
         _srcChainToken = this.getToChainToken(relayToken,_srcChain);   
-        _vaultBalance = _getVaultBalance(relayToken,_targetAmount);
+        _vaultBalance = getVaultBalance(relayToken,_targetAmount);
     }
 
     function _getAmountBeforeFee(address _token, uint256 _amount, uint256 _toChain)
@@ -267,7 +267,7 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         return outAmount;
     }
 
-    function _getVaultBalance(address _token,uint256 _chainId) internal view returns(int256 _vaultBalance){
+    function getVaultBalance(address _token,uint256 _chainId) public view returns(int256 _vaultBalance){
          address vault = this.getVaultToken(_token);
          (bool result,bytes memory data) =  vault.staticcall(abi.encodeWithSignature("vaultBalance(uint256)",_chainId));
          if(result && data.length > 0) {
