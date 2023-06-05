@@ -370,8 +370,8 @@ pub struct SwapOutEvent {
     pub raw_swap_data: SwapData,
     pub src_token: String,
     pub src_amount: U128,
-    #[serde(with = "crate::bytes::hexstring")]
-    pub dst_token: Vec<u8>,
+    // #[serde(with = "crate::bytes::hexstring")]
+    // pub dst_token: Vec<u8>,
 }
 
 impl SwapOutEvent {
@@ -434,7 +434,7 @@ impl SwapOutEvent {
                 raw_swap_data,
                 src_token: "".to_string(),
                 src_amount: U128(0),
-                dst_token: vec![],
+                // dst_token: vec![],
             },
         ))
     }
@@ -798,7 +798,7 @@ mod tests {
             raw_swap_data,
             src_token: "".to_string(),
             src_amount: U128(0),
-            dst_token: vec![],
+            // dst_token: vec![],
         };
 
         let mcs = validate_eth_address("630105189c7114667a7179Aa57f07647a5f42B7F".to_string());

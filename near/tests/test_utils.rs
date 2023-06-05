@@ -70,7 +70,8 @@ pub enum TokenReceiverMessage {
 #[serde(crate = "near_sdk::serde")]
 pub struct SwapInfo {
     pub src_swap: Vec<SwapParam>,
-    pub dst_swap: SwapData,
+    #[serde(with = "crate::bytes::hexstring")]
+    pub dst_swap: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone)]

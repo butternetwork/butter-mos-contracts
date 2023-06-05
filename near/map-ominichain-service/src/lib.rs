@@ -385,7 +385,7 @@ impl MAPOServiceV2 {
         from: AccountId,
         to: Vec<u8>,
         amount: U128,
-        swap_data: SwapData,
+        swap_data: Vec<u8>,
     ) -> PromiseOrValue<U128> {
         self.check_token_to_chain(&token, to_chain);
         self.check_to_account(to.clone(), to_chain.into());
@@ -400,11 +400,15 @@ impl MAPOServiceV2 {
             from: Vec::from(from.as_bytes()),
             to,
             amount,
-            swap_data: swap_data.abi_encode(),
-            raw_swap_data: swap_data.clone(),
+            swap_data,
+            raw_swap_data: SwapData {
+                swap_param: vec![],
+                target_token: vec![],
+                map_target_token: [0; 20],
+            },
             src_token,
             src_amount,
-            dst_token: swap_data.target_token,
+            // dst_token: swap_data.target_token,
         };
 
         if self.valid_mcs_token_out(&token, to_chain) {

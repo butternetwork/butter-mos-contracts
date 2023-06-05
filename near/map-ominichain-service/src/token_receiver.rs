@@ -29,7 +29,8 @@ pub enum TokenReceiverMessage {
 #[serde(crate = "near_sdk::serde")]
 pub struct SwapInfo {
     pub src_swap: Vec<SwapParam>,
-    pub dst_swap: SwapData,
+    #[serde(with = "crate::bytes::hexstring")]
+    pub dst_swap: Vec<u8>,
 }
 
 #[near_bindgen]
@@ -156,11 +157,7 @@ mod tests {
         };
         let swap_info = SwapInfo {
             src_swap: vec![swap_param],
-            dst_swap: SwapData {
-                swap_param: vec![],
-                target_token: "token2.map007.testnet".as_bytes().to_vec(),
-                map_target_token: [1; 20],
-            },
+            dst_swap: vec![0;100],
         };
 
         println!("{}", serde_json::to_string(&swap_info).unwrap())
@@ -187,11 +184,7 @@ mod tests {
         };
         let swap_info = SwapInfo {
             src_swap: vec![swap_param0],
-            dst_swap: SwapData {
-                swap_param: vec![swap_param1],
-                target_token: hex::decode("B6c1b689291532D11172Fb4C204bf13169EC0dCC").unwrap(),
-                map_target_token: [1; 20],
-            },
+            dst_swap: vec![0;100],
         };
 
         let tr_msg = TokenReceiverMessage::Swap {
