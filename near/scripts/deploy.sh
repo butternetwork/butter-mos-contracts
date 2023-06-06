@@ -43,3 +43,8 @@ near call $MCS_FACTORY_ACCOUNT create_multisig "$INIT_ARGS_MULTISIG" --accountId
 
 echo "creating mos contract"
 near call $MCS_FACTORY_ACCOUNT create_mos "$INIT_ARGS_MCS" --accountId $MASTER_ACCOUNT --gas 300000000000000 --deposit 30
+
+
+near create-account $MOCK_CLIENT --masterAccount $MASTER_ACCOUNT --initialBalance 5
+near deploy --accountId $MOCK_CLIENT --wasmFile scripts/res/mock_map_client.wasm
+near call $MOCK_CLIENT test  --accountId $MOCK_CLIENT
