@@ -27,7 +27,9 @@ INIT_ARGS_MCS='{
               "map_bridge_address": "'$MAP_MCS_ADDRESS'",
               "wrapped_token": "'$WNEAR_ACCOUNT'",
               "near_chain_id": "'$NEAR_CHAIN_ID'",
-              "map_chain_id": "'$MAP_CHAIN_ID'"
+              "map_chain_id": "'$MAP_CHAIN_ID'",
+              "ref_exchange":"'$REF_EXCHANGER'",
+              "butter_core":'$BUTTER_CORE'
             }'
 
 echo $INIT_ARGS_MCS
@@ -43,8 +45,3 @@ near call $MCS_FACTORY_ACCOUNT create_multisig "$INIT_ARGS_MULTISIG" --accountId
 
 echo "creating mos contract"
 near call $MCS_FACTORY_ACCOUNT create_mos "$INIT_ARGS_MCS" --accountId $MASTER_ACCOUNT --gas 300000000000000 --deposit 30
-
-
-near create-account $MOCK_CLIENT --masterAccount $MASTER_ACCOUNT --initialBalance 5
-near deploy --accountId $MOCK_CLIENT --wasmFile scripts/res/mock_map_client.wasm
-near call $MOCK_CLIENT test  --accountId $MOCK_CLIENT

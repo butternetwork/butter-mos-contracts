@@ -9,7 +9,6 @@ function printHelp() {
   echo "  $FILE_NAME <command>"
   echo "Commands:"
   echo "  list                                       view registered native tokens to chains"
-  echo "  transfer <to chain> <from> <to> <amount>   transfer out native token"
   echo "  deposit  <from> <to> <amount>              deposit out native token"
   echo "  balance  <account>                         view account balance of native token"
   echo "  help                                       show help"
@@ -18,11 +17,6 @@ function printHelp() {
 function list_to_chains() {
   echo "getting native token to chain list from mcs contract"
   near view $MCS_ACCOUNT get_native_token_to_chains '{}'
-}
-
-function transfer_out() {
-  echo "transfer out $4 amount near from $2 to $3 on chain $1"
-  near call $MCS_ACCOUNT transfer_out_native '{ "to":'$3', "to_chain": "'$1'"}' --accountId $2 --depositYocto $4 --gas 100000000000000
 }
 
 function deposit_out() {
@@ -56,15 +50,6 @@ if [[ $# -gt 0 ]]; then
     list)
       if [[ $# == 1 ]]; then
         list_to_chains
-      else
-        printHelp
-        exit 1
-      fi
-      ;;
-    transfer)
-      if [[ $# == 5 ]]; then
-        shift
-        transfer_out $@
       else
         printHelp
         exit 1

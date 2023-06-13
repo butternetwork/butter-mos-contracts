@@ -16,6 +16,8 @@ WNEAR_ACCOUNT="wrap.testnet"  # wrapped near contract account on NEAR blockchain
 NEAR_CHAIN_ID=1360100178526210    # NEAR blockchain ID
 MAP_CHAIN_ID=212  # MAP blockchain ID
 CLIENT_ACCOUNT="client.cfac2.maplabs.testnet" # the account ID of the map light client contract which has already been deployed
+REF_EXCHANGER="ref-finance-101.testnet"
+BUTTER_CORE='["core0.map007.testnet"]'
 
 export MCS_FACTORY_ACCOUNT=$MCS_FACTORY_NAME.$MASTER_ACCOUNT
 export MCS_ACCOUNT=$MCS_NAME.$MCS_FACTORY_ACCOUNT
