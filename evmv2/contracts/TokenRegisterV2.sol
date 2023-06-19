@@ -234,12 +234,46 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
         (relayToken, _relayChainAmount, feeAmount) = this.getRelayFee(_srcChain, _srcToken, _srcAmount, _targetChain);
          _srcFeeAmount = this.getToChainAmount(relayToken, feeAmount, _srcChain);
 
-         address vault = this.getVaultToken(relayToken);
-         (bool result,bytes memory data) =  vault.staticcall(abi.encodeWithSignature("vaultBalance(uint256)",_targetChain));
+         _vaultBalance = getVaultBalance(relayToken,_targetChain);
+
+        _toChainToken = this.getToChainToken(relayToken, _targetChain);
+    }
+
+    function getSrcAmountAndFee(uint256 _targetChain,bytes memory _targetToken,uint256 _targetAmount,uint256 _srcChain) 
+    external
+    view
+    returns(uint256 _srcFeeAmount,uint256 _srcChainAmount,int256 _vaultBalance,bytes memory _srcChainToken){
+
+        address relayToken = this.getRelayChainToken(_targetChain,_targetToken);
+        uint256 relayChainAmount = this.getRelayChainAmount(relayToken,_targetChain,_targetAmount);
+        uint256 amountBeforeFee = _getAmountBeforeFee(relayToken,relayChainAmount,_targetChain);
+        _srcFeeAmount = this.getToChainAmount(relayToken, amountBeforeFee.sub(relayChainAmount), _srcChain);
+        _srcChainAmount = this.getToChainAmount(relayToken,amountBeforeFee,_srcChain);
+        _srcChainToken = this.getToChainToken(relayToken,_srcChain);   
+        _vaultBalance = getVaultBalance(relayToken,_targetAmount);
+    }
+
+    function _getAmountBeforeFee(address _token, uint256 _amount, uint256 _toChain)
+    internal 
+    view  
+    returns (uint256) {
+        FeeRate memory feeRate = tokenList[_token].fees[_toChain];
+        uint256 outAmount = _amount.mul(MAX_RATE_UNI).div(MAX_RATE_UNI.sub(feeRate.rate));
+        if (outAmount > _amount.add(feeRate.highest)){
+            outAmount = _amount.add(feeRate.highest);
+        }else if (outAmount < _amount.add(feeRate.lowest)){
+            outAmount = _amount.add(feeRate.lowest);
+        } 
+        return outAmount;
+    }
+
+    function getVaultBalance(address _token,uint256 _chainId) public view returns(int256 _vaultBalance){
+         address vault = this.getVaultToken(_token);
+         (bool result,bytes memory data) =  vault.staticcall(abi.encodeWithSignature("vaultBalance(uint256)",_chainId));
          if(result && data.length > 0) {
             _vaultBalance = abi.decode(data,(int256));
             if(_vaultBalance > 0) {
-                uint256 tem = this.getToChainAmount(relayToken,uint256(_vaultBalance),_targetChain);
+                uint256 tem = this.getToChainAmount(_token,uint256(_vaultBalance),_chainId);
                 require(tem <= uint256(type(int256).max), "value doesn't fit in an int256");
                 _vaultBalance = int256(tem);
             } else {
@@ -248,8 +282,6 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
          } else {
              _vaultBalance = 0;
          }
-
-        _toChainToken = this.getToChainToken(relayToken, _targetChain);
     }
 
     // -----------------------------------------------------
