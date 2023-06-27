@@ -70,7 +70,7 @@ pub enum TokenReceiverMessage {
 #[serde(crate = "near_sdk::serde")]
 pub struct SwapInfo {
     pub src_swap: Vec<SwapParam>,
-    #[serde(with = "crate::bytes::hexstring")]
+    #[serde(with = "crate::hexstring")]
     pub dst_swap: Vec<u8>,
 }
 
@@ -90,8 +90,6 @@ pub struct SwapData {
     pub swap_param: Vec<SwapParam>,
     #[serde(with = "crate::hexstring")]
     pub target_token: Vec<u8>,
-    #[serde(with = "crate::hexstring")]
-    pub map_target_token: Address,
 }
 
 pub fn gen_call_transaction<'a, U: serde::Serialize>(

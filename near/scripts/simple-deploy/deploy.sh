@@ -47,5 +47,9 @@ near call $MCS_ACCOUNT add_fungible_token_to_chain '{"token": "'$USDT'", "to_cha
 near call $MCS_ACCOUNT add_fungible_token_to_chain '{"token": "'$USDC'", "to_chain": "5"}' --accountId $MCS_ACCOUNT --gas 300000000000000
 near call $MCS_ACCOUNT add_fungible_token_to_chain '{"token": "'$USDT'", "to_chain": "5"}' --accountId $MCS_ACCOUNT --gas 300000000000000
 
-near call $USDC ft_transfer_call '{"receiver_id":"'$MCS_ACCOUNT'", "amount":"500000000", "memo": "", "msg": "{\"type\": \"Deposit\", \"to\": \"'$USER_EVM'\"}"}' --accountId $USER --depositYocto 1 --gas 60000000000000
+near call $USDC ft_transfer_call '{"receiver_id":"'$MCS_ACCOUNT'", "amount":"177989050007", "memo": "", "msg": "{\"type\": \"Deposit\", \"to\": \"'$USER_EVM'\"}"}' --accountId $USER --depositYocto 1 --gas 60000000000000
 near call $USDT ft_transfer_call '{"receiver_id":"'$MCS_ACCOUNT'", "amount":"500000000", "memo": "", "msg": "{\"type\": \"Deposit\", \"to\": \"'$USER_EVM'\"}"}' --accountId $USER --depositYocto 1 --gas 60000000000000
+
+WNEAR=wrap.testnet
+near call $MCS_ACCOUNT register_token '{"token":"'$WNEAR'", "mintable":false}' --accountId $MCS_ACCOUNT --deposit 1 --gas 300000000000000
+near call $MCS_ACCOUNT add_fungible_token_to_chain '{"token": "'$WNEAR'", "to_chain": "97"}' --accountId $MCS_ACCOUNT --gas 300000000000000

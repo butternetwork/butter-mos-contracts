@@ -1,6 +1,6 @@
 use crate::prover::{Address, EVMEvent, EthEventParams};
 use crate::traits::Transferable;
-use crate::SwapAction;
+use crate::{SwapAction, ZERO_ADDRESS};
 use ethabi::{ParamType, Token};
 use map_light_client::proof::LogEntry;
 use near_sdk::env::panic_str;
@@ -19,7 +19,6 @@ const SWAP_OUT_TYPE: &str = "ca1cf8cebf88499429cca8f87cbca15ab8dafd06702259a5344
 #[serde(crate = "near_sdk::serde")]
 #[serde(tag = "type")]
 pub enum MCSEvent {
-    Transfer(TransferOutEvent),
     Deposit(DepositOutEvent),
     Swap(SwapOutEvent),
 }
@@ -36,7 +35,6 @@ pub struct TransferInParam {
 impl MCSEvent {
     pub fn emit(&self) {
         match self {
-            MCSEvent::Transfer(event) => event.emit(),
             MCSEvent::Deposit(event) => event.emit(),
             MCSEvent::Swap(event) => event.emit(),
         }
@@ -46,7 +44,6 @@ impl MCSEvent {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum MsgType {
-    Transfer,
     Deposit,
     Swap,
 }
@@ -178,7 +175,7 @@ impl Transferable for TransferOutEvent {
         }
     }
 
-    fn basic_check(&self) {
+    fn basic_check(&self, _wrapped_token: AccountId) {
         assert!(
             env::is_valid_account_id(self.to.as_slice()),
             "invalid to address: {:?}",
@@ -283,8 +280,6 @@ pub struct SwapData {
     pub swap_param: Vec<SwapParam>,
     #[serde(with = "crate::bytes::hexstring")]
     pub target_token: Vec<u8>,
-    #[serde(with = "crate::bytes::hexstring")]
-    pub map_target_token: Address,
 }
 
 impl SwapData {
@@ -299,11 +294,10 @@ impl SwapData {
         let param_type = vec![
             ParamType::Array(Box::new(swap_param_types)),
             ParamType::Bytes,
-            ParamType::Address,
         ];
 
         let tokens = ethabi::decode(param_type.as_slice(), data.as_slice()).ok()?;
-        if tokens.len() != 3 {
+        if tokens.len() != 2 {
             return None;
         }
         let swap_param_tokens = tokens[0].clone().to_array()?;
@@ -324,11 +318,9 @@ impl SwapData {
             }
         }
         let target_token = tokens[1].clone().to_bytes()?;
-        let map_target_token = tokens[2].clone().to_address()?.0;
         Some(Self {
             swap_param,
             target_token,
-            map_target_token,
         })
     }
 
@@ -346,7 +338,6 @@ impl SwapData {
         let tokens: Vec<Token> = vec![
             Token::Array(swap_param_token),
             Token::Bytes(self.target_token.clone()),
-            Token::Address(self.map_target_token.into()),
         ];
 
         ethabi::encode(tokens.as_slice())
@@ -462,18 +453,10 @@ impl SwapOutEvent {
     }
 
     pub fn get_token_in(&self) -> AccountId {
-        if self.raw_swap_data.swap_param.is_empty() {
-            String::from_utf8(self.raw_swap_data.target_token.clone())
-                .unwrap()
-                .parse()
-                .unwrap()
-        } else {
-            let path =
-                String::from_utf8(self.raw_swap_data.swap_param.get(0).unwrap().path.clone())
-                    .unwrap();
-            let split: Vec<&str> = path.split(PATH_SEPARATOR).collect();
-            split.first().unwrap().parse().unwrap()
-        }
+        String::from_utf8(self.token.clone())
+            .unwrap()
+            .parse()
+            .unwrap()
     }
 
     pub fn get_token_out(&self) -> AccountId {
@@ -534,7 +517,7 @@ impl Transferable for SwapOutEvent {
         }
     }
 
-    fn basic_check(&self) {
+    fn basic_check(&self, wrapped_token: AccountId) {
         assert!(
             env::is_valid_account_id(self.to.as_slice()),
             "invalid to address: {:?}",
@@ -580,19 +563,35 @@ impl Transferable for SwapOutEvent {
                 }
 
                 if i == self.raw_swap_data.swap_param.len() - 1 {
-                    assert_eq!(
-                        split[1].as_bytes(),
-                        self.raw_swap_data.target_token.as_slice(),
-                        "target token should be equal to the last token out"
-                    );
+                    if self.raw_swap_data.target_token.as_slice() == ZERO_ADDRESS.as_bytes() {
+                        assert_eq!(
+                            split[1].as_bytes(),
+                            wrapped_token.as_bytes(),
+                            "last token out should be equal to wrapped token if target token is zero address"
+                        );
+                    } else {
+                        assert_eq!(
+                            split[1].as_bytes(),
+                            self.raw_swap_data.target_token.as_slice(),
+                            "target token should be equal to the last token out"
+                        );
+                    }
                 }
             }
         } else {
-            assert_eq!(
-                self.token.as_slice(),
-                self.raw_swap_data.target_token.as_slice(),
-                "bridge in token should be equal to target token"
-            );
+            if self.raw_swap_data.target_token.as_slice() == ZERO_ADDRESS.as_bytes() {
+                assert_eq!(
+                    self.token.as_slice(),
+                    wrapped_token.as_bytes(),
+                    "bridge in token should be equal to wrapped token if target token is zero address"
+                );
+            } else {
+                assert_eq!(
+                    self.token.as_slice(),
+                    self.raw_swap_data.target_token.as_slice(),
+                    "bridge in token should be equal to target token"
+                );
+            }
         }
     }
 
@@ -760,20 +759,6 @@ mod tests {
     #[test]
     fn test_swap_event_data() {
         let mut swap_param: Vec<SwapParam> = Vec::new();
-        // swap_param.push(SwapParam {
-        //     amount_in: U128(0),
-        //     min_amount_out: U128(1),
-        //     path: "usdc.map007.testnetXusdt.map007.testnet"
-        //         .as_bytes()
-        //         .to_vec(),
-        //     router_index: U64(1821),
-        // });
-
-        // let raw_swap_data = SwapData {
-        //     swap_param,
-        //     target_token: "usdt.map007.testnet".as_bytes().to_vec(),
-        //     map_target_token: [4; 20],
-        // };
         swap_param.push(SwapParam {
             amount_in: U128(0),
             min_amount_out: U128(1),
@@ -784,7 +769,6 @@ mod tests {
         let raw_swap_data = SwapData {
             swap_param,
             target_token: "wrap.testnet".as_bytes().to_vec(),
-            map_target_token: [4; 20],
         };
         let event = SwapOutEvent {
             from_chain: U128(212),
@@ -814,32 +798,19 @@ mod tests {
 
     #[test]
     fn test_encode_swap_data() {
-        let exp = "00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000280000000000000000000000000b6c1b689291532d11172fb4c204bf13169ec0dca0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002b746f6b656e312e6d61703030372e746573746e657458746f6b656e322e6d61703030372e746573746e65740000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002b746f6b656e322e6d61703030372e746573746e657458746f6b656e332e6d61703030372e746573746e6574000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c777261702e746573746e65740000000000000000000000000000000000000000";
+        let exp = "00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010558cae75be61b3e8000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000006fb0000000000000000000000000000000000000000000000000000000000000020757364632e6d61703030372e746573746e657458777261702e746573746e6574000000000000000000000000000000000000000000000000000000000000002a30783030303030303030303030303030303030303030303030303030303030303030303030303030303000000000000000000000000000000000000000000000";
 
         let mut swap_param: Vec<SwapParam> = Vec::new();
         swap_param.push(SwapParam {
             amount_in: U128(0),
-            min_amount_out: U128(1),
-            path: "token1.map007.testnetXtoken2.map007.testnet"
-                .as_bytes()
-                .to_vec(),
-            router_index: U64(0),
-        });
-        swap_param.push(SwapParam {
-            amount_in: U128(0),
-            min_amount_out: U128(1),
-            path: "token2.map007.testnetXtoken3.map007.testnet"
-                .as_bytes()
-                .to_vec(),
-            router_index: U64(1),
+            min_amount_out: U128(301312398990044673000),
+            path: hex::decode( "757364632e6d61703030372e746573746e657458777261702e746573746e6574").unwrap(),
+            router_index: U64(1787),
         });
 
         let swap_data = SwapData {
             swap_param,
-            target_token: "wrap.testnet".as_bytes().to_vec(),
-            map_target_token: validate_eth_address(
-                "B6c1b689291532D11172Fb4C204bf13169EC0dCA".to_string(),
-            ),
+            target_token: hex::decode("307830303030303030303030303030303030303030303030303030303030303030303030303030303030").unwrap(),
         };
 
         let byte_str = hex::encode(swap_data.abi_encode().as_slice());
@@ -868,7 +839,7 @@ mod tests {
 
         let (mcs, mut event) = SwapOutEvent::from_log_entry_data(logs.get(0).unwrap()).unwrap();
 
-        event.basic_check();
+        event.basic_check("wrap.testnet".parse().unwrap());
         assert_eq!(
             "usdc.test.near",
             String::from_utf8(event.token.clone()).unwrap()
@@ -893,5 +864,4 @@ mod tests {
         let result = SwapOutEvent::from_log_entry_data(&data).unwrap();
         assert_eq!(result.1, event);
     }
-
 }
