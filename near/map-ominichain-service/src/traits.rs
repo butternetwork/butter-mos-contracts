@@ -6,7 +6,7 @@ use near_sdk::{ext_contract, AccountId, CryptoHash, Promise, PromiseOrValue};
 
 pub trait Transferable {
     fn get_transfer_in_param(&self) -> TransferInParam;
-    fn basic_check(&self);
+    fn basic_check(&self, wrapped_token: AccountId);
     fn get_to_chain(&self) -> U128;
     fn get_order_id(&self) -> CryptoHash;
     fn get_transfer_in_token(&self) -> AccountId;

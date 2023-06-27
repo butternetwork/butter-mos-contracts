@@ -27,7 +27,9 @@ INIT_ARGS_MCS='{
               "map_bridge_address": "'$MAP_MCS_ADDRESS'",
               "wrapped_token": "'$WNEAR_ACCOUNT'",
               "near_chain_id": "'$NEAR_CHAIN_ID'",
-              "map_chain_id": "'$MAP_CHAIN_ID'"
+              "map_chain_id": "'$MAP_CHAIN_ID'",
+              "ref_exchange":"'$REF_EXCHANGER'",
+              "butter_core":'$BUTTER_CORE'
             }'
 
 echo $INIT_ARGS_MCS

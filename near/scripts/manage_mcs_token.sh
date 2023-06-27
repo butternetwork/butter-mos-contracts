@@ -11,7 +11,6 @@ function printHelp() {
   echo "  deploy <token name>                                   deploy mcs token"
   echo "  list                                                  view deployed mcs tokens and their to chains"
   echo "  register <token> <mintable>  transfer out ft token    register token"
-  echo "  transfer <token> <to chain> <from> <to> <amount>      transfer out mcs token"
   echo "  deposit <token> <from> <to> <amount>                  deposit out mcs token"
   echo "  balance <token> <account>                             view account balance of mcs token"
   echo "  help                                                  show help"
@@ -31,12 +30,6 @@ function register() {
 function list_tokens() {
   echo "getting mcs token list from mcs contract"
   near view $MCS_ACCOUNT get_mcs_tokens '{}'
-}
-
-function transfer_out() {
-  echo "transfer out $5 $1 token from $3 to $4 on chain $2"
-  near call $MCS_ACCOUNT transfer_out_token '{"token":"'$1'", "to":'$4', "amount":"'$5'", "to_chain":"'$2'"}' --accountId $3 --gas 60000000000000  --depositYocto 1
-
 }
 
 function deposit_out() {
@@ -96,15 +89,6 @@ if [[ $# -gt 0 ]]; then
     list)
       if [[ $# == 1 ]]; then
         list_tokens
-      else
-        printHelp
-        exit 1
-      fi
-      ;;
-    transfer)
-      if [[ $# == 6 ]]; then
-        shift
-        transfer_out $@
       else
         printHelp
         exit 1

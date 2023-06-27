@@ -91,6 +91,8 @@ const PAUSE_SWAP_IN: Mask = 1 << 6;
 const PAUSE_SWAP_OUT_TOKEN: Mask = 1 << 7;
 const PAUSE_SWAP_OUT_NATIVE: Mask = 1 << 8;
 
+const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
+
 #[derive(BorshStorageKey, BorshSerialize)]
 pub(crate) enum StorageKey {
     McsTokens,
@@ -385,7 +387,7 @@ impl MAPOServiceV2 {
         from: AccountId,
         to: Vec<u8>,
         amount: U128,
-        swap_data: SwapData,
+        swap_data: Vec<u8>,
     ) -> PromiseOrValue<U128> {
         self.check_token_to_chain(&token, to_chain);
         self.check_to_account(to.clone(), to_chain.into());
@@ -400,11 +402,14 @@ impl MAPOServiceV2 {
             from: Vec::from(from.as_bytes()),
             to,
             amount,
-            swap_data: swap_data.abi_encode(),
-            raw_swap_data: swap_data.clone(),
+            swap_data,
+            raw_swap_data: SwapData {
+                swap_param: vec![],
+                target_token: vec![],
+            },
             src_token,
             src_amount,
-            dst_token: swap_data.target_token,
+            // dst_token: swap_data.target_token,
         };
 
         if self.valid_mcs_token_out(&token, to_chain) {
@@ -452,8 +457,8 @@ impl MAPOServiceV2 {
                     .with_static_gas(PROCESS_SWAP_OUT_GAS)
                     .process_token_swap_out(
                         to_chain,
-                        "NEAR".to_string(),
-                        self.native_token_address().1.parse().unwrap(),
+                        self.native_token_address().1,
+                        self.wrapped_token.clone(),
                         env::signer_account_id(),
                         to,
                         amount.into(),
@@ -784,29 +789,13 @@ impl MAPOServiceV2 {
         msg_type: MsgType,
     ) -> Promise {
         if self.valid_mcs_token_out(&token, to_chain) {
-            assert!(
-                msg_type == MsgType::Transfer || msg_type == MsgType::Deposit,
-                "msg type is invalid: {:?}",
-                msg_type
-            );
+            assert_eq!(msg_type, MsgType::Deposit, "msg type is invalid: {:?}", msg_type);
             self.check_to_account(to.clone(), to_chain.into());
             self.check_amount(&token, amount.0);
             let from = env::signer_account_id().to_string();
             let order_id = self.get_order_id(&from, &to, to_chain.into());
 
-            let event = if msg_type == MsgType::Transfer {
-                MCSEvent::Transfer(TransferOutEvent {
-                    from_chain: self.near_chain_id.into(),
-                    to_chain,
-                    from: from.clone().into_bytes(),
-                    to,
-                    order_id,
-                    token: token.as_bytes().to_vec(),
-                    to_chain_token: "".to_string().into_bytes(),
-                    amount,
-                })
-            } else {
-                MCSEvent::Deposit(DepositOutEvent {
+            let event = MCSEvent::Deposit(DepositOutEvent {
                     from_chain: self.near_chain_id.into(),
                     to_chain,
                     from: from.clone(),
@@ -814,8 +803,7 @@ impl MAPOServiceV2 {
                     order_id,
                     token: token.to_string(),
                     amount,
-                })
-            };
+                });
 
             ext_mcs_token::ext(token)
                 .with_static_gas(BURN_GAS)
@@ -847,11 +835,7 @@ impl MAPOServiceV2 {
         to_chain: U128,
         msg_type: MsgType,
     ) -> Promise {
-        assert!(
-            msg_type == MsgType::Transfer || msg_type == MsgType::Deposit,
-            "msg type is invalid: {:?}",
-            msg_type
-        );
+        assert_eq!(msg_type, MsgType::Deposit, "msg type is invalid: {:?}", msg_type);
         self.check_to_account(to.clone(), to_chain.into());
         assert!(amount > 0, "amount should > 0");
         assert!(
@@ -864,19 +848,7 @@ impl MAPOServiceV2 {
         let from = env::signer_account_id().to_string();
         let order_id = self.get_order_id(&from, &to, to_chain.into());
 
-        let event = if msg_type == MsgType::Transfer {
-            MCSEvent::Transfer(TransferOutEvent {
-                from_chain: self.near_chain_id.into(),
-                to_chain,
-                from: from.into_bytes(),
-                to,
-                order_id,
-                token: self.native_token_address().0,
-                to_chain_token: "".to_string().into_bytes(),
-                amount: amount.into(),
-            })
-        } else {
-            MCSEvent::Deposit(DepositOutEvent {
+        let event = MCSEvent::Deposit(DepositOutEvent {
                 from_chain: self.near_chain_id.into(),
                 to_chain,
                 from: from.clone(),
@@ -884,8 +856,7 @@ impl MAPOServiceV2 {
                 order_id,
                 token: self.native_token_address().1,
                 amount: amount.into(),
-            })
-        };
+            });
 
         ext_wnear_token::ext(self.wrapped_token.clone())
             .with_static_gas(NEAR_DEPOSIT_GAS)
@@ -922,7 +893,7 @@ impl MAPOServiceV2 {
             hex::encode(event.order_id)
         );
 
-        event.basic_check();
+        event.basic_check(self.wrapped_token.clone());
 
         self.check_token(&event.get_token_in());
         self.check_token(&event.get_token_out());
@@ -934,7 +905,7 @@ impl MAPOServiceV2 {
 
     fn check_amount(&self, token: &AccountId, amount: Balance) {
         let mut decimal = NEAR_DECIMAL;
-        if !self.is_native_token(token) {
+        if !self.is_native_token(token) && self.wrapped_token.ne(token) {
             let decimal_op = self.token_decimals.get(token);
             assert!(
                 decimal_op.is_some(),
@@ -1025,13 +996,13 @@ impl MAPOServiceV2 {
     }
 
     fn is_native_token(&self, token: &AccountId) -> bool {
-        token.eq(&self.wrapped_token)
+        token.to_string().eq(ZERO_ADDRESS)
     }
 
     fn native_token_address(&self) -> (Vec<u8>, String) {
         (
-            Vec::from(self.wrapped_token.to_string()),
-            self.wrapped_token.to_string(),
+            Vec::from(ZERO_ADDRESS.to_string()),
+            ZERO_ADDRESS.to_string(),
         )
     }
 

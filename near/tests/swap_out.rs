@@ -95,11 +95,7 @@ async fn test_swap_out_mcs_token() -> anyhow::Result<()> {
                 path: "usdc.test.nearXwrap.test.near".as_bytes().to_vec(),
                 router_index: U64(pool_id),
             }],
-            dst_swap: SwapData {
-                swap_param: vec![],
-                target_token: vec![1; 20],
-                map_target_token: [0; 20],
-            },
+            dst_swap: vec![0;100],
         },
     };
 
@@ -254,11 +250,7 @@ async fn test_swap_out_mcs_token_min_mount_out_too_big() -> anyhow::Result<()> {
                 path: "usdc.test.nearXwrap.test.near".as_bytes().to_vec(),
                 router_index: U64(pool_id),
             }],
-            dst_swap: SwapData {
-                swap_param: vec![],
-                target_token: vec![1; 20],
-                map_target_token: [0; 20],
-            },
+            dst_swap: vec![0;100],
         },
     };
 
@@ -415,11 +407,7 @@ async fn test_swap_out_ft_token() -> anyhow::Result<()> {
                 path: "usdc.test.nearXwrap.test.near".as_bytes().to_vec(),
                 router_index: U64(pool_id),
             }],
-            dst_swap: SwapData {
-                swap_param: vec![],
-                target_token: vec![1; 20],
-                map_target_token: [0; 20],
-            },
+            dst_swap: vec![0;100],
         },
     };
 
@@ -546,11 +534,7 @@ async fn test_swap_out_native_token() -> anyhow::Result<()> {
             path: "wrap.test.nearXusdc.test.near".as_bytes().to_vec(),
             router_index: U64(pool_id),
         }],
-        dst_swap: SwapData {
-            swap_param: vec![],
-            target_token: vec![1; 20],
-            map_target_token: [0; 20],
-        },
+        dst_swap: vec![0;100],
     };
 
     let mcs_balance_0 = mcs.view_account(&worker).await?.balance;
@@ -689,11 +673,7 @@ async fn test_swap_out_native_token_min_amount_out_too_big() -> anyhow::Result<(
             path: "wrap.test.nearXusdc.test.near".as_bytes().to_vec(),
             router_index: U64(pool_id),
         }],
-        dst_swap: SwapData {
-            swap_param: vec![],
-            target_token: vec![1; 20],
-            map_target_token: [0; 20],
-        },
+        dst_swap: vec![0;100],
     };
 
     let mcs_balance_0 = mcs.view_account(&worker).await?.balance;

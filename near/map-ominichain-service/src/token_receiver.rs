@@ -4,11 +4,6 @@ use crate::*;
 #[serde(crate = "near_sdk::serde")]
 #[serde(tag = "type")]
 pub enum TokenReceiverMessage {
-    Transfer {
-        #[serde(with = "crate::bytes::hexstring")]
-        to: Vec<u8>,
-        to_chain: U128,
-    },
     Deposit {
         #[serde(with = "crate::bytes::hexstring")]
         to: Vec<u8>,
@@ -29,7 +24,8 @@ pub enum TokenReceiverMessage {
 #[serde(crate = "near_sdk::serde")]
 pub struct SwapInfo {
     pub src_swap: Vec<SwapParam>,
-    pub dst_swap: SwapData,
+    #[serde(with = "crate::bytes::hexstring")]
+    pub dst_swap: Vec<u8>,
 }
 
 #[near_bindgen]
@@ -54,32 +50,6 @@ impl FungibleTokenReceiver for MAPOServiceV2 {
 
         let token_receiver_msg: TokenReceiverMessage = serde_json::from_str(&msg).unwrap();
         match token_receiver_msg {
-            TokenReceiverMessage::Transfer { to, to_chain } => {
-                self.check_not_paused(PAUSE_TRANSFER_OUT_TOKEN);
-                assert!(
-                    self.valid_fungible_token_out(&token, to_chain),
-                    "transfer token {} to chain {} is not supported",
-                    token,
-                    to_chain.0
-                );
-                self.check_to_account(to.clone(), to_chain.into());
-                self.check_amount(&token, amount.0);
-
-                let order_id = self.get_order_id(&sender_id.to_string(), &to, to_chain.into());
-                TransferOutEvent {
-                    from_chain: self.near_chain_id.into(),
-                    to_chain,
-                    from: Vec::from(sender_id.as_bytes()),
-                    to,
-                    order_id,
-                    token: Vec::from(token.as_bytes()),
-                    to_chain_token: "".to_string().into_bytes(),
-                    amount,
-                }
-                .emit();
-
-                PromiseOrValue::Value(U128(0))
-            }
             TokenReceiverMessage::Deposit { to } => {
                 self.check_not_paused(PAUSE_DEPOSIT_OUT_TOKEN);
                 assert!(
@@ -156,11 +126,7 @@ mod tests {
         };
         let swap_info = SwapInfo {
             src_swap: vec![swap_param],
-            dst_swap: SwapData {
-                swap_param: vec![],
-                target_token: "token2.map007.testnet".as_bytes().to_vec(),
-                map_target_token: [1; 20],
-            },
+            dst_swap: vec![0;100],
         };
 
         println!("{}", serde_json::to_string(&swap_info).unwrap())
@@ -187,11 +153,7 @@ mod tests {
         };
         let swap_info = SwapInfo {
             src_swap: vec![swap_param0],
-            dst_swap: SwapData {
-                swap_param: vec![swap_param1],
-                target_token: hex::decode("B6c1b689291532D11172Fb4C204bf13169EC0dCC").unwrap(),
-                map_target_token: [1; 20],
-            },
+            dst_swap: vec![0;100],
         };
 
         let tr_msg = TokenReceiverMessage::Swap {
@@ -206,9 +168,6 @@ mod tests {
 
         let token_receiver_msg: TokenReceiverMessage = serde_json::from_str(&msg).unwrap();
         match token_receiver_msg {
-            TokenReceiverMessage::Transfer { .. } => {
-                println!("transfer")
-            }
             TokenReceiverMessage::Deposit { .. } => {
                 println!("Deposit")
             }
