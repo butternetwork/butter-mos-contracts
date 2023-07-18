@@ -118,7 +118,7 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         mapVaultW = await MapVaultU.deploy(wrapped.address,"MapVaultTokenWrapped","WVT");
 
 
-        let data = await mossR.initialize(wrapped.address,lightClientManager.address);
+        let data = await mossR.initialize(wrapped.address,lightClientManager.address,owner.address);
         initData = data.data;
     });
 
@@ -127,7 +127,7 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         let mossRP = await MAPCrossChainServiceRelayProxy.deploy(mossR.address,initData);
         await mossRP.deployed()
 
-        let initTokenRegisterData = await tokenRegister.initialize();
+        let initTokenRegisterData = await tokenRegister.initialize(owner.address);
 
         const TokenResgisterProxy = await ethers.getContractFactory("MAPOmnichainServiceProxyV2");
         let tokenRegisterP = await TokenResgisterProxy.deploy(tokenRegister.address,initTokenRegisterData.data);

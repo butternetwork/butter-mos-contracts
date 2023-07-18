@@ -1,14 +1,17 @@
-
+let {getMos} = require("../utils/helper.js")
 module.exports = async (taskArgs,hre) => {
     const accounts = await ethers.getSigners()
     const deployer = accounts[0];
-
+    const chainId = await deployer.getChainId();
     console.log("deployer address:",deployer.address);
 
     //let proxy = await hre.deployments.get("MAPVaultToken");
     let manager = taskArgs.manager;
     if (taskArgs.manager === "relay") {
-        let proxy = await ethers.getContract('MAPOmnichainServiceProxyV2');
+        let proxy = await getMos(chainId,hre.network.name)
+        if(!proxy) {
+            throw "mos not deployed ..."
+        }
         manager = proxy.address;
     }
 

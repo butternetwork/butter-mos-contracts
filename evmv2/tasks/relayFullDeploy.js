@@ -18,7 +18,7 @@ module.exports = async (taskArgs,hre) => {
 
     console.log("MAPOmnichainServiceRelayV2 address:",mosRelay.address);
 
-    let data = mosRelay.interface.encodeFunctionData("initialize", [taskArgs.wrapped, taskArgs.lightnode]);
+    let data = mosRelay.interface.encodeFunctionData("initialize", [taskArgs.wrapped, taskArgs.lightnode,deployer.address]);
 
     await deploy('MAPOmnichainServiceProxyV2', {
         from: deployer.address,
@@ -41,7 +41,7 @@ module.exports = async (taskArgs,hre) => {
     })
     let tokenRegister = await ethers.getContract('TokenRegisterV2');
     console.log("TokenRegisterV2 address:",tokenRegister.address);
-    data = tokenRegister.interface.encodeFunctionData("initialize", []);
+    data = tokenRegister.interface.encodeFunctionData("initialize", [deployer.address]);
     await deploy('TokenRegisterProxy', {
         from: deployer.address,
         args: [tokenRegister.address,data],

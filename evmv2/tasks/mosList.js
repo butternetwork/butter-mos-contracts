@@ -1,4 +1,4 @@
-
+let {getMos} = require("../utils/helper.js")
 const chainlist = [1,5,
     56, 97,  // bsc
     137, 80001, // matic
@@ -11,13 +11,15 @@ const chainlist = [1,5,
 module.exports = async (taskArgs,hre) => {
     const accounts = await ethers.getSigners()
     const deployer = accounts[0];
-
+    const chainId = await deployer.getChainId();
     console.log("deployer address:",deployer.address);
 
     let address = taskArgs.mos;
     if (address == "mos") {
-        let proxy = await hre.deployments.get("MAPOmnichainServiceProxyV2")
-
+        let proxy = await getMos(chainId,hre.network.name)
+        if(!proxy) {
+            throw "mos not deployed ..."
+        }
         address = proxy.address;
     }
     console.log("mos address:\t", address);

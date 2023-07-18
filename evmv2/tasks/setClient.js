@@ -6,14 +6,19 @@ module.exports = async (taskArgs,hre) => {
     console.log("deployer address:",deployer.address);
 
     let mos = await getMos(chainId,hre.network.name)
-
     if(!mos) {
         throw "mos not deployed ..."
     }
 
     console.log("mos address", mos.address);
 
-    await (await mos.connect(deployer).setTokenRegister(taskArgs.tokenregister)).wait();
+    if(chainId === 212 || chainId === 22776){
+        await (await mos.connect(deployer).setLightClientManager(taskArgs.manager)).wait();
+        console.log("set client manager:", taskArgs.client);
+    } else {
+        await (await mos.connect(deployer).setLightClient(taskArgs.client)).wait();
+        console.log(`mos set  light client ${taskArgs.client} successfully `);
 
-    console.log("set token register:", taskArgs.tokenregister);
+    }
+
 }

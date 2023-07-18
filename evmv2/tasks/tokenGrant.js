@@ -1,4 +1,4 @@
-
+let {getMos} = require("../utils/helper.js")
 module.exports = async (taskArgs,hre) => {
     const {deploy} = hre.deployments
     const accounts = await ethers.getSigners()
@@ -12,7 +12,10 @@ module.exports = async (taskArgs,hre) => {
 
     let minter = taskArgs.minter;
     if (taskArgs.minter === "mos") {
-        let proxy = await ethers.getContract('MAPOmnichainServiceProxyV2');
+        let proxy = await getMos(chainId,hre.network.name)
+        if(!proxy) {
+            throw "mos not deployed ..."
+        }
         minter = proxy.address;
     }
     await (await token.connect(deployer).grantRole('0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6', minter))

@@ -19,6 +19,10 @@ PRIVATE_KEY User-deployed private key
 
 INFURA_KEY User-deployed infura key
 
+SERVICE_IMPL_SALT Mos impl deploy salt
+
+SERVICE_PROXY_SALT Mos proxy deploy salt
+
 ## Instruction
 
 MAPOmnichainServiceV2 contract is suitable for evm-compatible chains and implements cross-chain logic
@@ -56,7 +60,7 @@ npx hardhat deploy --tags TokenRegister --network <network>
 2. Deploy MOS Relay
 
 ```
-npx hardhat relayDeploy --wrapped <wrapped token> --lightnode <lightNodeManager address> --network <network>
+npx hardhat mosDeploy --wrapped <wrapped token> --lightnode <lightNodeManager address> --network <network>
 ```
 
 * `wrapped token` is wrapped MAP token address on MAP mainnet or MAP Makalu.
@@ -175,21 +179,25 @@ npx hardhat mosSetMintableToken --token <token address> --mintable <true/false> 
 npx hardhat mosRegisterToken --token <token address> --chains < chain ids,separated by ',' > --network <network>
 ````
 
+## SetButterRouter
+
+```
+npx hardhat setButterRouter --router <butter router address> --network <network>
+```
+
 ## Upgrade
 
 When upgrade the mos contract through the following commands.
 
+At first if need deploy new mos impl contract, should modify the SERVICE_IMPL_SALT in .env and set the param impl zero address else set the param impl address you already got.
+
 Please execute the following command on the EVM compatible chain
 
 ```
-npx hardhat deploy --tags MAPOmnichainServiceV2Up --network <network>
+npx hardhat upgradeMOS --impl <mos impl address> --network <network>
 ```
 
-Please execute the following command on relay chain mainnet or Makalu testnet
-
-```
-npx hardhat deploy --tags MAPOmnichainServiceRelayV2Up --network <network>
-```
+zero address : 0x0000000000000000000000000000000000000000
 
 ## Token cross-chain transfer deposit
 
