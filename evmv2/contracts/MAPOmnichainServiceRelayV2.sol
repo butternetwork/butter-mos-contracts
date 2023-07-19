@@ -67,11 +67,11 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
     event CollectFee(bytes32 indexed orderId,address indexed token,uint256 value);
 
-    function initialize(address _wToken, address _managerAddress) public initializer
-    checkAddress(_wToken) checkAddress(_managerAddress) {
+    function initialize(address _wToken, address _managerAddress,address _owner) public initializer
+    checkAddress(_wToken) checkAddress(_managerAddress) checkAddress(_owner) {
         wToken = _wToken;
         lightClientManager = ILightClientManager(_managerAddress);
-        _changeAdmin(msg.sender);
+        _changeAdmin(_owner);
     }
 
     receive() external payable {

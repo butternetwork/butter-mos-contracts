@@ -1,4 +1,4 @@
-
+let {getMos,getTokenRegister} = require("../utils/helper.js")
 const chainlist = [1, 5,
     56, 97,  // bsc
     137, 80001, // matic
@@ -16,8 +16,10 @@ module.exports = async (taskArgs,hre) => {
 
     let address = taskArgs.relay;
     if (address == "relay") {
-        let proxy = await hre.deployments.get("MAPOmnichainServiceProxyV2")
-
+        let proxy = await getMos(chainId,hre.network.name)
+        if(!proxy) {
+            throw "mos not deployed ..."
+        }
         address = proxy.address;
     }
     console.log("mos address:\t", address);

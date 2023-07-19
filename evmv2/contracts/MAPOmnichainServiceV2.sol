@@ -55,11 +55,11 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     event RegisterChain(uint256 _chainId, chainType _type);
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
-    function initialize(address _wToken, address _lightNode)
-    public initializer checkAddress(_wToken) checkAddress(_lightNode) {
+    function initialize(address _wToken, address _lightNode,address _owner)
+    public initializer checkAddress(_wToken) checkAddress(_lightNode) checkAddress(_owner) {
         wToken = _wToken;
         lightNode = ILightNode(_lightNode);
-        _changeAdmin(msg.sender);
+        _changeAdmin(_owner);
     }
 
 

@@ -55,9 +55,9 @@ contract TokenRegisterV2 is ITokenRegisterV2,Initializable,UUPSUpgradeable {
     event RegisterToken(address _token, address _vaultToken, bool _mintable);
     event SetTokenFee(address _token, uint256 _toChain, uint _lowest, uint _highest, uint _rate);
 
-    function initialize() public initializer
+    function initialize(address _owner) public initializer checkAddress(_owner) 
     {
-        _changeAdmin(msg.sender);
+        _changeAdmin(_owner);
     }
 
 

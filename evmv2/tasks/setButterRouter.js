@@ -11,10 +11,12 @@ module.exports = async (taskArgs,hre) => {
         throw "mos not deployed ..."
     }
 
-    console.log("mos address:", mos.address);
+    console.log("mos address", mos.address);
 
-    await (await mos.connect(deployer).setRelayContract(taskArgs.chain, taskArgs.relay)).wait();
+    // let mos = await ethers.getContractAt('MAPOmnichainServiceV2', proxy.address);
+                    
+    await (await mos.connect(deployer).setButterRouterAddress(taskArgs.router)).wait();
 
-    console.log(`mos set  relay ${taskArgs.relay} with chain id ${taskArgs.chain} successfully `);
+    console.log(`mos set butter router to ${taskArgs.router} `);
 
 }

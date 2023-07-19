@@ -81,7 +81,7 @@ describe("MAPOmnichainServiceV2 start test", function () {
         LightNode = await ethers.getContractFactory("LightNode");
         lightNode = await  LightNode.deploy();
 
-        let data  = await moss.initialize(wrapped.address,lightNode.address);
+        let data  = await moss.initialize(wrapped.address,lightNode.address,owner.address);
 
         initData = data.data;
 

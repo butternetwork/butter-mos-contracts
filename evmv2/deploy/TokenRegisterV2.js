@@ -17,7 +17,7 @@ module.exports = async function ({ethers, deployments}) {
     let tokenRegister = await ethers.getContract('TokenRegisterV2');
     console.log("TokenRegisterV2 address:",tokenRegister.address);
 
-    let data = tokenRegister.interface.encodeFunctionData("initialize", []);
+    let data = tokenRegister.interface.encodeFunctionData("initialize", [deployer.address]);
 
     await deploy('TokenRegisterProxy', {
         from: deployer.address,

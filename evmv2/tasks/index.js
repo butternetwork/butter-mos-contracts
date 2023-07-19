@@ -6,20 +6,12 @@ task("mosDeploy",
     .addParam("wrapped", "native wrapped token address")
     .addParam("lightnode", "lightNode contract address")
 
-task("relayDeploy",
-    "Deploy the upgradeable MapCrossChainServiceRelay contract and initialize it",
-    require("./relayDeploy")
-)
-    .addParam("wrapped", "native wrapped token address")
-    .addParam("lightnode", "lightNodeManager contract address")
-
 task("relayFullDeploy",
     "Deploy the upgradeable MapCrossChainServiceRelay contract and initialize it",
     require("./relayFullDeploy")
 )
     .addParam("wrapped", "native wrapped token address")
     .addParam("lightnode", "lightNodeManager contract address")
-
 
 task("vaultDeploy",
     "Deploy the vault token",
@@ -68,12 +60,6 @@ task("mosSetRelay",
     .addParam("relay", "map chain relay contract address")
     .addParam("chain", "map chain id")
 
-task("mosSetClient",
-    "Set light client address for MapCrossChainService",
-    require("./mosSetClient")
-)
-    .addParam("client", "light client address")
-
 task("mosRegisterToken",
     "MapCrossChainService settings allow cross-chain tokens",
     require("./mosRegisterToken")
@@ -82,9 +68,9 @@ task("mosRegisterToken",
     .addParam("chains", "chain ids allowed to cross, separated by ',', ex. `1,2,3` ")
     .addOptionalParam("enable", "true or false", true, types.boolean)
 
-task("mosSetButterRouter",
+task("setButterRouter",
     "Set router contract address in MOS",
-    require("./mosSetButterRouter")
+    require("./setButterRouter")
 )
     .addParam("router", "butter router address")
 
@@ -99,13 +85,13 @@ task("relayInit",
     "Initialize mos contract",
     require("./relayInit")
 )
-    .addParam("tokenmanager","tokenRegister contract")
+    .addParam("tokenregister","tokenRegister contract")
 
-task("relaySetClientManager",
-    "Update client manager",
-    require("./relaySetClientManager")
+task("setClient",
+    "Update client manager on relay chain or update light client on other chain",
+    require("./setClient")
 )
-    .addParam("manager","client manager contract")
+    .addParam("client","client manager contract on relay chain or light client contract on other chain")
 
 task("relayRegisterChain",
     "Register altchain mos to relay chain",
@@ -151,12 +137,6 @@ task("relaySetDistributeRate",
     .addOptionalParam("type", "0 or 1, type 0 is vault, default 0", 0, types.int)
     .addOptionalParam("address", "receiver address", "0x0000000000000000000000000000000000000DEF", types.string)
     .addParam("rate", "The percentage value of the fee charged, unit 0.000001")
-
-task("relaySetButterRouter",
-    "Set router contract address in Relay",
-    require("./relaySetButterRouter")
-)
-    .addParam("router", "butter router address")
 
 task("transferOutToken",
     "Cross-chain transfer token",
@@ -217,7 +197,7 @@ task("upgradeMOS",
     "upgrade mos evm contract in proxy",
     require("./upgradeMOS")
 )
-    .addParam("mos", "The mos address")
+    .addParam("impl", "The mos impl address")
 
 task("swapIn",
     "swapIn",
