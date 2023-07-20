@@ -32,6 +32,8 @@ impl Factory {
         wrapped_token: AccountId,
         near_chain_id: U128,
         map_chain_id: U128,
+        ref_exchange: AccountId,
+        butter_core: Vec<AccountId>,
     ) -> Promise {
         let account_id = format!("{}.{}", name, env::current_account_id());
         Promise::new(account_id.parse().unwrap())
@@ -42,7 +44,9 @@ impl Factory {
                 "init".to_string(),
                 json!({ "owner": owner, "map_light_client": map_light_client,
                     "map_bridge_address": map_bridge_address, "wrapped_token": wrapped_token,
-                    "near_chain_id": near_chain_id, "map_chain_id": map_chain_id,})
+                    "near_chain_id": near_chain_id, "map_chain_id": map_chain_id,
+                    "ref_exchange": ref_exchange, "butter_core": butter_core
+                })
                 .to_string()
                 .as_bytes()
                 .to_vec(),

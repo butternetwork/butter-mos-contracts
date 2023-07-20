@@ -9,8 +9,6 @@ function printHelp() {
   echo "Usage:"
   echo "  $FILE_NAME <command>"
   echo "Commands:"
-  echo "  prepare                                 create member accounts"
-  echo "  clean                                   delete member account"
   echo "  request_and_confirm <request type> <member> add request and confirm by member"
   echo "  request_type:"
   echo "    add_native <chain id>                    add native token to_chain"
@@ -36,12 +34,6 @@ function printHelp() {
   echo "  confirm <request id> <member>              confirm request"
   echo "  execute <request id> <account>             execute confirmed request"
   echo "  help                                       show help"
-}
-
-function prepare() {
-  near create-account ${MEMBERS[0]} --masterAccount $MASTER_ACCOUNT --initialBalance 1
-  near create-account ${MEMBERS[1]} --masterAccount $MASTER_ACCOUNT --initialBalance 1
-  near create-account ${MEMBERS[2]} --masterAccount $MASTER_ACCOUNT --initialBalance 1
 }
 
 function prepare_request() {
@@ -363,21 +355,8 @@ function request_and_confirm() {
   }' --accountId $MEMBER --gas 300000000000000  --depositYocto 1
 }
 
-function clean() {
-    near delete $MEMBER0 $MASTER_ACCOUNT
-    near delete $MEMBER1 $MASTER_ACCOUNT
-    near delete $MEMBER2 $MASTER_ACCOUNT
-}
-
-
 if [[ $# -gt 0 ]]; then
   case $1 in
-    prepare)
-      prepare
-      ;;
-    clean)
-      clean
-      ;;
     request)
       shift
       request $@
