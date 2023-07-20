@@ -69,26 +69,28 @@ MASTER_ACCOUNT="map002.testnet" # make sure the account is already created on NE
 FACTORY_NAME=mfac # the name of mcs factory contract to be created, the account ID will be $MFACTORY_NAME.$MASTER_ACCOUNT
 
 # multisig contract
-MULTISIG_NAME="multisig" # the name of multisig contract to be created, the account ID will be $MULTISIG_NAME.$MFACTORY_NAME.$MASTER_ACCOUNT
-MEMBERS=(member0.map002.testnet member1.map002.testnet member2.map002.testnet)  # the multisig members list, make sure 
-                                                                                # these accounts have been created on NEAR blockchain
-CONFIRMS=2  # the multisig confirmation number to trigger the execution of the request
-REQUEST_LOCK=5 # request cooldown period in seconds (time before a request can be executed)
+MULTISIG_ACCOUNT="multisig.mfac.map009.testnet" # the account of multisig contract
+MEMBERS=(member0.map002.testnet member1.map002.testnet member2.map002.testnet)  # the multisig members list
 
-# mcs contract
-MCS_NAME="mcs"  # the name of mcs contract to be created, the account ID will be $MCS_NAME.$MFACTORY_NAME.$MASTER_ACCOUNT
+# mos contract
+MCS_NAME="mos"  # the name of mcs contract to be created, the account ID will be $MCS_NAME.$MFACTORY_NAME.$MASTER_ACCOUNT
 MAP_MCS_ADDRESS="F579c89C22DAc92E9816C0b39856cA9281Bd7BE0"  # the mcs contract address on MAP relay chain
 WNEAR_ACCOUNT="wrap.testnet"  # wrapped near contract account on NEAR blockchain
 NEAR_CHAIN_ID=5566818579631833089  # NEAR testnet blockchain id, mainnet is 5566818579631833088
 MAP_CHAIN_ID=22776  # MAP blockchain ID
 CLIENT_ACCOUNT="client.fac.map002.testnet" # the account ID of the map light client contract which has already been deployed
+REF_EXCHANGER="ref-finance-101.testnet"
+BUTTER_CORE='["core0.corefac.map010.testnet","core1.corefac.map010.testnet"]'
 ```
 
-**2. Deploy factory contract, multisig contract and mcs contract, and initialize them with below command:**
+**2. Deploy and initialize mos factory contract and mos contract with below command:**
 ```shell
-    ./scripts/deploy.sh
+    # deploy and initialize mos factory contract
+    ./scripts/deploy.sh deploy_factory
+    
+    # deploy and initialize mos contract
+    ./scripts/deploy.sh deploy_mos
 ```
-
 
 ## Usage
 
@@ -147,13 +149,15 @@ First set the chain type of target blockchain. Currently only **EvmChain** type 
 Then register the mcs/ft token to MOS.
 ```shell
     TOKEN="usdt.map007.testnet" # token Account Id
-    Mintable=true               # the token is mintable
-    
-    # register the mcs token
-    ./scripts/manage_mcs_token.sh register $MCS_TOKEN $Mintable
+    MINTABLE=true               # the token is mintable
     
     # register the ft token
-    ./scripts/manage_ft_token.sh register $TOKEN $Mintable
+    ./scripts/manage_ft_token.sh register $TOKEN $MINTABLE
+    
+    TOKEN="wrap.testnet"        # token Account Id
+    MINTABLE=true               # the token is not mintable
+    
+    ./scripts/manage_ft_token.sh register $TOKEN $MINTABLE
 ```
 
 If you want to add target chain ID to mcs token, run below commands:
@@ -223,15 +227,13 @@ If you want to add target chain ID to native token, run below commands:
 ```
 
 
-**3. Transfer mcs/ft/native token to another blockchain through MCS service**
+**3. Deposit token to MAP relay chain through MOS**
 
-Transfer mcs token to another blockchain:
+Deposit out mcs token:
 
 ```shell
     FROM="map001.testnet"  # sender account ID on NEAR blockchain
-    TO="[46,120,72,116,221,179,44,215,151,93,104,86,91,80,148,18,165,181,25,244]" # address 0x2E784874ddB32cD7975D68565b509412A5B519F4 
-                                                                                  # on target blockchain
-    TO_CHAIN=212 # to chain ID
+    TO="0x2E784874ddB32cD7975D68565b509412A5B519F4" # address on target blockchain
     AMOUNT=100000000000000000000000
     MCS_TOKEN="mcs_token_0".$MCS_ACCOUNT  # mcs token account ID
     
@@ -239,17 +241,16 @@ Transfer mcs token to another blockchain:
     ./scripts/manage_mcs_token.sh balance $MCS_TOKEN $FROM
     
     # transfer mcs token to receiver on target chain, make sure sender has enough token
-    ./scripts/manage_mcs_token.sh transfer $MCS_TOKEN $TO_CHAIN $FROM $TO $AMOUNT
+    ./scripts/manage_mcs_token.sh deposit $MCS_TOKEN $FROM $TO $AMOUNT
     
     # get the token balance of the sender to check if the token was transferred out successfully
     ./scripts/manage_mcs_token.sh balance $MCS_TOKEN $FROM
 ```
 
-Transfer ft token to another blockchain:
+Deposit out ft token:
 ```shell
     FROM="map001.testnet"
-    TO="[46,120,72,116,221,179,44,215,151,93,104,86,91,80,148,18,165,181,25,244]"
-    TO_CHAIN=212
+    TO="0x2E784874ddB32cD7975D68565b509412A5B519F4"
     AMOUNT=100000000000000000000000
     FT_TOKEN="wrap.testnet"  # ft token account ID
     
@@ -257,24 +258,23 @@ Transfer ft token to another blockchain:
     ./scripts/manage_ft_token.sh balance $FT_TOKEN $FROM
     
     # transfer ft token to receiver on target chain, make sure sender has enough token
-    ./scripts/manage_ft_token.sh transfer $FT_TOKEN $TO_CHAIN $FROM $TO $AMOUNT
+    ./scripts/manage_ft_token.sh deposit $FT_TOKEN $FROM $TO $AMOUNT
     
     # get the token balance of the sender to check if the token was transferred out successfully
     ./scripts/manage_ft_token.sh balance $FT_TOKEN $FROM
 ```
 
-Transfer native token to another blockchain:
+Deposit out native token:
 ```shell
     FROM="map001.testnet"
     TO="[46,120,72,116,221,179,44,215,151,93,104,86,91,80,148,18,165,181,25,244]"
-    TO_CHAIN=212
     AMOUNT=100000000000000000000000
     
     # get the token balance of the sender
     ./scripts/manage_native_token.sh balance $FROM
     
     # transfer native token to receiver on target chain, make sure sender has enough token
-    ./scripts/manage_native_token.sh transfer $TO_CHAIN $FROM $TO $AMOUNT
+    ./scripts/manage_native_token.sh deposit $TO_CHAIN $FROM $TO $AMOUNT
     
     # get the token balance of the sender to check if the token was transferred out successfully
     ./scripts/manage_native_token.sh balance $FROM

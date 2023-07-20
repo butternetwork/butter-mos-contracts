@@ -854,7 +854,7 @@ impl MAPOServiceV2 {
                 from: from.clone(),
                 to,
                 order_id,
-                token: self.native_token_address().1,
+                token: self.wrapped_token.to_string(),
                 amount: amount.into(),
             });
 
