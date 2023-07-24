@@ -6,6 +6,8 @@ use near_sdk::env::panic_str;
 use near_sdk::json_types::U128;
 use near_sdk::{env, AccountId, Gas, PromiseResult};
 use std::collections::HashMap;
+use std::ops::{Div, Mul};
+use map_light_client::traits::FromVec;
 
 const CALL_CORE_SWAP_IN_DIRECTLY_GAS: Gas = Gas(180_000_000_000_000);
 const CALL_CORE_SWAP_OUT_DIRECTLY_GAS: Gas = Gas(175_000_000_000_000);
@@ -17,6 +19,17 @@ const CALLBACK_DO_SWAP_GAS: Gas =
     Gas(20_000_000_000_000 + CALL_CORE_SWAP_IN_DIRECTLY_GAS.0 + CALLBACK_POST_SWAP_IN_GAS.0);
 
 const CALLBACK_ADD_BUTTER_CORE_GAS: Gas = Gas(5_000_000_000_000);
+const CALLBACK_ADD_SWAP_ENTRANCE: Gas = Gas(5_000_000_000_000);
+
+const SWAP_FEE_RATE_BASE: u128 = 1000000;
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct SwapFeeInfo {
+    pub fee_amount: U128,
+    pub fee_receiver: AccountId,
+    pub entrance: String,
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -154,6 +167,82 @@ impl MAPOServiceV2 {
         }
     }
 
+    pub fn add_swap_entrance(&mut self, entrance_hash: String, fee_rate: U128, fee_receiver: AccountId) -> PromiseOrValue<()> {
+        assert!(
+            self.is_owner(),
+            "unexpected caller {}",
+            env::predecessor_account_id()
+        );
+
+        let hex = hex::decode(entrance_hash).unwrap_or_else(|_| panic!("not a valid hex string"));
+        let hash = CryptoHash::from_vec(&hex).unwrap_or_else(|_| panic!("not a valid hash"));
+
+        if fee_rate.0 == 0 {
+            self.swap_entrance_infos.insert(&hash, &EntranceInfo { fee_rate, fee_receiver });
+            return PromiseOrValue::Value(());
+        }
+
+        let mut promise = Promise::new(env::current_account_id());
+        for token in self.fungible_tokens.keys() {
+            promise = promise.then(
+                ext_fungible_token::ext(token.clone())
+                    .with_static_gas(STORAGE_DEPOSIT_GAS)
+                    .with_attached_deposit(
+                        self.fungible_tokens_storage_balance.get(&token).unwrap(),
+                    )
+                    .storage_deposit(Some(fee_receiver.clone()), Some(true)),
+            );
+        }
+
+        for token in self.mcs_tokens.keys() {
+            promise = promise.then(
+                ext_fungible_token::ext(token.clone())
+                    .with_static_gas(STORAGE_DEPOSIT_GAS)
+                    .with_attached_deposit(self.mcs_storage_balance_min)
+                    .storage_deposit(Some(fee_receiver.clone()), Some(true)),
+            );
+        }
+        promise
+            .then(
+                ext_fungible_token::ext(self.wrapped_token.clone())
+                    .with_static_gas(STORAGE_DEPOSIT_GAS)
+                    .with_attached_deposit(self.mcs_storage_balance_min)
+                    .storage_deposit(Some(fee_receiver.clone()), Some(true)),
+            )
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(CALLBACK_ADD_SWAP_ENTRANCE)
+                    .callback_add_swap_entrance(hash, fee_rate, fee_receiver),
+            ).into()
+    }
+
+    #[private]
+    pub fn callback_add_swap_entrance(&mut self, hash: CryptoHash, fee_rate: U128, fee_receiver: AccountId) {
+        assert_eq!(
+            1,
+            env::promise_results_count(),
+            "promise has too many results"
+        );
+
+        match env::promise_result(0) {
+            PromiseResult::NotReady => env::abort(),
+            PromiseResult::Successful(_) => {
+                self.swap_entrance_infos.insert(&hash, &EntranceInfo { fee_rate, fee_receiver });
+            }
+            PromiseResult::Failed => {
+                panic_str("add swap entrance failed");
+            }
+        }
+    }
+
+    pub fn list_swap_entrance(&self) -> HashMap<String, EntranceInfo> {
+        let mut map: HashMap<String, EntranceInfo> = HashMap::new();
+        for (x, y) in self.swap_entrance_infos.to_vec() {
+            map.insert(hex::encode(x), y);
+        }
+        map
+    }
+
     pub fn get_ref_exchange(&self) -> AccountId {
         self.ref_exchange.clone()
     }
@@ -162,26 +251,28 @@ impl MAPOServiceV2 {
     pub fn process_token_swap_out(
         &mut self,
         to_chain: U128,
-        src_token: String,
+        src_token: AccountId,
         token: AccountId,
         from: AccountId,
         to: Vec<u8>,
-        amount: U128,
+        swap_amount: U128,
         swap_info: SwapInfo,
+        swap_fee_info: SwapFeeInfo,
     ) -> PromiseOrValue<U128> {
         self.check_not_paused(PAUSE_SWAP_OUT_TOKEN);
-        self.check_swap_param(&token, amount, &swap_info);
+        self.check_swap_param(&token, swap_amount, &swap_info);
 
         if swap_info.src_swap.is_empty() {
-            self.swap_out_token(
+            self.bridge_out_token(
                 to_chain,
                 src_token,
-                amount,
+                swap_amount,
                 token,
                 from,
                 to,
-                amount,
+                swap_amount,
                 swap_info.dst_swap,
+                swap_fee_info
             )
         } else {
             let core = self
@@ -233,10 +324,11 @@ impl MAPOServiceV2 {
                 token,
                 from,
                 to,
-                amount,
+                swap_amount,
                 core,
                 core_swap_msg,
                 swap_info,
+                swap_fee_info
             )
         }
     }
@@ -246,12 +338,13 @@ impl MAPOServiceV2 {
         &mut self,
         core: AccountId,
         to_chain: U128,
-        src_token: String,
+        src_token: AccountId,
         token_out: AccountId,
         from: AccountId,
         to: Vec<u8>,
         amount: U128,
         swap_info: SwapInfo,
+        swap_fee_info: SwapFeeInfo,
     ) -> PromiseOrValue<U128> {
         assert_eq!(
             1,
@@ -266,13 +359,13 @@ impl MAPOServiceV2 {
                 let (used_amount, _) = serde_json::from_slice::<(U128, U128)>(&x).unwrap();
                 if amount != used_amount {
                     log!("used amount is unexpected, swap in core failed, expected: {:?}, actual: {:?}!", amount, used_amount);
-                    PromiseOrValue::Value(U128(amount.0 - used_amount.0))
+                    PromiseOrValue::Value(U128(amount.0 + swap_fee_info.fee_amount.0 - used_amount.0))
                 } else {
                     // TODO: revert state
                     let amount_out = self.amount_out.remove(&core).unwrap_or_else(|| {
                         panic_str("unexpected! mos didn't receive amount out from core")
                     });
-                    self.swap_out_token(
+                    self.bridge_out_token(
                         to_chain,
                         src_token,
                         amount,
@@ -281,6 +374,7 @@ impl MAPOServiceV2 {
                         to,
                         amount_out,
                         swap_info.dst_swap,
+                        swap_fee_info
                     )
                 }
             }
@@ -386,7 +480,7 @@ impl MAPOServiceV2 {
                             token_out: token_in,
                             amount_out: amount,
                         }
-                        .emit();
+                            .emit();
                         self.core_idle.push(core);
                         log!(
                             "prepaid gas: {:?}, used gas {:?}",
@@ -409,7 +503,7 @@ impl MAPOServiceV2 {
                         token_out,
                         amount_out,
                     }
-                    .emit();
+                        .emit();
                     self.core_idle.push(core);
                     Promise::new(env::signer_account_id()).transfer(ret_deposit)
                 }
@@ -497,27 +591,27 @@ impl MAPOServiceV2 {
                 .with_attached_deposit(1)
                 .ft_transfer(core.clone(), amount, None)
         }
-        .then(
-            Self::ext(env::current_account_id())
-                .with_static_gas(CALLBACK_DO_SWAP_GAS)
-                .with_attached_deposit(ret_deposit)
-                .callback_do_swap(
-                    core,
-                    token_in,
-                    target_account,
-                    amount,
-                    msg,
-                    // ret_deposit,
-                    order_id,
-                    token_in_storage_balance,
-                ),
-        )
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(CALLBACK_DO_SWAP_GAS)
+                    .with_attached_deposit(ret_deposit)
+                    .callback_do_swap(
+                        core,
+                        token_in,
+                        target_account,
+                        amount,
+                        msg,
+                        // ret_deposit,
+                        order_id,
+                        token_in_storage_balance,
+                    ),
+            )
     }
 
     fn call_core_swap_out_directly(
         &self,
         to_chain: U128,
-        src_token: String,
+        src_token: AccountId,
         token_out: AccountId,
         token: AccountId,
         from: AccountId,
@@ -526,6 +620,7 @@ impl MAPOServiceV2 {
         core: AccountId,
         msg: CoreSwapMessage,
         swap_info: SwapInfo,
+        swap_fee_info: SwapFeeInfo,
     ) -> PromiseOrValue<U128> {
         ext_ft_core::ext(token)
             .with_static_gas(FT_TRANSFER_GAS)
@@ -540,9 +635,24 @@ impl MAPOServiceV2 {
                 Self::ext(env::current_account_id())
                     .with_static_gas(CALLBACK_SWAP_OUT_TOKEN_GAS)
                     .callback_swap_out_token(
-                        core, to_chain, src_token, token_out, from, to, amount, swap_info,
+                        core, to_chain, src_token, token_out, from, to, amount, swap_info, swap_fee_info,
                     ),
             )
             .into()
+    }
+
+    pub fn build_swap_fee_info(&self, total_amount: U128, swap_info: &SwapInfo) -> SwapFeeInfo {
+        let entrance_hash = CryptoHash::try_from(env::sha256(swap_info.entrance.as_bytes())).unwrap();
+        let entrance_info = self.swap_entrance_infos.get(&entrance_hash).unwrap_or_else(|| {
+            panic_str("swap entrance info not found!")
+        });
+
+        let fee_amount = U128::from(total_amount.0.mul(entrance_info.fee_rate.0).div(SWAP_FEE_RATE_BASE));
+
+        SwapFeeInfo {
+            entrance: swap_info.entrance.clone(),
+            fee_amount,
+            fee_receiver: entrance_info.fee_receiver,
+        }
     }
 }

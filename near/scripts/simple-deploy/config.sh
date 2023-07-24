@@ -8,7 +8,7 @@ NEAR_CHAIN_ID=1360100178526210    # NEAR blockchain ID
 MAP_CHAIN_ID=212  # MAP blockchain ID
 CLIENT_ACCOUNT="client3.cfac2.maplabs.testnet" # the account ID of the map light client contract which has already been deployed
 REF_EXCHANGE="ref-finance-101.testnet"
-BUTTER_CORE='["core1.corefac.map008.testnet","core3.corefac.map008.testnet"]'
+BUTTER_CORE='["core5.corefac.map008.testnet"]'
 
 USDC=usdc.map007.testnet
 USDT=usdt.map007.testnet

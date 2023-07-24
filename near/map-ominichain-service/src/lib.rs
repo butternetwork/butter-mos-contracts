@@ -1,7 +1,7 @@
 extern crate core;
 
-use crate::management::{ChainType, ChainType::*};
-use crate::swap::{Action, CoreSwapMessage, SwapAction};
+use crate::management::{ChainType, ChainType::*, EntranceInfo};
+use crate::swap::{Action, CoreSwapMessage, SwapAction, SwapFeeInfo};
 use crate::token_receiver::SwapInfo;
 use crate::traits::*;
 use admin_controlled::{AdminControlled, Mask};
@@ -21,6 +21,7 @@ use near_sdk::{
 };
 use prover::*;
 use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 
 mod bytes;
 mod event;
@@ -50,7 +51,7 @@ const BURN_GAS: Gas = Gas(6_000_000_000_000);
 
 /// Gas to call near_withdraw and near_deposit on wrap near contract
 const NEAR_WITHDRAW_GAS: Gas = Gas(6_000_000_000_000);
-const NEAR_DEPOSIT_GAS: Gas = Gas(7_000_000_000_000);
+const NEAR_DEPOSIT_GAS: Gas = Gas(5_000_000_000_000);
 
 /// Gas to call callback_process_proof_hash method.
 const CALLBACK_PROCESS_PROOF_HASH: Gas = Gas(60_000_000_000_000);
@@ -62,21 +63,21 @@ const TRANSFER_IN_NATIVE_TOKEN_GAS: Gas = Gas(60_000_000_000_000);
 const FINISH_TRANSFER_IN_GAS: Gas = Gas(30_000_000_000_000);
 
 /// Gas to call finish_token_out method.
-const FINISH_TOKEN_OUT_GAS: Gas = Gas(7_000_000_000_000);
+const FINISH_TOKEN_OUT_GAS: Gas = Gas(13_000_000_000_000);
 
 /// Gas to call report_failure method.
-const REPORT_FAILURE_GAS: Gas = Gas(4_000_000_000_000);
+const REPORT_FAILURE_GAS: Gas = Gas(3_000_000_000_000);
 
 /// Gas to call verify_log_entry on prover.
 const VERIFY_LOG_ENTRY_GAS: Gas = Gas(100_000_000_000_000);
 
 /// Gas to call process_swap_out method.
-const PROCESS_SWAP_OUT_GAS: Gas = Gas(240_000_000_000_000);
+const PROCESS_SWAP_OUT_GAS: Gas = Gas(245_000_000_000_000);
 
 /// Gas to call callback_process_native_swap method.
-const CALLBACK_PROCESS_NATIVE_SWAP_GAS: Gas = Gas(32_000_000_000_000);
+const CALLBACK_PROCESS_NATIVE_SWAP_GAS: Gas = Gas(30_000_000_000_000);
 
-const CALLBACK_TRANSFER_NEAR_GAS: Gas = Gas(6_000_000_000_000);
+const CALLBACK_TRANSFER_NEAR_GAS: Gas = Gas(5_000_000_000_000);
 
 const MIN_TRANSFER_OUT_AMOUNT: f64 = 0.001;
 const NEAR_DECIMAL: u8 = 24;
@@ -92,6 +93,7 @@ const PAUSE_SWAP_OUT_TOKEN: Mask = 1 << 7;
 const PAUSE_SWAP_OUT_NATIVE: Mask = 1 << 8;
 
 const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
+const NULL_ADDRESS: &str = "0xffffffffffffffffffffffffffffffffffffffff";
 
 #[derive(BorshStorageKey, BorshSerialize)]
 pub(crate) enum StorageKey {
@@ -105,6 +107,7 @@ pub(crate) enum StorageKey {
     RegisterTokens,
     LostFound,
     FungibleToken,
+    SwapEntrances,
 }
 
 #[near_bindgen]
@@ -146,6 +149,8 @@ pub struct MAPOServiceV2 {
     pub paused: Mask,
 
     pub registered_tokens: UnorderedMap<AccountId, bool>,
+
+    pub swap_entrance_infos: UnorderedMap<CryptoHash, EntranceInfo>,
 
     /// SWAP related
     pub ref_exchange: AccountId,
@@ -252,6 +257,7 @@ impl MAPOServiceV2 {
             nonce: 0,
             paused: Mask::default(),
             registered_tokens: UnorderedMap::new(StorageKey::RegisterTokens),
+            swap_entrance_infos: UnorderedMap::new(StorageKey::SwapEntrances),
             ref_exchange,
             core_idle: butter_core.clone(),
             core_total: butter_core,
@@ -378,16 +384,17 @@ impl MAPOServiceV2 {
         )
     }
 
-    pub fn swap_out_token(
+    pub fn bridge_out_token(
         &mut self,
         to_chain: U128,
-        src_token: String,
+        src_token: AccountId,
         src_amount: U128,
         token: AccountId,
         from: AccountId,
         to: Vec<u8>,
         amount: U128,
         swap_data: Vec<u8>,
+        swap_fee_info: SwapFeeInfo,
     ) -> PromiseOrValue<U128> {
         self.check_token_to_chain(&token, to_chain);
         self.check_to_account(to.clone(), to_chain.into());
@@ -409,7 +416,9 @@ impl MAPOServiceV2 {
             },
             src_token,
             src_amount,
-            // dst_token: swap_data.target_token,
+            fee_amount: swap_fee_info.fee_amount,
+            fee_receiver: swap_fee_info.fee_receiver,
+            entrance: swap_fee_info.entrance,
         };
 
         if self.valid_mcs_token_out(&token, to_chain) {
@@ -423,7 +432,7 @@ impl MAPOServiceV2 {
                 )
                 .into()
         } else {
-            event.emit();
+            self.finish_swap_out(event);
 
             PromiseOrValue::Value(U128(0))
         }
@@ -445,39 +454,42 @@ impl MAPOServiceV2 {
         self.check_not_paused(PAUSE_SWAP_OUT_NATIVE);
         self.check_to_account(to.clone(), to_chain.into());
 
-        let amount = env::attached_deposit();
-        self.check_amount(&self.wrapped_token, amount);
+        let amount = U128::from(env::attached_deposit());
+        let swap_fee_info = self.build_swap_fee_info(amount, &swap_info);
+        let swap_amount = U128::from(amount.0 - swap_fee_info.fee_amount.0);
+        self.check_amount(&self.wrapped_token, swap_amount.0);
 
         ext_wnear_token::ext(self.wrapped_token.clone())
             .with_static_gas(NEAR_DEPOSIT_GAS)
-            .with_attached_deposit(amount)
+            .with_attached_deposit(swap_amount.0)
             .near_deposit()
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(PROCESS_SWAP_OUT_GAS)
                     .process_token_swap_out(
                         to_chain,
-                        self.native_token_address().1,
+                        self.native_token_address(),
                         self.wrapped_token.clone(),
                         env::signer_account_id(),
                         to,
-                        amount.into(),
+                        swap_amount,
                         swap_info,
+                        swap_fee_info.clone(),
                     ),
             )
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(CALLBACK_PROCESS_NATIVE_SWAP_GAS)
-                    .callback_process_native_swap(amount),
+                    .callback_process_native_swap(swap_amount, swap_fee_info.fee_amount),
             )
     }
 
     #[private]
-    pub fn callback_process_native_swap(&mut self, amount: Balance) -> PromiseOrValue<()> {
+    pub fn callback_process_native_swap(&mut self, swap_amount: U128, fee_amount: U128) -> PromiseOrValue<()> {
         assert_eq!(env::promise_results_count(), 1, "ERR_TOO_MANY_RESULTS");
         let refund_amount = match env::promise_result(0) {
             PromiseResult::NotReady => env::abort(),
-            PromiseResult::Failed => amount,
+            PromiseResult::Failed => swap_amount.0 + fee_amount.0,
             PromiseResult::Successful(x) => {
                 let refund_amount = serde_json::from_slice::<U128>(&x).unwrap();
                 refund_amount.0
@@ -490,7 +502,7 @@ impl MAPOServiceV2 {
         ext_wnear_token::ext(self.wrapped_token.clone())
             .with_static_gas(NEAR_WITHDRAW_GAS)
             .with_attached_deposit(1)
-            .near_withdraw(refund_amount.into())
+            .near_withdraw(swap_amount)
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(CALLBACK_TRANSFER_NEAR_GAS)
@@ -532,7 +544,7 @@ impl MAPOServiceV2 {
                 "start to transfer in token: {:?}, to: {:?}, amount: {}",
                 to_chain_token, to, event.amount.0
             )
-            .as_str(),
+                .as_str(),
         );
 
         if self.is_native_token(&to_chain_token) {
@@ -602,7 +614,7 @@ impl MAPOServiceV2 {
                     "to_chain_token {} is not mcs token or fungible token or native token",
                     to_chain_token
                 )
-                .as_str(),
+                    .as_str(),
             )
         }
     }
@@ -769,7 +781,11 @@ impl MAPOServiceV2 {
             "burn mcs token or call near_deposit() failed"
         );
 
-        mcs_event.emit();
+        match mcs_event {
+            MCSEvent::Deposit(event) => event.emit(),
+            MCSEvent::Swap(event) => self.finish_swap_out(event),
+        }
+
         U128(0)
     }
 
@@ -796,14 +812,14 @@ impl MAPOServiceV2 {
             let order_id = self.get_order_id(&from, &to, to_chain.into());
 
             let event = MCSEvent::Deposit(DepositOutEvent {
-                    from_chain: self.near_chain_id.into(),
-                    to_chain,
-                    from: from.clone(),
-                    to,
-                    order_id,
-                    token: token.to_string(),
-                    amount,
-                });
+                from_chain: self.near_chain_id.into(),
+                to_chain,
+                from: from.clone(),
+                to,
+                order_id,
+                token: token.to_string(),
+                amount,
+            });
 
             ext_mcs_token::ext(token)
                 .with_static_gas(BURN_GAS)
@@ -819,7 +835,7 @@ impl MAPOServiceV2 {
                     "non mcs fungible token {} should called from fungible token directly",
                     token
                 )
-                .as_ref(),
+                    .as_ref(),
             );
         } else {
             env::panic_str(
@@ -849,14 +865,14 @@ impl MAPOServiceV2 {
         let order_id = self.get_order_id(&from, &to, to_chain.into());
 
         let event = MCSEvent::Deposit(DepositOutEvent {
-                from_chain: self.near_chain_id.into(),
-                to_chain,
-                from: from.clone(),
-                to,
-                order_id,
-                token: self.wrapped_token.to_string(),
-                amount: amount.into(),
-            });
+            from_chain: self.near_chain_id.into(),
+            to_chain,
+            from: from.clone(),
+            to,
+            order_id,
+            token: self.wrapped_token.to_string(),
+            amount: amount.into(),
+        });
 
         ext_wnear_token::ext(self.wrapped_token.clone())
             .with_static_gas(NEAR_DEPOSIT_GAS)
@@ -999,11 +1015,8 @@ impl MAPOServiceV2 {
         token.to_string().eq(ZERO_ADDRESS)
     }
 
-    fn native_token_address(&self) -> (Vec<u8>, String) {
-        (
-            Vec::from(ZERO_ADDRESS.to_string()),
-            ZERO_ADDRESS.to_string(),
-        )
+    fn native_token_address(&self) -> AccountId {
+        AccountId::from_str(ZERO_ADDRESS).unwrap()
     }
 
     fn check_to_account(&mut self, to: Vec<u8>, chain_id: u128) {
@@ -1017,6 +1030,20 @@ impl MAPOServiceV2 {
             }
             _ => panic_str(format!("unknown chain type for chain {}", chain_id).as_str()),
         }
+    }
+
+    fn finish_swap_out(&self, event: SwapOutEvent) {
+        if event.fee_amount.0 != 0 {
+            if self.is_native_token(&event.src_token) {
+                Promise::new(event.fee_receiver.clone()).transfer(event.fee_amount.into());
+            } else {
+                ext_fungible_token::ext(event.src_token.clone())
+                    .with_static_gas(FT_TRANSFER_GAS)
+                    .with_attached_deposit(1)
+                    .ft_transfer(event.fee_receiver.clone(), event.fee_amount, None);
+            }
+        }
+        event.emit()
     }
 }
 
@@ -1130,13 +1157,13 @@ mod tests {
         MAPOServiceV2 {
             map_client_account: prover().parse().unwrap(),
             map_bridge_address: validate_eth_address(map_bridge_address()),
-            mcs_tokens: UnorderedMap::new(b"t".to_vec()),
-            fungible_tokens: UnorderedMap::new(b"f".to_vec()),
-            fungible_tokens_storage_balance: UnorderedMap::new(b"s".to_vec()),
-            token_decimals: UnorderedMap::new(b"d".to_vec()),
+            mcs_tokens: UnorderedMap::new(StorageKey::McsTokens),
+            fungible_tokens: UnorderedMap::new(StorageKey::FtTokens),
+            fungible_tokens_storage_balance: UnorderedMap::new(StorageKey::FtStorageBalance),
+            token_decimals: UnorderedMap::new(StorageKey::TokenDecimals),
             native_to_chains: Default::default(),
-            chain_id_type_map: UnorderedMap::new(b"c".to_vec()),
-            used_events: UnorderedSet::new(b"u".to_vec()),
+            chain_id_type_map: UnorderedMap::new(StorageKey::ChainIdType),
+            used_events: UnorderedSet::new(StorageKey::UsedEvents),
             proof_hashes: UnorderedSet::new(StorageKey::ProofHashes),
             owner: env::signer_account_id(),
             mcs_storage_balance_min: STORAGE_BALANCE,
@@ -1145,12 +1172,13 @@ mod tests {
             map_chain_id: 0,
             nonce: 0,
             paused: Mask::default(),
-            registered_tokens: UnorderedMap::new(b"r".to_vec()),
+            registered_tokens: UnorderedMap::new(StorageKey::RegisterTokens),
+            swap_entrance_infos: UnorderedMap::new(StorageKey::SwapEntrances),
             ref_exchange: "ref.testnet".parse().unwrap(),
             core_idle: vec![],
             core_total: vec![],
             amount_out: Default::default(),
-            lost_found: UnorderedMap::new(b"l".to_vec()),
+            lost_found: UnorderedMap::new(StorageKey::LostFound),
         }
     }
 

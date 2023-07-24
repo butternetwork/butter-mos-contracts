@@ -17,6 +17,7 @@ function printHelp() {
   echo "    add_core   <core>                        add butter core"
   echo "    reset_core   <core>                      reset butter core to idle core"
   echo "    clean_core                               clean all idle core"
+  echo "    set_entrance <hash> <rate> <receiver>    set butter entrance info"
   echo "    near_chain_id    <near chain id>         set near chain id"
   echo "    map_chain_id    <map chain id>           set map chain id"
   echo "    map_relay_address   <map relay address>  set map relay address"
@@ -108,6 +109,19 @@ function prepare_request() {
         METHOD="clean_idle_core"
         ARGS=`echo '{}'| base64`
         MEMBER=$2
+      else
+        printHelp
+        exit 1
+      fi
+      ;;
+    set_entrance)
+      echo $#
+      if [[ $# == 5 ]]; then
+        echo "set entrance info for $2, fee_rate is $3 and receiver is $4"
+        RECEIVER=$MCS_ACCOUNT
+        METHOD="add_swap_entrance"
+        ARGS=`echo '{"entrance_hash": "'$2'", "fee_rate": "'$3'", "fee_receiver": "'$4'" }'| base64`
+        MEMBER=$5
       else
         printHelp
         exit 1
