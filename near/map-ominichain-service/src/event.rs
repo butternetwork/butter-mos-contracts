@@ -1,6 +1,7 @@
+use std::str::FromStr;
 use crate::prover::{Address, EVMEvent, EthEventParams};
 use crate::traits::Transferable;
-use crate::{SwapAction, ZERO_ADDRESS};
+use crate::{NULL_ADDRESS, SwapAction, ZERO_ADDRESS};
 use ethabi::{ParamType, Token};
 use map_light_client::proof::LogEntry;
 use near_sdk::env::panic_str;
@@ -359,10 +360,11 @@ pub struct SwapOutEvent {
     pub swap_data: Vec<u8>,
 
     pub raw_swap_data: SwapData,
-    pub src_token: String,
+    pub src_token: AccountId,
     pub src_amount: U128,
-    // #[serde(with = "crate::bytes::hexstring")]
-    // pub dst_token: Vec<u8>,
+    pub fee_amount: U128,
+    pub fee_receiver: AccountId,
+    pub entrance: String,
 }
 
 impl SwapOutEvent {
@@ -423,9 +425,11 @@ impl SwapOutEvent {
                 amount,
                 swap_data,
                 raw_swap_data,
-                src_token: "".to_string(),
+                src_token: AccountId::from_str(NULL_ADDRESS).unwrap(),
                 src_amount: U128(0),
-                // dst_token: vec![],
+                fee_amount: U128(0),
+                fee_receiver: AccountId::from_str(NULL_ADDRESS).unwrap(),
+                entrance: "".to_string()
             },
         ))
     }
@@ -780,9 +784,11 @@ mod tests {
             amount: U128(100000),
             swap_data: raw_swap_data.abi_encode(),
             raw_swap_data,
-            src_token: "".to_string(),
+            src_token: AccountId::from_str(NULL_ADDRESS).unwrap(),
             src_amount: U128(0),
-            // dst_token: vec![],
+            fee_amount: U128(0),
+            fee_receiver: AccountId::from_str(NULL_ADDRESS).unwrap(),
+            entrance: "".to_string()
         };
 
         let mcs = validate_eth_address("630105189c7114667a7179Aa57f07647a5f42B7F".to_string());
@@ -804,7 +810,7 @@ mod tests {
         swap_param.push(SwapParam {
             amount_in: U128(0),
             min_amount_out: U128(301312398990044673000),
-            path: hex::decode( "757364632e6d61703030372e746573746e657458777261702e746573746e6574").unwrap(),
+            path: hex::decode("757364632e6d61703030372e746573746e657458777261702e746573746e6574").unwrap(),
             router_index: U64(1787),
         });
 

@@ -10,49 +10,11 @@ pub enum ChainType {
     Unknown,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct MAPOServiceV1_1 {
-    /// The account of the map light client that we can use to prove
-    pub map_client_account: AccountId,
-    /// Address of the MAP bridge contract.
-    pub map_bridge_address: Address,
-    /// Set of created MCSToken contracts.
-    pub mcs_tokens: UnorderedMap<AccountId, HashSet<u128>>,
-    /// Set of other fungible token contracts.
-    pub fungible_tokens: UnorderedMap<AccountId, HashSet<u128>>,
-    /// Map of other fungible token contracts and their min storage balance.
-    pub fungible_tokens_storage_balance: UnorderedMap<AccountId, u128>,
-    /// Map of token contracts and their decimals
-    pub token_decimals: UnorderedMap<AccountId, u8>,
-    /// Set of other fungible token contracts.
-    pub native_to_chains: HashSet<u128>,
-    /// Map of chain id and chain type
-    pub chain_id_type_map: UnorderedMap<u128, ChainType>,
-    /// Hashes of the events that were already used.
-    pub used_events: UnorderedSet<CryptoHash>,
-    /// Account of the owner
-    pub owner: AccountId,
-    /// Balance required to register a new account in the MCSToken
-    pub mcs_storage_balance_min: Balance,
-    // Wrap token for near
-    pub wrapped_token: AccountId,
-    // Near chain id
-    pub near_chain_id: u128,
-    // MAP chain id
-    pub map_chain_id: u128,
-    // Nonce to generate order id
-    pub nonce: u128,
-    /// Mask determining all paused functions
-    pub paused: Mask,
-
-    pub registered_tokens: UnorderedMap<AccountId, bool>,
-
-    /// SWAP related
-    pub ref_exchange: AccountId,
-    pub core_idle: Vec<AccountId>,
-    pub core_total: Vec<AccountId>,
-    pub amount_out: HashMap<AccountId, U128>,
-    pub lost_found: UnorderedMap<AccountId, HashMap<AccountId, Balance>>,
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct EntranceInfo {
+    pub fee_rate: U128,
+    pub fee_receiver: AccountId,
 }
 
 #[near_bindgen]

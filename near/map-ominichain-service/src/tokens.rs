@@ -107,6 +107,18 @@ impl MAPOServiceV2 {
                     );
                 }
 
+                for (_, entrance_info) in self.swap_entrance_infos.iter() {
+                    if entrance_info.fee_rate.0 == 0 {
+                        continue;
+                    }
+                    promise = promise.and(
+                        ext_fungible_token::ext(token.clone())
+                            .with_static_gas(STORAGE_DEPOSIT_GAS)
+                            .with_attached_deposit(min_bound.into())
+                            .storage_deposit(Some(entrance_info.fee_receiver), Some(true)),
+                    );
+                }
+
                 promise.then(
                     Self::ext(env::current_account_id())
                         .with_static_gas(CALLBACK_FINISH_REGISTER_TOKEN_GAS)

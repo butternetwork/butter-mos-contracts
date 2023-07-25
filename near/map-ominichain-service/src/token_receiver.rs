@@ -23,6 +23,7 @@ pub enum TokenReceiverMessage {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct SwapInfo {
+    pub entrance: String,
     pub src_swap: Vec<SwapParam>,
     #[serde(with = "crate::bytes::hexstring")]
     pub dst_swap: Vec<u8>,
@@ -81,14 +82,18 @@ impl FungibleTokenReceiver for MAPOServiceV2 {
                 swap_info,
             } => {
                 let token = env::predecessor_account_id();
+                let swap_fee_info = self.build_swap_fee_info( amount, &swap_info);
+                let swap_amount = U128::from(amount.0 - swap_fee_info.fee_amount.0);
+
                 self.process_token_swap_out(
                     to_chain,
-                    token.to_string(),
+                    token.clone(),
                     token,
                     sender_id,
                     to,
-                    amount,
+                    swap_amount,
                     swap_info,
+                    swap_fee_info
                 )
             }
             TokenReceiverMessage::LostFound { account, is_native: _ } => {
@@ -125,6 +130,7 @@ mod tests {
             router_index: U64(1),
         };
         let swap_info = SwapInfo {
+            entrance: "".to_string(),
             src_swap: vec![swap_param],
             dst_swap: vec![0;100],
         };
@@ -152,6 +158,7 @@ mod tests {
             router_index: U64(1),
         };
         let swap_info = SwapInfo {
+            entrance: "".to_string(),
             src_swap: vec![swap_param0],
             dst_swap: vec![0;100],
         };
@@ -165,6 +172,8 @@ mod tests {
         let msg = serde_json::to_string(&tr_msg).unwrap();
 
         println!("{}", msg);
+        println!("{}", hex::encode(env::sha256("Butter+".as_bytes())));
+        println!("{}", hex::encode(env::sha256("TrustWallet".as_bytes())));
 
         let token_receiver_msg: TokenReceiverMessage = serde_json::from_str(&msg).unwrap();
         match token_receiver_msg {

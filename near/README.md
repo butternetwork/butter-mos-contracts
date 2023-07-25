@@ -513,6 +513,30 @@ REQUEST_ID=
 # ./scripts/manage_multisig.sh execute $REQUEST_ID $MASTER_ACCOUNT
 ```
 
+### 7. Add butter entrance info
+
+```shell
+ENTRANCE_HASH=d30f28e06f2e66cfe7ed43d967a5c499a8d331d157d800bf773b9640b560b142  # sha256 of butter entrance
+FEE_RATE=7000 # fee rate of butter entrance, base rate is 1000000
+FEE_RECEIVER=map.testnet  # fee receiver account ID, if FEE_RATE is 0, this field should be set as 0xffffffffffffffffffffffffffffffffffffffff
+
+# request to set butter entrance info by multisig member
+./scripts/manage_multisig.sh request_and_confirm set_entrance $ENTRANCE_HASH $FEE_RATE $FEE_RECEIVER ${MEMBERS[1]}
+    
+# the request ID can be obtained from the last line of last command's output
+REQUEST_ID=
+    
+# confirm the request by another member
+./scripts/manage_multisig.sh confirm $REQUEST_ID ${MEMBERS[2]}
+
+# if the request is not executed because of the time lock, anyone can execute it after REQUEST_LOCK time
+# ./scripts/manage_multisig.sh execute $REQUEST_ID $MASTER_ACCOUNT
+
+# view all entrance info
+near view $MCS_ACCOUNT list_swap_entrance
+```
+
+
 ## Testing
 1. How to run unit testing?
 
