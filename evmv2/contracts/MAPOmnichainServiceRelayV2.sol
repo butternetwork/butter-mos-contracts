@@ -42,10 +42,11 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     uint256 public immutable selfChainId = block.chainid;
     uint256 public nonce;
     address public wToken;        // native wrapped token
-    //id : 0 VToken  1:relayer
+
     ITokenRegisterV2 public tokenRegister;
     ILightClientManager public lightClientManager;
 
+    //id : 0 VToken  1:relayer
     mapping(uint => Rate) public distributeRate;
     mapping(bytes32 => bool) public orderList;
     mapping(uint256 => bytes) public mosContracts;

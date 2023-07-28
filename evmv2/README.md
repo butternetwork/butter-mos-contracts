@@ -1,4 +1,4 @@
-# MAP Omnichain Service
+# Butter Network MAPO Service
 
 ## Setup Instructions
 
@@ -34,8 +34,8 @@ TokenRegisterV2 contract is used to control the mapping of cross-chain tokens
 ## Build
 
 ```shell
-git clone https://github.com/mapprotocol/map-contracts.git
-cd map-contracts/mcs/evmv2/
+git clone https://github.com/butternetwork/butter-mos-contracts
+cd butter-mos-contracts/evmv2/
 npm install
 ```
 

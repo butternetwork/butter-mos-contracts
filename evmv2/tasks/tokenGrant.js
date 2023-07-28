@@ -4,6 +4,8 @@ module.exports = async (taskArgs,hre) => {
     const accounts = await ethers.getSigners()
     const deployer = accounts[0];
 
+    let chainId = hre.network.config.chainId;
+
     console.log("deployer address:",deployer.address);
 
     let token = await ethers.getContractAt('MintableToken', taskArgs.token);
@@ -12,14 +14,13 @@ module.exports = async (taskArgs,hre) => {
 
     let minter = taskArgs.minter;
     if (taskArgs.minter === "mos") {
-        let proxy = await getMos(chainId,hre.network.name)
-        if(!proxy) {
+        let proxy = await getMos(chainId, hre.network.name)
+        if(proxy === undefined) {
             throw "mos not deployed ..."
         }
         minter = proxy.address;
     }
     await (await token.connect(deployer).grantRole('0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6', minter))
-
 
     console.log("Grant token ", token.address, " to address", minter)
 }

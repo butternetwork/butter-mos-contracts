@@ -6,12 +6,12 @@ let IDeployFactory_abi = [
     "function deploy(bytes32 salt, bytes memory creationCode, uint256 value) external",
     "function getAddress(bytes32 salt) external view returns (address)"
 ]
-async function create(salt,bytecode,param){
+async function create(salt, bytecode, param){
     let [wallet] = await ethers.getSigners();
     let factory = await ethers.getContractAt(IDeployFactory_abi, DEPLOY_FACTORY, wallet);
     let salt_hash = await ethers.utils.keccak256(await ethers.utils.toUtf8Bytes(salt));
-    console.log("factory :", factory.address);
-    console.log("salt:", salt);
+    console.log("deploy factory address:", factory.address);
+    console.log("deploy salt:", salt);
     let addr = await factory.getAddress(salt_hash);
     let code = await ethers.provider.getCode(addr);
     let redeploy = false;
@@ -26,12 +26,12 @@ async function create(salt,bytecode,param){
             throw "deploy fail";
         }
     } else {
-        console.log("already deploy ...,if want to deploy another please change the salt");
+        console.log("already deploy, please change the salt if if want to deploy another contract ...");
     }
 
     return [addr,redeploy];
 }
-async function getMos(chainId,network) {
+async function getMos(chainId, network) {
 
     let deploy = await readFromFile(network);
     if(deploy[network]['mosProxy']){

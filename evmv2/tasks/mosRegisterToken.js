@@ -7,7 +7,7 @@ module.exports = async (taskArgs,hre) => {
 
     let mos = await getMos(chainId,hre.network.name)
 
-    if(!mos) {
+    if(mos === undefined) {
         throw "mos not deployed ..."
     }
     console.log("mos address:", mos.address);

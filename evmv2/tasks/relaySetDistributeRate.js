@@ -5,9 +5,9 @@ module.exports = async (taskArgs,hre) => {
     const chainId = await deployer.getChainId();
     console.log("deployer address:",deployer.address);
 
-    let mos = await getMos(chainId,hre.network.name);
+    let mos = await getMos(chainId, hre.network.name);
 
-    if(!mos){
+    if(mos === undefined){
         throw "mos not deployed .."
     }
 

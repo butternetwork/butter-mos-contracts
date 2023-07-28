@@ -1,6 +1,6 @@
 {
   "name": "@butternetwork/bridge",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Butter bridge contracts based on MAP Protocol",
   "files": [
     "artifacts/contracts/**/*.sol/*.json",
@@ -20,13 +20,13 @@
   "author": "Butter Network",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/butternetwork/butter-mos-contractsissues"
+    "url": "https://github.com/butternetwork/butter-mos-contracts/issues"
   },
   "homepage": "https://github.com/butternetwork/butter-mos-contracts#readme.md",
   "dependencies": {
+    "@openzeppelin/contracts": "^4.3.1",
     "@mapprotocol/protocol": "^0.2.1",
-    "@nomiclabs/hardhat-etherscan": "^2.1.8",
-    "@nomiclabs/hardhat-waffle": "^2.0.3",
+
     "ajv": "^8.8.2",
     "bignumber.js": "^9.0.1",
     "keythereum": "^1.2.0",
@@ -39,11 +39,11 @@
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers@^0.3.0-beta.7",
     "@nomiclabs/hardhat-solhint": "^2.0.0",
-    "@openzeppelin/contracts": "^4.3.1",
+    "@nomiclabs/hardhat-etherscan": "^2.1.8",
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
     "@types/chai": "^4.2.15",
     "@types/mocha": "^8.2.1",
     "@types/node": "^14.14.31",
-    "@uniswap/v2-core": "^1.0.1",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
     "concurrently": "^6.0.0",

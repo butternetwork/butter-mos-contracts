@@ -8,8 +8,8 @@ module.exports = async (taskArgs,hre) => {
     //let proxy = await hre.deployments.get("MAPVaultToken");
     let manager = taskArgs.manager;
     if (taskArgs.manager === "relay") {
-        let proxy = await getMos(chainId,hre.network.name)
-        if(!proxy) {
+        let proxy = await getMos(chainId, hre.network.name)
+        if(proxy === undefined) {
             throw "mos not deployed ..."
         }
         manager = proxy.address;
