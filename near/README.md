@@ -155,7 +155,7 @@ Then register the mcs/ft token to MOS.
     ./scripts/manage_ft_token.sh register $TOKEN $MINTABLE
     
     TOKEN="wrap.testnet"        # token Account Id
-    MINTABLE=true               # the token is not mintable
+    MINTABLE=false               # the token is not mintable
     
     ./scripts/manage_ft_token.sh register $TOKEN $MINTABLE
 ```

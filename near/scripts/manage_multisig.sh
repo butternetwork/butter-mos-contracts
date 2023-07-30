@@ -34,6 +34,7 @@ function printHelp() {
   echo "    set_paused  <mask>                       set paused flag to mcs contract"
   echo "  confirm <request id> <member>              confirm request"
   echo "  execute <request id> <account>             execute confirmed request"
+  echo "  set_req_limit  <limit> <member>           set multisig active request limit"
   echo "  help                                       show help"
 }
 
@@ -350,6 +351,21 @@ function execute() {
   near call $MULTISIG_ACCOUNT execute '{"request_id": '$1'}' --accountId $2 --gas 300000000000000
 }
 
+function set_req_limit() {
+  echo "set multisig active request limit to '$1'"
+  near call $MULTISIG_ACCOUNT add_request_and_confirm '{
+    "request": {
+      "receiver_id": "'$MULTISIG_ACCOUNT'",
+      "actions": [
+        {
+          "type": "SetActiveRequestsLimit",
+            "active_requests_limit": '$1'
+        }
+      ]
+    }
+  }' --accountId $2 --gas 300000000000000  --depositYocto 1
+}
+
 function request_and_confirm() {
   prepare_request $@
 
@@ -392,6 +408,15 @@ if [[ $# -gt 0 ]]; then
       if [[ $# == 3 ]]; then
         shift
         execute $@
+      else
+        printHelp
+        exit 1
+      fi
+      ;;
+    set_req_limit)
+      if [[ $# == 3 ]]; then
+        shift
+        set_req_limit $@
       else
         printHelp
         exit 1
