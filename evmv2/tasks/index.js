@@ -1,110 +1,51 @@
-
 task("mosDeploy",
     "Deploy the upgradeable MapCrossChainService contract and initialize it",
-    require("./mosDeploy")
+    require("./subs/mosDeploy")
 )
     .addParam("wrapped", "native wrapped token address")
     .addParam("lightnode", "lightNode contract address")
 
-task("relayFullDeploy",
-    "Deploy the upgradeable MapCrossChainServiceRelay contract and initialize it",
-    require("./relayFullDeploy")
+task("upgradeMOS",
+    "upgrade mos evm contract in proxy",
+    require("./subs/upgradeMOS")
 )
-    .addParam("wrapped", "native wrapped token address")
-    .addParam("lightnode", "lightNodeManager contract address")
+    .addParam("impl", "The mos impl address")
 
-task("vaultDeploy",
-    "Deploy the vault token",
-    require("./vaultDeploy")
+task("mosList",
+    "List mos relay infos",
+    require("./subs/mosList")
 )
-    .addParam("token", "The token address on relay chain")
-    .addParam("name", "The name of the vault token")
-    .addParam("symbol", "The symbol of the vault token")
+    .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
+    .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
 
-task("vaultAddManager",
-    "Add vaultToken manager",
-    require("./vaultAddManager")
+//settype
+//client -> Update client manager on relay chain or update light client on other chain
+//butterRouter ->  Update butter router contract address in MOS
+//tokenregister ->  update tokenRegister for mos in relay chain
+task("setUp",
+    "set associated contracts for mos",
+    require("./subs/setUp")
 )
-    .addParam("vault", "The vault token address")
-    .addOptionalParam("manager", "the manager address, default is relay", "relay", types.string)
+    .addParam("settype", "associated contracts type to set for mos")
+    .addParam("address", "associated contracts address")
 
-//Organized
 
-task("tokenDeploy",
-    "Deploy a token with role control",
-    require("./tokenDeploy")
-)
-    .addParam("name", "token name")
-    .addParam("symbol", "token symbol")
-    .addOptionalParam("decimals", "default 18", 18, types.int)
-    .addOptionalParam("balance", "init balance, default 0", 0, types.int)
-
-task("tokenGrant",
-    "Grant a mintable token mint role",
-    require("./tokenGrant")
-)
-    .addParam("token", "token address")
-    .addOptionalParam("minter", "minter address, default mos", "mos", types.string)
-
-task("tokenMint",
-    "mint token",
-    require("./tokenMint")
-)
-    .addParam("token", "token address")
-    .addParam("amount", "mint amount")
-
-task("mosSetRelay",
-    "Initialize MapCrossChainServiceRelay address for MapCrossChainService",
-    require("./mosSetRelay")
-)
-    .addParam("relay", "map chain relay contract address")
-    .addParam("chain", "map chain id")
-
-task("mosRegisterToken",
-    "MapCrossChainService settings allow cross-chain tokens",
-    require("./mosRegisterToken")
-)
-    .addParam("token", "token address")
-    .addParam("chains", "chain ids allowed to cross, separated by ',', ex. `1,2,3` ")
-    .addOptionalParam("enable", "true or false", true, types.boolean)
-
-task("setButterRouter",
-    "Set router contract address in MOS",
-    require("./setButterRouter")
-)
-    .addParam("router", "butter router address")
-
-task("mosSetMintableToken",
-    "MapCrossChainService settings mintable token",
-    require("./mosSetMintableToken")
-)
-    .addParam("token", "token address")
-    .addParam("mintable", "true or false",false,types.boolean)
-
-task("relayInit",
-    "Initialize mos contract",
-    require("./relayInit")
-)
-    .addParam("tokenregister","tokenRegister contract")
-
-task("setClient",
-    "Update client manager on relay chain or update light client on other chain",
-    require("./setClient")
-)
-    .addParam("client","client manager contract on relay chain or light client contract on other chain")
-
-task("relayRegisterChain",
-    "Register altchain mos to relay chain",
-    require("./relayRegisterChain")
+task("registerChain",
+    "Register altchain mos to relay chain or Initialize MapCrossChainServiceRelay address for MapCrossChainService",
+    require("./subs/registerChain")
 )
     .addParam("address", "mos contract address")
     .addParam("chain", "chain id")
     .addOptionalParam("type", "chain type, default 1", 1, types.int)
 
 
+
+
+// <------------------------------------------------ relay --------------------------------------->
+
 task("relayRegisterToken",
     "Register cross-chain token on relay chain",
-    require("./relayRegisterToken")
+    require("./subs/relayRegisterToken")
 )
     .addParam("token", "Token address")
     .addParam("vault", "vault token address")
@@ -112,7 +53,7 @@ task("relayRegisterToken",
 
 task("relayMapToken",
     "Map the altchain token to the token on relay chain",
-    require("./relayMapToken")
+    require("./subs/relayMapToken")
 )
     .addParam("token", "token address to relay chain")
     .addParam("chain", "cross-chain id")
@@ -122,7 +63,7 @@ task("relayMapToken",
 
 task("relaySetTokenFee",
     "Set token fee to target chain",
-    require("./relaySetTokenFee")
+    require("./subs/relaySetTokenFee")
 )
     .addParam("token", "relay chain token address")
     .addParam("chain", "target chain id")
@@ -132,79 +73,98 @@ task("relaySetTokenFee",
 
 task("relaySetDistributeRate",
     "Set the fee to enter the vault address",
-    require("./relaySetDistributeRate")
+    require("./subs/relaySetDistributeRate")
 )
     .addOptionalParam("type", "0 or 1, type 0 is vault, default 0", 0, types.int)
     .addOptionalParam("address", "receiver address", "0x0000000000000000000000000000000000000DEF", types.string)
     .addParam("rate", "The percentage value of the fee charged, unit 0.000001")
 
-task("transferOutToken",
-    "Cross-chain transfer token",
-    require("./transferOutToken")
-)
-    .addParam("mos", "the mos address")
-    .addOptionalParam("token", "The token address","0x0000000000000000000000000000000000000000",types.string)
-    .addOptionalParam("address", "The receiver address, default is msg.sender","",types.string)
-    .addParam("value", "transfer value, unit WEI")
-    .addParam("chain", "target chain id")
 
-task("swapOutToken",
-    "Cross-chain token swap",
-    require("./swapOutToken")
+
+//<---------------------------------------------mos----------------------------------------------->
+
+task("mosRegisterToken",
+    "MapCrossChainService settings allow cross-chain tokens",
+    require("./subs/mosRegisterToken")
 )
-    .addParam("mos", "the mos address")
-    .addOptionalParam("token", "The token address","0x0000000000000000000000000000000000000000",types.string)
-    .addOptionalParam("value", "token amount in Wei", '1000000000000000000')
-    .addOptionalParam("mapTargetToken", "target token on map", "0x0000000000000000000000000000000000000000",types.string)
-    .addOptionalParam("address", "The receiver address, default is msg.sender","",types.string)
-    .addParam("tochain", "target chain id")
-    // .addParam("swapData", "swap data route")
+    .addParam("token", "token address")
+    .addParam("chains", "chain ids allowed to cross, separated by ',', ex. `1,2,3` ")
+    .addOptionalParam("enable", "true or false", true, types.boolean)
+
+
+task("mosSetMintableToken",
+    "MapCrossChainService settings mintable token",
+    require("./subs/mosSetMintableToken")
+)
+    .addParam("token", "token address")
+    .addParam("mintable", "true or false",false,types.boolean)
+
+
+    
+
+//<-----------------------------------------------utils------------------------------->
+
+task("tokenDeploy",
+    "Deploy a token with role control",
+    require("./subs/tokenDeploy")
+)
+    .addParam("name", "token name")
+    .addParam("symbol", "token symbol")
+    .addOptionalParam("decimals", "default 18", 18, types.int)
+    .addOptionalParam("balance", "init balance, default 0", 0, types.int)
+
+task("tokenGrant",
+    "Grant a mintable token mint role",
+    require("./subs/tokenGrant")
+)
+    .addParam("token", "token address")
+    .addOptionalParam("minter", "minter address, default mos", "mos", types.string)
+
+task("tokenMint",
+    "mint token",
+    require("./subs/tokenMint")
+)
+    .addParam("token", "token address")
+    .addParam("amount", "mint amount")
+
+task("vaultDeposit",
+    "vaultDeposit",
+    require("./subs/vaultDeposit.js")
+).addParam("fromchain", "fromchainId")
 
 
 task("depositOutToken",
     "Cross-chain deposit token",
-    require("./depositOutToken")
+    require("./subs/depositOutToken")
 )
     .addParam("mos", "The mos address")
     .addOptionalParam("token", "The token address","0x0000000000000000000000000000000000000000",types.string)
     .addOptionalParam("address", "The receiver address","",types.string)
     .addParam("value", "deposit value, unit WEI")
 
+task("vaultDeploy",
+    "Deploy the vault token",
+    require("./subs/vaultDeploy")
+)
+    .addParam("token", "The token address on relay chain")
+    .addParam("name", "The name of the vault token")
+    .addParam("symbol", "The symbol of the vault token")
+
+task("vaultAddManager",
+    "Add vaultToken manager",
+    require("./subs/vaultAddManager")
+)
+    .addParam("vault", "The vault token address")
+    .addOptionalParam("manager", "the manager address, default is relay", "relay", types.string)  
+
+    
 task("withdraw",
     "withdraw token",
-    require("./withdraw")
+    require("./subs/withdraw")
 )
     .addParam("mos", "The mos address")
     .addOptionalParam("token", "The token address","0x0000000000000000000000000000000000000000",types.string)
     .addOptionalParam("address", "The receiver address","",types.string)
     .addParam("value", "withdraw value")
 
-task("relayList",
-    "List mos relay infos",
-    require("./relayList")
-)
-    .addOptionalParam("relay", "The mos address, default mos", "relay", types.string)
-    .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
 
-task("mosList",
-    "List mos relay infos",
-    require("./mosList")
-)
-    .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
-    .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
-
-task("upgradeMOS",
-    "upgrade mos evm contract in proxy",
-    require("./upgradeMOS")
-)
-    .addParam("impl", "The mos impl address")
-
-task("swapIn",
-    "swapIn",
-    require("./swapIn.js")
-)
-
-task("vaultDeposit",
-    "vaultDeposit",
-    require("./vaultDeposit.js")
-).addParam("fromchain", "fromchainId")

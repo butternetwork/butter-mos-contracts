@@ -1,5 +1,4 @@
-let {create,readFromFile,writeToFile} = require("../utils/helper.js")
-const {getMos} = require("../utils/helper");
+let {create,readFromFile,writeToFile} = require("../../utils/helper.js")
 //const hre = require("hardhat");
 
 module.exports = async (taskArgs, hre) => {

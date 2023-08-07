@@ -54,7 +54,7 @@ The following steps help to deploy MOS relay contracts on Map mainnet or Makalu 
 1. Deploy Fee Center and Token Register
 
 ```
-npx hardhat deploy --tags TokenRegister --network <network>
+npx hardhat deploy --tags TokenRegisterV2 --network <network>
 ```
 
 2. Deploy MOS Relay
@@ -66,16 +66,26 @@ npx hardhat mosDeploy --wrapped <wrapped token> --lightnode <lightNodeManager ad
 * `wrapped token` is wrapped MAP token address on MAP mainnet or MAP Makalu.
 * `lightNodeManager address` is the light client mananger address deployed on MAP mainnet or MAP Makalu. See [here](../protocol/README.md) for more information.
 
-3. Init MOS Relay
+3. Init MOS Relay (settype must be 'tokenregister' do not modify)
 
 ```
-npx hardhat relayInit  --tokenregister <token register address> --network <network>
+npx hardhat setUp --settype tokenregister --address <token register address> --network <network>
 ```
 
-4. sets fee distribution
+4. set light client manager(if need change from deploy)
+
+   ```
+   npx hardhat setUp --settype client --address <light client manager address> --network <network>
+   ```
+5. set butter router
+
+   ```
+   npx hardhat setUp --settype butterRouter --address <butter router address> --network <network>
+   ```
+6. sets fee distribution
 
 ````
-npx hardhat managerSetDistributeRate --type <0 to the token vault, 1 to specified receiver> --address <fee receiver address> --rate <rate 0-1000000, uni 0.000001> --network <network>
+npx hardhat relaySetDistributeRate --type <0 to the token vault, 1 to specified receiver> --address <fee receiver address> --rate <rate 0-1000000, uni 0.000001> --network <network>
 ````
 
 ### MOS on EVM Chains
@@ -90,14 +100,24 @@ npx hardhat mosDeploy --wrapped <native wrapped address> --lightnode <lightnode 
    The following command on the EVM compatible chain
 
 ```
-npx hardhat mosSetRelay --relay <Relay address> --chain <map chainId> --network <network>
+npx hardhat registerChain --address <Relay address> --chain <map chainId> --network <network>
 ```
 
-3. Register
+3. set light client(if need change from deploy)
+
+   ```
+   npx hardhat setUp --settype client --address <light client manager address> --network <network>
+   ```
+4. set butter router
+
+   ```
+   npx hardhat setUp --settype butterRouter --address <butter router address> --network <network>
+   ```
+5. Register
    The following command applies to the cross-chain contract configuration of Map mainnet and Makalu testnet
 
 ```
-npx hardhat relayRegisterChain --address <MAPOmnichainService address> --chain <chain id> --network <network>
+npx hardhat registerChain  --address <MAPOmnichainService address> --chain <chain id> --network <network>
 ```
 
 ### MOS on other chain
@@ -105,7 +125,7 @@ npx hardhat relayRegisterChain --address <MAPOmnichainService address> --chain <
 The following four commands are generally applicable to Map mainnet and Makalu testnet
 
 ```
-npx hardhat relayRegisterChain --address <MAPOmnichainService address> --chain <near chain id> --type 2 --network <network>
+npx hardhat registerChain --address <MAPOmnichainService address> --chain <near chain id> --type 2 --network <network>
 ```
 
 **NOTE**: Near Protocol testnet chain id 5566818579631833089, mainnet chain id 5566818579631833088
@@ -179,12 +199,6 @@ npx hardhat mosSetMintableToken --token <token address> --mintable <true/false> 
 npx hardhat mosRegisterToken --token <token address> --chains < chain ids,separated by ',' > --network <network>
 ````
 
-## SetButterRouter
-
-```
-npx hardhat setButterRouter --router <butter router address> --network <network>
-```
-
 ## Upgrade
 
 When upgrade the mos contract through the following commands.
@@ -199,15 +213,9 @@ npx hardhat upgradeMOS --impl <mos impl address> --network <network>
 
 zero address : 0x0000000000000000000000000000000000000000
 
-## Token cross-chain transfer deposit
+## Token cross-chain  deposit
 
-1. token transfer
-
-```
-npx hardhat transferOutToken --mos <mos or relay address> --token <token address> --address <receiver address> --value <transfer value> --chain <chain id> --network <network>
-```
-
-2. token depsit
+1. token depsit
 
 ```
 npx hardhat depositOutToken --mos <mos address> --token <token address> --address <receiver address> --value <transfer value> --network <network>
@@ -222,22 +230,16 @@ transfer native token to other chain:
 npx hardhat depositOutToken --mos <mos or relay address>  --address <receiver address> --value <transfer value> --network <network>
 ```
 
-transfer native token to sender's address:
-
-```
-npx hardhat transferOutToken --mos <mos or relay address> --value <transfer value> --chain <chain id> --network <network>
-```
-
 ## List token mapped chain
 
 1. relay chain
 
 ```
-npx hardhat relayList --relay <relay address> --token <token address> --network <network>
+npx hardhat mosList --mos <relay address> --token <token address> --network <network>
 ```
 
 2. altchains
 
 ```
-npx hardhat mosList --mos <relay address> --token <token address> --network <network>
+npx hardhat mosList --mos <mos address> --token <token address> --network <network>
 ```

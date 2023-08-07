@@ -1,4 +1,4 @@
-let {getMos} = require("../utils/helper.js")
+let {getMos} = require("../../utils/helper.js")
 module.exports = async (taskArgs,hre) => {
     const accounts = await ethers.getSigners()
     const deployer = accounts[0];

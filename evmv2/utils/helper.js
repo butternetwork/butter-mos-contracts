@@ -46,15 +46,6 @@ async function getMos(chainId, network) {
     }
     return undefined;
 }
-// async function getTokenRegister(network){
-//     let deploy = await readFromFile(network);
-//     if(!deploy[network]['tokenRegister']) {
-//        let TokenRegister =  await ethers.getContractFactory("TokenRegisterV2")
-//        let tokenRegister = TokenRegister.attach(deploy[network]['tokenRegister'])
-//        return tokenRegister
-//     }
-//      return undefined;
-// }
 
 async function readFromFile(network) {
     let p = path.join(__dirname, "../deployments/mos.json")
