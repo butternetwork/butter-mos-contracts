@@ -25,7 +25,6 @@ module.exports = async (taskArgs) => {
 
     let vaultToken = await ethers.getContractAt("IERC20", vaultAddress);
 
-
     await (await mos.connect(deployer).withdraw(
         vaultAddress,
         taskArgs.value

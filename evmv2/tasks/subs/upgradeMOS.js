@@ -1,4 +1,4 @@
-let {getMos,create,readFromFile,writeToFile} = require("../utils/helper.js")
+let {getMos,create,readFromFile,writeToFile} = require("../../utils/helper.js")
 module.exports = async (taskArgs, hre) => {
     const {deploy} = hre.deployments
     const accounts = await ethers.getSigners()
@@ -41,7 +41,4 @@ module.exports = async (taskArgs, hre) => {
 
     console.log("upgrade mos impl to address:", impl_addr)
 
-    //let d = await readFromFile(hre.network.name);
-    //d[hre.network.name]['mosImpl'] = impl_addr;
-    //await writeToFile(d);
 }
