@@ -398,7 +398,6 @@ impl MAPOServiceV2 {
     ) -> PromiseOrValue<U128> {
         self.check_token_to_chain(&token, to_chain);
         self.check_to_account(to.clone(), to_chain.into());
-        self.check_amount(&token, amount.0);
         let order_id = self.get_order_id(&from.to_string(), &to, to_chain.into());
 
         let event = SwapOutEvent {
@@ -457,7 +456,6 @@ impl MAPOServiceV2 {
         let amount = U128::from(env::attached_deposit());
         let swap_fee_info = self.build_swap_fee_info(amount, &swap_info);
         let swap_amount = U128::from(amount.0 - swap_fee_info.fee_amount.0);
-        self.check_amount(&self.wrapped_token, swap_amount.0);
 
         ext_wnear_token::ext(self.wrapped_token.clone())
             .with_static_gas(NEAR_DEPOSIT_GAS)
@@ -807,7 +805,6 @@ impl MAPOServiceV2 {
         if self.valid_mcs_token_out(&token, to_chain) {
             assert_eq!(msg_type, MsgType::Deposit, "msg type is invalid: {:?}", msg_type);
             self.check_to_account(to.clone(), to_chain.into());
-            self.check_amount(&token, amount.0);
             let from = env::signer_account_id().to_string();
             let order_id = self.get_order_id(&from, &to, to_chain.into());
 
@@ -859,7 +856,6 @@ impl MAPOServiceV2 {
             "native token to chain {} is not supported",
             to_chain.0
         );
-        self.check_amount(&self.wrapped_token, amount);
 
         let from = env::signer_account_id().to_string();
         let order_id = self.get_order_id(&from, &to, to_chain.into());
@@ -911,8 +907,8 @@ impl MAPOServiceV2 {
 
         event.basic_check(self.wrapped_token.clone());
 
-        self.check_token(&event.get_token_in());
-        self.check_token(&event.get_token_out());
+        self.check_bridgeable_token(&event.get_token_in());
+        self.check_registered_or_native_token(&event.get_token_out());
     }
 
     fn is_owner(&self) -> bool {
@@ -940,12 +936,20 @@ impl MAPOServiceV2 {
         );
     }
 
-    fn check_token(&self, token: &AccountId) {
+    fn check_bridgeable_token(&self, token: &AccountId) {
         assert!(
             self.mcs_tokens.get(token).is_some()
-                || self.fungible_tokens.get(token).is_some()
+                || self.fungible_tokens.get(token).is_some(),
+            "to_chain_token {} is not mcs token or fungible token",
+            token
+        );
+    }
+
+    fn check_registered_or_native_token(&self, token: &AccountId) {
+        assert!(
+            self.registered_tokens.get(token).is_some()
                 || self.is_native_token(token),
-            "to_chain_token {} is not mcs token or fungible token or native token",
+            "to_chain_token {} is not registered token or native token",
             token
         );
     }

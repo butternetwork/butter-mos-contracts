@@ -189,11 +189,18 @@ impl MAPOServiceV2 {
         decimals: u8,
         mintable: bool,
     ) -> Promise {
+        let mut fee_receiver_count: u64 = 0;
+        for (_, entrance_info) in self.swap_entrance_infos.iter() {
+            if entrance_info.fee_rate.0 != 0 {
+                fee_receiver_count += 1;
+            }
+        }
         assert_eq!(
             env::promise_results_count(),
-            self.core_total.len() as u64 + 2,
+            self.core_total.len() as u64 + fee_receiver_count + 2,
             "wrong promise results"
         );
+
         for i in 0..env::promise_results_count() {
             if env::promise_result(i) == PromiseResult::Failed
                 || env::promise_result(i) == PromiseResult::NotReady
