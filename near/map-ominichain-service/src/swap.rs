@@ -260,7 +260,8 @@ impl MAPOServiceV2 {
         swap_fee_info: SwapFeeInfo,
     ) -> PromiseOrValue<U128> {
         self.check_not_paused(PAUSE_SWAP_OUT_TOKEN);
-        self.check_swap_param(&token, swap_amount, &swap_info);
+        self.check_swap_param(&token, &swap_info);
+        self.check_registered_or_native_token(&src_token);
 
         if swap_info.src_swap.is_empty() {
             self.bridge_out_token(
@@ -283,7 +284,6 @@ impl MAPOServiceV2 {
             let last_action = swap_info.src_swap.last().unwrap().to_swap_action();
             self.check_token_to_chain(&last_action.token_out, to_chain);
             self.check_to_account(to.clone(), to_chain.into());
-            self.check_amount(&last_action.token_out, last_action.min_amount_out.into());
 
             let actions = swap_info
                 .clone()
@@ -517,7 +517,7 @@ impl MAPOServiceV2 {
 }
 
 impl MAPOServiceV2 {
-    fn check_swap_param(&self, token: &AccountId, amount: U128, swap_info: &SwapInfo) {
+    fn check_swap_param(&self, token: &AccountId, swap_info: &SwapInfo) {
         if !swap_info.src_swap.is_empty() {
             let actions: Vec<SwapAction> = swap_info
                 .src_swap
@@ -536,7 +536,6 @@ impl MAPOServiceV2 {
                 prev_token = action.token_out;
             }
         }
-        self.check_amount(token, amount.0);
     }
 
     // pub fn call_core_swap_in(

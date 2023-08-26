@@ -24,9 +24,9 @@ function deploy_token() {
   echo "creating account $token"
   near create-account $token --masterAccount $3 --initialBalance 5
   echo "deploying token contract to $token"
-  near deploy $token --wasmFile=$SCRIPT_DIR/res/mcs_token.wasm
+  near deploy $token --wasmFile=$SCRIPT_DIR/res/mos_token.wasm
   echo "initializing token contract $token"
-  near call $token new '{"owner": "'$3'"}' --accountId $3
+  near call $token new '{"owner": "'$3'", "controller":"'$3'"}' --accountId $3
   near call $token set_metadata '{"address": "'$token'", "decimals": '$2'}' --accountId $3
 }
 
