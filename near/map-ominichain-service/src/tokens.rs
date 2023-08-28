@@ -15,6 +15,8 @@ const CALLBACK_FINISH_REGISTER_TOKEN_GAS: Gas = Gas(20_000_000_000_000);
 /// Gas to call storage_balance_bounds on ext fungible contract
 const STORAGE_BALANCE_BOUNDS_GAS: Gas = Gas(30_000_000_000_000);
 
+const STORAGE_TO_REGISTER_WITH_FT: Balance = 10u128.pow(24) * 1 / 10; // 0.1 NEAR
+
 #[near_bindgen]
 impl MAPOServiceV2 {
     #[payable]
@@ -24,11 +26,11 @@ impl MAPOServiceV2 {
             "token {} has already been registered!",
             token
         );
-        let count = (self.core_total.len() + 2) as u128;
+        let count = self.get_account_count_to_deposit_storage();
         let deposit = env::attached_deposit();
 
         if mintable {
-            let required = count * self.mcs_storage_balance_min;
+            let required = count as u128 * self.mcs_storage_balance_min;
             assert!(
                 deposit >= required,
                 "not enough attached deposit, required: {}, actual: {}",
@@ -44,7 +46,7 @@ impl MAPOServiceV2 {
                         .with_attached_deposit(deposit)
                         .with_static_gas(
                             CALLBACK_STORAGE_DEPOSIT_FOR_CONTRACTS_GAS
-                                + STORAGE_DEPOSIT_GAS * count as u64
+                                + STORAGE_DEPOSIT_GAS * count
                                 + CALLBACK_FINISH_REGISTER_TOKEN_GAS,
                         )
                         .callback_storage_deposit_for_contracts(
@@ -64,7 +66,7 @@ impl MAPOServiceV2 {
                             CALLBACK_GET_FT_METADATA_GAS
                                 + FT_METADATA_GAS
                                 + CALLBACK_STORAGE_DEPOSIT_FOR_CONTRACTS_GAS
-                                + STORAGE_DEPOSIT_GAS * count as u64
+                                + STORAGE_DEPOSIT_GAS * count
                                 + CALLBACK_FINISH_REGISTER_TOKEN_GAS,
                         )
                         .callback_get_ft_metadata(token),
@@ -86,7 +88,7 @@ impl MAPOServiceV2 {
             PromiseResult::Successful(x) => {
                 let metadata = serde_json::from_slice::<FungibleTokenMetadata>(&x).unwrap();
                 let deposit =
-                    env::attached_deposit() - (self.core_total.len() + 2) as u128 * min_bound.0;
+                    env::attached_deposit() - self.get_account_count_to_deposit_storage() as u128 * min_bound.0;
 
                 let mut promise = ext_fungible_token::ext(token.clone())
                     .with_static_gas(STORAGE_DEPOSIT_GAS)
@@ -145,39 +147,41 @@ impl MAPOServiceV2 {
         assert_eq!(env::promise_results_count(), 1, "ERR_TOO_MANY_RESULTS");
         let deposit = env::attached_deposit();
 
-        match env::promise_result(0) {
+        let min_bound = match env::promise_result(0) {
+            PromiseResult::NotReady => env::abort(),
             PromiseResult::Successful(x) => {
                 let bounds = serde_json::from_slice::<StorageBalanceBounds>(&x).unwrap();
-                let count = (self.core_total.len() + 2) as u128;
-                let required = count * bounds.min.0;
-                if deposit < required {
-                    let msg = format!(
-                        "not enough attached deposit, required: {}, actual: {}",
-                        required, deposit
-                    );
-                    return self.revert_state(deposit, None, msg);
-                }
-
-                ext_fungible_token::ext(token.clone())
-                    .with_static_gas(FT_METADATA_GAS)
-                    .ft_metadata()
-                    .then(
-                        Self::ext(env::current_account_id())
-                            .with_attached_deposit(deposit)
-                            .with_static_gas(
-                                CALLBACK_STORAGE_DEPOSIT_FOR_CONTRACTS_GAS
-                                    + STORAGE_DEPOSIT_GAS * count as u64
-                                    + CALLBACK_FINISH_REGISTER_TOKEN_GAS,
-                            )
-                            .callback_storage_deposit_for_contracts(token, bounds.min, false),
-                    )
+                bounds.min
             }
-            _ => self.revert_state(
-                deposit,
-                None,
-                format!("get ft metadata of token {} failed", token),
-            ),
+            _ => {
+                log!("get storage_balance_bounds of token {} failed, use 0.1 NEAR instead", token);
+                U128(STORAGE_TO_REGISTER_WITH_FT)
+            }
+        };
+
+        let count = self.get_account_count_to_deposit_storage() as u128;
+        let required = count * min_bound.0;
+        if deposit < required {
+            let msg = format!(
+                "not enough attached deposit, required: {}, actual: {}",
+                required, deposit
+            );
+            return self.revert_state(deposit, None, msg);
         }
+
+        ext_fungible_token::ext(token.clone())
+            .with_static_gas(FT_METADATA_GAS)
+            .ft_metadata()
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_attached_deposit(deposit)
+                    .with_static_gas(
+                        CALLBACK_STORAGE_DEPOSIT_FOR_CONTRACTS_GAS
+                            + STORAGE_DEPOSIT_GAS * count as u64
+                            + CALLBACK_FINISH_REGISTER_TOKEN_GAS,
+                    )
+                    .callback_storage_deposit_for_contracts(token, min_bound, false),
+            )
     }
 
     #[private]
@@ -189,15 +193,9 @@ impl MAPOServiceV2 {
         decimals: u8,
         mintable: bool,
     ) -> Promise {
-        let mut fee_receiver_count: u64 = 0;
-        for (_, entrance_info) in self.swap_entrance_infos.iter() {
-            if entrance_info.fee_rate.0 != 0 {
-                fee_receiver_count += 1;
-            }
-        }
         assert_eq!(
             env::promise_results_count(),
-            self.core_total.len() as u64 + fee_receiver_count + 2,
+            self.get_account_count_to_deposit_storage(),
             "wrong promise results"
         );
 
@@ -209,7 +207,7 @@ impl MAPOServiceV2 {
                     env::attached_deposit(),
                     None,
                     format!(
-                        "storage deposit to token {} for mcs/core/ref-exchange failed",
+                        "storage deposit to token {} for mos/core/ref-exchange/fee receiver failed",
                         token
                     ),
                 );
@@ -224,6 +222,14 @@ impl MAPOServiceV2 {
         }
 
         Promise::new(env::signer_account_id()).transfer(env::attached_deposit())
+    }
+
+    pub fn get_registered_tokens(&self) -> HashMap<String, bool> {
+        let mut map: HashMap<String, bool> = HashMap::new();
+        for (x, y) in self.registered_tokens.to_vec() {
+            map.insert(x.to_string(), y);
+        }
+        map
     }
 
     pub fn add_mcs_token_to_chain(&mut self, token: AccountId, to_chain: U128) {
@@ -362,5 +368,17 @@ impl MAPOServiceV2 {
             .into_iter()
             .map(U128)
             .collect()
+    }
+
+    fn get_account_count_to_deposit_storage(&self) -> u64 {
+        let mut count = self.core_total.len() as u64 + 2; // 2: mos + ref
+
+        for (_, entrance_info) in self.swap_entrance_infos.iter() {
+            if entrance_info.fee_rate.0 != 0 {
+                count += 1;
+            }
+        }
+
+        count
     }
 }

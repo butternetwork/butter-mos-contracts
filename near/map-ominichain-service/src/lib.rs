@@ -364,7 +364,8 @@ impl MAPOServiceV2 {
             serde_json::to_string(&event).unwrap()
         );
 
-        if let Some(transfer_out_event) = event.to_transfer_out_event() {
+        let force = !self.is_registered_or_native_token(&event.get_token_out());
+        if let Some(transfer_out_event) = event.to_transfer_out_event(force) {
             self.process_transfer_in(&transfer_out_event)
         } else {
             self.process_swap_in(&event)
@@ -640,8 +641,8 @@ impl MAPOServiceV2 {
         let token_in = event.get_token_in();
         let token_out = event.get_token_out();
         let target_account = event.get_to_account();
-        let storage_balance_in = self.get_storage_deposit_balance(&token_in, true);
-        let storage_balance_out = self.get_storage_deposit_balance(&token_out, false);
+        let storage_balance_in = self.get_storage_deposit_balance(&token_in);
+        let storage_balance_out = self.get_storage_deposit_balance(&token_out);
 
         assert!(
             ret_deposit >= storage_balance_in + storage_balance_out,
@@ -650,7 +651,6 @@ impl MAPOServiceV2 {
             ret_deposit
         );
 
-        // make sure ret_deposit is enough for token in storage deposit
         if storage_balance_out > 0 {
             ret_deposit -= storage_balance_out;
             ext_fungible_token::ext(token_out.clone())
@@ -881,14 +881,17 @@ impl MAPOServiceV2 {
             )
     }
 
-    fn get_storage_deposit_balance(&self, token: &AccountId, deposit_wrap_token: bool) -> Balance {
-        if self.mcs_tokens.get(token).is_some() {
-            self.mcs_storage_balance_min
-        } else if self.fungible_tokens.get(token).is_some() {
-            self.fungible_tokens_storage_balance.get(token).unwrap()
-        } else if deposit_wrap_token && self.is_native_token(token) {
+    fn get_storage_deposit_balance(&self, token: &AccountId) -> Balance {
+        if let Some(mintable) = self.registered_tokens.get(&token) {
+            if mintable {
+                return self.mcs_storage_balance_min;
+            } else {
+                self.fungible_tokens_storage_balance.get(token).unwrap()
+            }
+        } else if self.wrapped_token.eq(token) {
             self.mcs_storage_balance_min
         } else {
+            // native token
             0
         }
     }
@@ -908,7 +911,6 @@ impl MAPOServiceV2 {
         event.basic_check(self.wrapped_token.clone());
 
         self.check_bridgeable_token(&event.get_token_in());
-        self.check_registered_or_native_token(&event.get_token_out());
     }
 
     fn is_owner(&self) -> bool {
@@ -940,18 +942,22 @@ impl MAPOServiceV2 {
         assert!(
             self.mcs_tokens.get(token).is_some()
                 || self.fungible_tokens.get(token).is_some(),
-            "to_chain_token {} is not mcs token or fungible token",
+            "token {} is not bridgeable token",
             token
         );
     }
 
     fn check_registered_or_native_token(&self, token: &AccountId) {
         assert!(
-            self.registered_tokens.get(token).is_some()
-                || self.is_native_token(token),
-            "to_chain_token {} is not registered token or native token",
+            self.is_registered_or_native_token(token),
+            "token {} is not registered token or native token",
             token
         );
+    }
+
+    fn is_registered_or_native_token(&self, token: &AccountId) -> bool {
+        self.registered_tokens.get(token).is_some()
+            || self.is_native_token(token)
     }
 
     fn check_token_to_chain(&self, token: &AccountId, to_chain: U128) {

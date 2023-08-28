@@ -78,38 +78,12 @@ impl MAPOServiceV2 {
             panic_str("core already exists!")
         }
 
-        let mut promise = Promise::new(env::current_account_id());
-        for token in self.fungible_tokens.keys() {
-            promise = promise.then(
-                ext_fungible_token::ext(token.clone())
-                    .with_static_gas(STORAGE_DEPOSIT_GAS)
-                    .with_attached_deposit(
-                        self.fungible_tokens_storage_balance.get(&token).unwrap(),
-                    )
-                    .storage_deposit(Some(butter_core.clone()), Some(true)),
-            );
-        }
-
-        for token in self.mcs_tokens.keys() {
-            promise = promise.then(
-                ext_fungible_token::ext(token.clone())
-                    .with_static_gas(STORAGE_DEPOSIT_GAS)
-                    .with_attached_deposit(self.mcs_storage_balance_min)
-                    .storage_deposit(Some(butter_core.clone()), Some(true)),
-            );
-        }
-        promise
-            .then(
-                ext_fungible_token::ext(self.wrapped_token.clone())
-                    .with_static_gas(STORAGE_DEPOSIT_GAS)
-                    .with_attached_deposit(self.mcs_storage_balance_min)
-                    .storage_deposit(Some(butter_core.clone()), Some(true)),
-            )
-            .then(
-                Self::ext(env::current_account_id())
-                    .with_static_gas(CALLBACK_ADD_BUTTER_CORE_GAS)
-                    .callback_add_butter_core(butter_core),
-            )
+        let promise = self.storage_deposit_to_token_for_account(butter_core.clone());
+        promise.then(
+            Self::ext(env::current_account_id())
+                .with_static_gas(CALLBACK_ADD_BUTTER_CORE_GAS)
+                .callback_add_butter_core(butter_core),
+        )
     }
 
     #[private]
@@ -182,33 +156,8 @@ impl MAPOServiceV2 {
             return PromiseOrValue::Value(());
         }
 
-        let mut promise = Promise::new(env::current_account_id());
-        for token in self.fungible_tokens.keys() {
-            promise = promise.then(
-                ext_fungible_token::ext(token.clone())
-                    .with_static_gas(STORAGE_DEPOSIT_GAS)
-                    .with_attached_deposit(
-                        self.fungible_tokens_storage_balance.get(&token).unwrap(),
-                    )
-                    .storage_deposit(Some(fee_receiver.clone()), Some(true)),
-            );
-        }
-
-        for token in self.mcs_tokens.keys() {
-            promise = promise.then(
-                ext_fungible_token::ext(token.clone())
-                    .with_static_gas(STORAGE_DEPOSIT_GAS)
-                    .with_attached_deposit(self.mcs_storage_balance_min)
-                    .storage_deposit(Some(fee_receiver.clone()), Some(true)),
-            );
-        }
+        let promise = self.storage_deposit_to_token_for_account(fee_receiver.clone());
         promise
-            .then(
-                ext_fungible_token::ext(self.wrapped_token.clone())
-                    .with_static_gas(STORAGE_DEPOSIT_GAS)
-                    .with_attached_deposit(self.mcs_storage_balance_min)
-                    .storage_deposit(Some(fee_receiver.clone()), Some(true)),
-            )
             .then(
                 Self::ext(env::current_account_id())
                     .with_static_gas(CALLBACK_ADD_SWAP_ENTRANCE)
@@ -653,5 +602,37 @@ impl MAPOServiceV2 {
             fee_amount,
             fee_receiver: entrance_info.fee_receiver,
         }
+    }
+
+    fn storage_deposit_to_token_for_account(&self, account: AccountId) -> Promise {
+        let mut promise = Promise::new(env::current_account_id());
+
+        for (token, mintable) in self.registered_tokens.iter() {
+            if mintable {
+                promise = promise.then(
+                    ext_fungible_token::ext(token.clone())
+                        .with_static_gas(STORAGE_DEPOSIT_GAS)
+                        .with_attached_deposit(self.mcs_storage_balance_min)
+                        .storage_deposit(Some(account.clone()), Some(true)),
+                );
+            } else {
+                promise = promise.then(
+                    ext_fungible_token::ext(token.clone())
+                        .with_static_gas(STORAGE_DEPOSIT_GAS)
+                        .with_attached_deposit(
+                            self.fungible_tokens_storage_balance.get(&token).unwrap(),
+                        )
+                        .storage_deposit(Some(account.clone()), Some(true)),
+                );
+            }
+        }
+
+        promise
+            .then(
+                ext_fungible_token::ext(self.wrapped_token.clone())
+                    .with_static_gas(STORAGE_DEPOSIT_GAS)
+                    .with_attached_deposit(self.mcs_storage_balance_min)
+                    .storage_deposit(Some(account.clone()), Some(true)),
+            )
     }
 }

@@ -439,7 +439,7 @@ impl SwapOutEvent {
         log!("{}{}", SWAP_OUT_TYPE, self);
     }
 
-    pub fn to_transfer_out_event(&self) -> Option<TransferOutEvent> {
+    pub fn to_transfer_out_event(&self, force: bool) -> Option<TransferOutEvent> {
         if self.raw_swap_data.swap_param.is_empty() {
             Some(TransferOutEvent {
                 from_chain: self.from_chain,
@@ -450,6 +450,17 @@ impl SwapOutEvent {
                 to: self.to.clone(),
                 amount: self.amount,
                 to_chain_token: self.raw_swap_data.target_token.clone(),
+            })
+        } else if force {
+            Some(TransferOutEvent {
+                from_chain: self.from_chain,
+                to_chain: self.to_chain,
+                order_id: self.order_id,
+                token: self.token.clone(),
+                from: self.from.clone(),
+                to: self.to.clone(),
+                amount: self.amount,
+                to_chain_token: self.token.clone(),
             })
         } else {
             None
