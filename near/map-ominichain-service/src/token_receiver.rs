@@ -14,10 +14,6 @@ pub enum TokenReceiverMessage {
         to_chain: U128,
         swap_info: SwapInfo,
     },
-    LostFound {
-        account: AccountId,
-        is_native: bool,
-    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -95,14 +91,6 @@ impl FungibleTokenReceiver for MAPOServiceV2 {
                     swap_info,
                     swap_fee_info
                 )
-            }
-            TokenReceiverMessage::LostFound { account, is_native: _ } => {
-                let mut token_amount = self.lost_found.remove(&account).unwrap_or_default();
-                let total = token_amount.remove(&token).unwrap_or_default();
-                token_amount.insert(token, total + amount.0);
-                self.lost_found.insert(&account, &token_amount);
-
-                PromiseOrValue::Value(U128(0))
             }
         }
     }
