@@ -1,3 +1,4 @@
 require("./subs/service.js")
 require("./subs/relay.js");
-require("./subs/tools.js");
+require("./subs/token.js");
+require("./subs/vault.js");

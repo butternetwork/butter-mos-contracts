@@ -32,8 +32,8 @@ task("relay:upgrade", "upgrade mos evm contract in proxy")
 //client -> Update client manager on relay chain
 //butterrouter ->  Update butter router contract address in MOS
 //tokenregister ->  update tokenRegister for mos in relay chain
-task("relay:setUp","set associated contracts for mos")
-    .addParam("settype", "associated contracts type to set for mos")
+task("relay:setup","set associated contracts for mos")
+    .addParam("type", "associated contracts type (client/router/register) to set for mos")
     .addParam("address", "associated contracts address")
     .setAction(async (taskArgs,hre) => {
         const accounts = await ethers.getSigners()
@@ -46,13 +46,13 @@ task("relay:setUp","set associated contracts for mos")
 
         console.log("mos address", mos.address);
 
-        if(taskArgs.settype === 'client'){
+        if(taskArgs.type === 'client'){
             await (await mos.connect(deployer).setLightClientManager(taskArgs.address)).wait();
             console.log("set client manager:", taskArgs.address);
-        } else if(taskArgs.settype === 'butterrouter'){
+        } else if(taskArgs.type === 'router'){
             await (await mos.connect(deployer).setButterRouterAddress(taskArgs.address)).wait();
             console.log(`mos set butter router to ${taskArgs.address} `);
-        } else if(taskArgs.settype === 'tokenregister'){
+        } else if(taskArgs.type === 'tokenregister'){
             await (await mos.connect(deployer).setTokenRegister(taskArgs.address)).wait();
             console.log("set token register:", taskArgs.address);
         } else {
@@ -227,7 +227,7 @@ task("relay:list","List relay infos")
         const chainId = await deployer.getChainId();
         console.log("deployer address:",deployer.address);
         let address = taskArgs.mos;
-        if (address == "mos") {
+        if (address === "mos") {
             let proxy = await getMos(chainId,hre.network.name)
             if(!proxy) {
                 throw "mos not deployed ..."
