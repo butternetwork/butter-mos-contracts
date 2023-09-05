@@ -53,6 +53,63 @@ task("token:deposit","Cross-chain deposit token")
     })
 
 
+task("token:transfer","Cross-chain transfer token")
+    .addOptionalParam("token", "The token address","0x0000000000000000000000000000000000000000",types.string)
+    .addOptionalParam("address", "The receiver address","",types.string)
+    .addOptionalParam("chain", "The receiver chain", 22776, types.int)
+    .addParam("value", "deposit value, unit WEI")
+    .setAction(async(taskArgs,hre) => {
+        const accounts = await ethers.getSigners()
+        const deployer = accounts[0];
+
+        console.log("deposit address:",deployer.address);
+
+        const chainId = hre.network.chainId;
+
+        let mos = await getMos(chainId, hre.network.name)
+
+        if (!mos) {
+            throw "mos not deployed ..."
+        }
+        console.log("mos address:", mos.address);
+
+        // let mos = await ethers.getContractAt('IButterMosV2', taskArgs.mos);
+
+        let address = taskArgs.address;
+        if (taskArgs.address === "") {
+            address = deployer.address;
+        }
+
+        if (taskArgs.token === "0x0000000000000000000000000000000000000000") {
+            await (await mos.connect(deployer).swapOutNative(
+                deployer.address,
+                address,
+                taskArgs.chain,
+                "0x",
+                {value:taskArgs.value}
+            )).wait();
+
+        }else {
+            let token = await ethers.getContractAt("IERC20", taskArgs.token);
+            await (await token.connect(deployer).approve(
+                mos.address,
+                taskArgs.value
+            )).wait();
+
+            await (await mos.connect(deployer).swapOutToken(
+                deployer.address,
+                taskArgs.token,
+                address,
+                taskArgs.value,
+                taskArgs.chain,
+                "0x"
+            )).wait();
+
+        }
+
+        console.log(`transfer token ${taskArgs.token} ${taskArgs.value} to ${address} successful`);
+    })
+
 
 task("token:deploy","Deploy a token with role control")
     .addParam("name", "token name")
