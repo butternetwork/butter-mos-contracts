@@ -1,4 +1,4 @@
-# Barter Launch Doc
+# Butter Network Launch Doc
 
 This doc provides step-to-step guid to help whoever relevant to setup your own Barter Network from very scratch, or it can be used to set up your own asset cross-chain service using MAP Protocol as infra.
 

@@ -2,7 +2,7 @@ let {create,readFromFile,writeToFile,getMos} = require("../../utils/helper.js")
 let {mosDeploy,mosUpgrade} = require("../utils/util.js");
 
 
-task("service:deploy", "mos service deploy")
+task("mos:deploy", "mos service deploy")
     .addParam("wrapped", "native wrapped token address")
     .addParam("lightnode", "lightNode contract address")
     .setAction(async (taskArgs,hre) => {
@@ -16,7 +16,7 @@ task("service:deploy", "mos service deploy")
 
 
 
-task("service:upgrade", "upgrade mos evm contract in proxy")
+task("mos:upgrade", "upgrade mos evm contract in proxy")
     .addOptionalParam("impl","The mos impl address","0x0000000000000000000000000000000000000000", types.string)
     .setAction(async (taskArgs,hre) => {
         const {deploy} = hre.deployments
@@ -30,8 +30,8 @@ task("service:upgrade", "upgrade mos evm contract in proxy")
 //settype
 //client -> update mos light client 
 //butterrouter ->  Update butter router contract address in MOS
-task("service:setUp","set associated contracts for mos")
-    .addParam("settype", "associated contracts type to set for mos")
+task("mos:setup","set associated contracts for mos")
+    .addParam("type", "associated contracts type (client/router) to set for mos")
     .addParam("address", "associated contracts address")
     .setAction(async (taskArgs,hre) => {
         const accounts = await ethers.getSigners()
@@ -44,10 +44,10 @@ task("service:setUp","set associated contracts for mos")
 
         console.log("mos address", mos.address);
 
-        if(taskArgs.settype === 'client'){
+        if (taskArgs.type === 'client') {
             await (await mos.connect(deployer).setLightClient(taskArgs.address)).wait();
             console.log(`mos set  light client ${taskArgs.address} successfully `);
-        } else if(taskArgs.settype === 'butterrouter'){
+        } else if(taskArgs.type === 'router') {
             await (await mos.connect(deployer).setButterRouterAddress(taskArgs.address)).wait();
             console.log(`mos set butter router to ${taskArgs.address} `);
         }  else {
@@ -57,7 +57,7 @@ task("service:setUp","set associated contracts for mos")
 
 
 
-task("service:setRelay","Initialize MapCrossChainServiceRelay address for MapCrossChainService")
+task("mos:setRelay","Initialize MapCrossChainServiceRelay address for MapCrossChainService")
     .addParam("address", "mos contract address")
     .addParam("chain", "chain id")
     .setAction(async (taskArgs,hre) => {
@@ -82,9 +82,7 @@ task("service:setRelay","Initialize MapCrossChainServiceRelay address for MapCro
             }
             
             if(taskArgs.chain !== "212" && taskArgs.chain !== "22776"){
-
                 throw("relay chainId must 212 for testnet or 22776 for mainnet")
-
             }
 
             await (await mos.connect(deployer).setRelayContract(taskArgs.chain, address)).wait();
@@ -95,12 +93,11 @@ task("service:setRelay","Initialize MapCrossChainServiceRelay address for MapCro
 
 
 
-task("service:registerToken","MapCrossChainService settings allow cross-chain tokens")
+task("mos:registerToken","MapCrossChainService settings allow cross-chain tokens")
     .addParam("token", "token address")
     .addParam("chains", "chain ids allowed to cross, separated by ',', ex. `1,2,3` ")
     .addOptionalParam("enable", "true or false", true, types.boolean)
     .setAction(async (taskArgs,hre) => {
-
         const accounts = await ethers.getSigners()
         const deployer = accounts[0];
         const chainId = await deployer.getChainId();
@@ -129,7 +126,7 @@ task("service:registerToken","MapCrossChainService settings allow cross-chain to
         
 });
 
-task("service:setMintableToken","MapCrossChainService settings mintable token")
+task("mos:setMintableToken","MapCrossChainService settings mintable token")
     .addParam("token", "token address")
     .addParam("mintable", "true or false",false,types.boolean)
     .setAction(async (taskArgs,hre) => {
@@ -172,7 +169,7 @@ const chainlist = [1,5,
     "1360100178526209", "1360100178526210" // near
 ];
 
-task("service:list","List mos  infos")
+task("mos:list","List mos  infos")
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
     .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
     .setAction(async (taskArgs,hre) => {
