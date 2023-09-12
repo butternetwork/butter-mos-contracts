@@ -93,31 +93,31 @@ npx hardhat relay:setDistributeRate --type <0 to the token vault, 1 to specified
 1. Deploy
 
 ```
-npx hardhat service:deploy --wrapped <native wrapped address> --lightnode <lightnode address> --network <network>
+npx hardhat mos:deploy --wrapped <native wrapped address> --lightnode <lightnode address> --network <network>
 ```
 
 2. Set MOS Relay Address
    The following command on the EVM compatible chain
 
 ```
-npx hardhat service:setRelay --address <Relay address> --chain <map chainId> --network <network>
+npx hardhat mos:setRelay --address <Relay address> --chain <map chainId> --network <network>
 ```
 
 3. set light client(if need change from deploy)
 
    ```
-   npx hardhat service:setUp --settype client --address <light client manager address> --network <network>
+   npx hardhat mos:setUp --settype client --address <light client manager address> --network <network>
    ```
 4. set butter router
 
    ```
-   npx hardhat service:setUp --settype butterrouter --address <butter router address> --network <network>
+   npx hardhat mos:setUp --settype butterrouter --address <butter router address> --network <network>
    ```
 5. Register
    The following command applies to the cross-chain contract configuration of Map mainnet and Makalu testnet
 
 ```
-npx hardhat service:setRelay  --address <MAPOmnichainService address> --chain <chain id> --network <network>
+npx hardhat mos:setRelay  --address <MAPOmnichainService address> --chain <chain id> --network <network>
 ```
 
 ### MOS on other chain
@@ -214,7 +214,7 @@ npx hardhat relay:upgrade --impl <mos impl address> --network <network>
 update mos on other evm chains
 
 ```
-npx hardhat service:upgrade --impl <mos impl address> --network <network>
+npx hardhat mos:upgrade --impl <mos impl address> --network <network>
 ```
 
 ## Token cross-chain  deposit

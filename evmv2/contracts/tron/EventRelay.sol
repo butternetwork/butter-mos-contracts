@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.7;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 interface IChildToken {
     function deposits(bytes32 deposit)external returns(uint256);
 }
-contract Relay {
+contract EventRelay is Ownable {
 
   address public childToken;
   mapping(bytes32 => bool) public deposits;
+
+  event SetChildToken(address _childToken);
 
   struct  MapSwapOut {
         uint256  fromChain;
@@ -32,7 +36,14 @@ contract Relay {
   ); 
 
   constructor(address _childToken){
-        childToken = _childToken;
+      childToken = _childToken;
+      emit SetChildToken(_childToken);
+  }
+
+
+  function setChildToken(address _childToken) external onlyOwner {
+      childToken = _childToken;
+      emit SetChildToken(_childToken);
   }
 
 

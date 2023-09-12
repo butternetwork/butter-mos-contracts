@@ -1,7 +1,5 @@
 let {getMos,create,readFromFile,writeToFile} = require("../../utils/helper.js")
 
-
-
 exports.mosDeploy = async function (deploy,chainId,deployer,wtoken,lightnode) {
 
     let implContract;
@@ -86,4 +84,15 @@ exports.stringToHex = async function(str) {
     return str.split("").map(function(c) {
         return ("0" + c.charCodeAt(0).toString(16)).slice(-2);
     }).join("");
+}
+
+
+exports.verify = async function(addr, args, code) {
+    // await verify("0x3067c49494d25BF468d5eef7d8937a2fa0d5cC0E",[],"contracts/tron/child/ChildERC20.sol:ChildERC20")
+    await hre.run("verify:verify", {
+      address: addr,
+      constructorArguments: args,
+      contract: code
+    });
+
 }

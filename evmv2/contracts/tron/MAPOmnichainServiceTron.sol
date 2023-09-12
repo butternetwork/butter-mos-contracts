@@ -15,14 +15,14 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightNode.sol";
 import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "@mapprotocol/protocol/contracts/lib/RLPReader.sol";
-import "./interface/IWrappedToken.sol";
-import "./interface/IMintableToken.sol";
-import "./interface/IButterMosV2.sol";
-import "./utils/EvmDecoder.sol";
-import "./interface/IRootChainManager.sol";
+import "../interface/IWrappedToken.sol";
+import "../interface/IMintableToken.sol";
+import "../interface/IButterMosV2.sol";
+import "../utils/EvmDecoder.sol";
+import "../interface/IRootChainManager.sol";
 
 
-contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IButterMosV2, UUPSUpgradeable {
+contract MAPOmnichainServiceTron is ReentrancyGuard, Initializable, Pausable, IButterMosV2, UUPSUpgradeable {
     using SafeMath for uint;
     using RLPReader for bytes;
     using RLPReader for RLPReader.RLPItem;
@@ -47,9 +47,13 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
 
     address public butterRouter;
 
-    IRootChainManager public rootChainManager = IRootChainManager(0x28c8b09C317c2a9e202DC47B1719443097553533);
+    IERC20 public rootToken; 
 
-    IERC20 public rootToken = IERC20(0x70E543aD0feA728E9AE22F9b2A2e91a1E7AAB89A);
+    IRootChainManager public rootChainManager;
+
+    event SetRootChainManager(IRootChainManager _rootChainManager);
+
+    event SetRootToken(IERC20 _rootToken);
 
     event SetLightClient(address _lightNode);
     event AddMintableToken(address[] _token);
@@ -66,9 +70,20 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         _changeAdmin(_owner);
     }
 
+    function setRootChainManager(IRootChainManager _rootChainManager) external onlyOwner {
+        rootChainManager = _rootChainManager;
+        emit SetRootChainManager(_rootChainManager);
+    }
 
+    function setRootToken(IERC20 _rootToken)external onlyOwner {
+        rootToken = _rootToken;
+        emit SetRootToken(_rootToken);
+    }
+
+    function giveAllowance(address _token,address _spender,uint256 _amount)external onlyOwner {
+         IERC20(_token).approve(_spender,_amount);
+    }
     receive() external payable {}
-
 
     modifier checkOrder(bytes32 _orderId) {
         require(!orderList[_orderId], "order exist");
@@ -131,7 +146,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     }
 
     function registerToken(address _token, uint _toChain, bool _enable) external onlyOwner {
-        // require(_token.code.length > 0,"token is not contract");
+        require(_token.isContract(),"token is not contract");
         tokenMappingList[_toChain][_token] = _enable;
         emit RegisterToken(_token,_toChain,_enable);
     }
@@ -169,9 +184,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
 
             uint256 depositAmount = 1;
 
-            rootToken.approve(address(rootChainManager),depositAmount);
-
-            payFee();
+            payFee(_initiatorAddress);
 
             rootChainManager.depositFor(_initiatorAddress,address(rootToken),abi.encodePacked(depositAmount,datas));
         }
@@ -211,8 +224,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         {
             bytes memory datas = abi.encode(selfChainId,_toChain,orderId,Utils.toBytes(wToken),Utils.toBytes(_initiatorAddress),_to,amount,_swapData);
             uint256 depositAmount = 1;
-            rootToken.approve(address(rootChainManager),1);
-            payFee();
+            //rootToken.approve(predicate,depositAmount);
+            payFee(_initiatorAddress);
             rootChainManager.depositFor(_initiatorAddress,address(rootToken),abi.encodePacked(depositAmount,datas));
         }
         emit mapSwapOut(
@@ -326,12 +339,13 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     }
 
 
-    function payFee() private {
+    function payFee(address _payer) private {
        address feeToken =  rootChainManager.feeToken();
 
        uint256 feeAmount = rootChainManager.feeAmount();
 
        if(address(feeToken) != address(0x0) && (feeAmount > 0)){
+          SafeERC20.safeTransferFrom(IERC20(feeToken),_payer,address(this),feeAmount);
           IERC20(feeToken).approve(address(rootChainManager), feeAmount);
        }
     }
