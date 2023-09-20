@@ -89,6 +89,29 @@ module.exports = {
       chainId : 1001,
       accounts: accounts
     },
+    Tron: {
+      url: `https://public-node-api.klaytnapi.com/v1/cypress`,
+      chainId : 8217,
+      accounts: accounts
+    },
+
+    TronTest: {
+      url: `https://public-node-api.klaytnapi.com/v1/cypress`,
+      chainId : 8217,
+      accounts: accounts
+    },
+
+    Bttc: {
+      url: `https://rpc.bittorrentchain.io`,
+      chainId : 199,
+      accounts: accounts
+    },
+
+    BttcTest: {
+      url: `https://testrpc.bittorrentchain.io`,
+      chainId : 1028,
+      accounts: accounts
+    },
   },
   solidity: {
     compilers: [
@@ -120,6 +143,18 @@ module.exports = {
     timeout: 2000000
   },
   etherscan: {
-    apiKey: process.env.BSC_SCAN_KEY
+    apiKey: {
+      bttc:"49V6QCE7UIBPPINR3XA8WUHP17MB14FTBX"
+    },
+    customChains: [
+      {
+        network: "bttc",
+        chainId: 199,
+        urls: {
+          apiURL: "https://api.bttcscan.com/api",
+          browserURL: "https://bttcscan.com/"
+        },
+      },
+    ]
   }
 }

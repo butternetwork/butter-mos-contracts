@@ -1,17 +1,29 @@
 let {create,readFromFile,writeToFile,getMos} = require("../../utils/helper.js")
 let {mosDeploy,mosUpgrade} = require("../utils/util.js");
-
+let {tronMosDeploy,
+    tronMosUpgrade,
+    tronSetup,
+    tronSetRelay,
+    tronRegisterToken,
+    tronSetMintableToken,
+    tronList,
+    tronDeployRootToken} = require('../utils/tron.js')
 
 task("mos:deploy", "mos service deploy")
     .addParam("wrapped", "native wrapped token address")
     .addParam("lightnode", "lightNode contract address")
-    .setAction(async (taskArgs,hre) => {
-        const {deploy} = hre.deployments
-        const accounts = await ethers.getSigners()
-        const deployer = accounts[0];
-        const chainId = await hre.network.config.chainId;
-        console.log("deployer address:", deployer.address);
-        await mosDeploy(deploy,chainId,deployer.address,taskArgs.wrapped,taskArgs.lightnode);
+    .setAction(async (taskArgs,hre) => { 
+        if(hre.network.name === 'Tron' || hre.network.name === 'TronTest'){
+            console.log(hre.network.name)
+            await tronMosDeploy(hre.artifacts,hre.network.name,taskArgs.wrapped,taskArgs.lightnode);
+        } else {
+            const {deploy} = hre.deployments
+            const accounts = await ethers.getSigners()
+            const deployer = accounts[0];
+            const chainId = await hre.network.config.chainId;
+            console.log("deployer address:", deployer.address);
+            await mosDeploy(deploy,chainId,deployer.address,taskArgs.wrapped,taskArgs.lightnode);
+        }
 });
 
 
@@ -19,12 +31,17 @@ task("mos:deploy", "mos service deploy")
 task("mos:upgrade", "upgrade mos evm contract in proxy")
     .addOptionalParam("impl","The mos impl address","0x0000000000000000000000000000000000000000", types.string)
     .setAction(async (taskArgs,hre) => {
-        const {deploy} = hre.deployments
-        const accounts = await ethers.getSigners()
-        const deployer = accounts[0];
-        const chainId = await hre.network.config.chainId;
-        console.log("deployer address:", deployer.address);
-        await mosUpgrade(deploy,chainId,deployer.address,hre.network.name,taskArgs.impl);
+        if(hre.network.name === 'Tron' || hre.network.name === 'TronTest'){
+           await tronMosUpgrade(hre.artifacts,hre.network.name,taskArgs.impl)
+        } else {
+            const {deploy} = hre.deployments
+            const accounts = await ethers.getSigners()
+            const deployer = accounts[0];
+            const chainId = await hre.network.config.chainId;
+            console.log("deployer address:", deployer.address);
+            await mosUpgrade(deploy,chainId,deployer.address,hre.network.name,taskArgs.impl);
+        }
+
 });
 
 //settype
@@ -34,25 +51,30 @@ task("mos:setup","set associated contracts for mos")
     .addParam("type", "associated contracts type (client/router) to set for mos")
     .addParam("address", "associated contracts address")
     .setAction(async (taskArgs,hre) => {
-        const accounts = await ethers.getSigners()
-        const deployer = accounts[0];
-        const chainId = await hre.network.config.chainId;
-        let mos = await getMos(chainId,hre.network.name)
-        if (mos == undefined) {
-            throw "mos not deployed ..."
+        if(hre.network.name === 'Tron' || hre.network.name === 'TronTest'){
+           await tronSetup(hre.artifacts,hre.network.name,taskArgs.address,taskArgs.type)
+        } else {
+            const accounts = await ethers.getSigners()
+            const deployer = accounts[0];
+            const chainId = await hre.network.config.chainId;
+            let mos = await getMos(chainId,hre.network.name)
+            if (mos == undefined) {
+                throw "mos not deployed ..."
+            }
+    
+            console.log("mos address", mos.address);
+    
+            if (taskArgs.type === 'client') {
+                await (await mos.connect(deployer).setLightClient(taskArgs.address)).wait();
+                console.log(`mos set  light client ${taskArgs.address} successfully `);
+            } else if(taskArgs.type === 'router') {
+                await (await mos.connect(deployer).setButterRouterAddress(taskArgs.address)).wait();
+                console.log(`mos set butter router to ${taskArgs.address} `);
+            }  else {
+                throw("unsuport set type");
+            }
         }
 
-        console.log("mos address", mos.address);
-
-        if (taskArgs.type === 'client') {
-            await (await mos.connect(deployer).setLightClient(taskArgs.address)).wait();
-            console.log(`mos set  light client ${taskArgs.address} successfully `);
-        } else if(taskArgs.type === 'router') {
-            await (await mos.connect(deployer).setButterRouterAddress(taskArgs.address)).wait();
-            console.log(`mos set butter router to ${taskArgs.address} `);
-        }  else {
-            throw("unsuport set type");
-        }
 });
 
 
@@ -61,7 +83,9 @@ task("mos:setRelay","Initialize MapCrossChainServiceRelay address for MapCrossCh
     .addParam("address", "mos contract address")
     .addParam("chain", "chain id")
     .setAction(async (taskArgs,hre) => {
-
+        if(hre.network.name === 'Tron' || hre.network.name === 'TronTest'){
+            await tronSetRelay(hre.artifacts,hre.network.name,taskArgs.address,taskArgs.chain)
+        }else {
             const accounts = await ethers.getSigners()
             const deployer = accounts[0];
             const chainId = await deployer.getChainId();
@@ -88,7 +112,8 @@ task("mos:setRelay","Initialize MapCrossChainServiceRelay address for MapCrossCh
             await (await mos.connect(deployer).setRelayContract(taskArgs.chain, address)).wait();
 
             console.log(`mos set  relay ${address} with chain id ${taskArgs.chain} successfully `);
-            
+        }
+               
     });
 
 
@@ -98,6 +123,9 @@ task("mos:registerToken","MapCrossChainService settings allow cross-chain tokens
     .addParam("chains", "chain ids allowed to cross, separated by ',', ex. `1,2,3` ")
     .addOptionalParam("enable", "true or false", true, types.boolean)
     .setAction(async (taskArgs,hre) => {
+       if(hre.network.name === 'Tron' || hre.network.name === 'TronTest') {
+          await tronRegisterToken(hre.artifacts,hre.network.name,taskArgs.token,taskArgs.chains,taskArgs.enable)
+       } else {
         const accounts = await ethers.getSigners()
         const deployer = accounts[0];
         const chainId = await deployer.getChainId();
@@ -123,6 +151,7 @@ task("mos:registerToken","MapCrossChainService settings allow cross-chain tokens
         }
     
         console.log("mos registerToken success");
+       }
         
 });
 
@@ -130,6 +159,9 @@ task("mos:setMintableToken","MapCrossChainService settings mintable token")
     .addParam("token", "token address")
     .addParam("mintable", "true or false",false,types.boolean)
     .setAction(async (taskArgs,hre) => {
+        if(hre.network.name === 'Tron' || hre.network.name === 'TronTest'){
+           await tronSetMintableToken(hre.artifacts,hre.network.name,taskArgs.token,taskArgs.mintable)
+        } else {
         const accounts = await ethers.getSigners()
         const deployer = accounts[0];
         const chainId = await deployer.getChainId();
@@ -157,7 +189,68 @@ task("mos:setMintableToken","MapCrossChainService settings mintable token")
     
             console.log(`mos set token ${taskArgs.token} mintable ${taskArgs.mintable}  success`);
         }
+        }
         
+});
+
+task("mos:deployRootToken","deploy root token on tron")
+    .addParam("name", "tron root token name")
+    .addParam("symbol", "tron root token symbol")
+    .addParam("supply", "tron root token totalSupply")
+    .setAction(async (taskArgs,hre) => {
+        if(hre.network.name === 'Tron' || hre.network.name === 'TronTest'){
+           await tronDeployRootToken(hre.artifacts,hre.network.name,taskArgs.name,taskArgs.symbol,taskArgs.supply)
+        } else {
+           throw("unsupport chain")
+        }    
+});
+
+
+task("mos:deployChildToken","deploy child token on bttc")
+    .addParam("name", "tron root token name")
+    .addParam("symbol", "tron root token symbol")
+    .setAction(async (taskArgs,hre) => {
+        const {deploy} = hre.deployments
+        const accounts = await ethers.getSigners()
+        const deployer = accounts[0];
+        console.log("deployer address:",deployer.address);
+        if(hre.network.name === 'Bttc' || hre.network.name === 'BttcTest'){
+           let childChainManager;
+           if(hre.network.name === 'Bttc') {
+            childChainManager = "0x9a15f3a682d086c515be4037bda3b0676203a8ef";
+           } else {
+             childChainManager = "0xfe22C61F33e6d39c04dE80B7DE4B1d83f75210C4";
+           }
+
+         await deploy("ChildERC20", {
+            from: deployer,
+            args: [taskArgs.name,taskArgs.symbol,childChainManager],
+            log: true,
+            contract: "ChildERC20",
+        })
+        } else {
+           throw("unsupport chain")
+        }    
+});
+
+
+task("mos:deployEventRelay","deploy event relay on bttc")
+    .addParam("childtoken", "child token address")
+    .setAction(async (taskArgs,hre) => {
+        const {deploy} = hre.deployments
+        const accounts = await ethers.getSigners()
+        const deployer = accounts[0];
+        console.log("deployer address:",deployer.address);
+        if(hre.network.name === 'Bttc' || hre.network.name === 'BttcTest'){
+         await deploy("EventRelay", {
+            from: deployer,
+            args: [taskArgs.childtoken],
+            log: true,
+            contract: "EventRelay",
+        })
+        } else {
+           throw("unsupport chain")
+        }    
 });
 
 
@@ -173,6 +266,9 @@ task("mos:list","List mos  infos")
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
     .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
     .setAction(async (taskArgs,hre) => {
+      if(hre.network.name === 'Tron' || hre.network.name === 'TronTest'){
+          await tronList(hre.artifacts,hre.network.name,taskArgs.mos,taskArgs.token)
+      } else {
         const accounts = await ethers.getSigners()
         const deployer = accounts[0];
         const chainId = await deployer.getChainId();
@@ -214,6 +310,7 @@ task("mos:list","List mos  infos")
                 console.log(`${chainlist[i]}`);
             }
         }
+      }
           
 }); 
 
