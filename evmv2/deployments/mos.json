@@ -13,12 +13,5 @@
 	},
 	"Klay": {
 		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
-	},
-	"TronTest": {
-		"mosProxy": "TFuNHhiMDQALLMbTJ1aGRkyedTMiSSMtHz",
-		"rootToken": "0xebf916cdd99034e66723a4149fc3dad04d7cba70"
-	},
-	"MaticTest": {
-		"mosProxy": "0xffC81dd5c704f68da7E48e8D7257Ad535B8785cc"
 	}
 }
