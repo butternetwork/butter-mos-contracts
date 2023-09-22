@@ -221,13 +221,26 @@ task("mos:deployChildToken","deploy child token on bttc")
            } else {
              childChainManager = "0xfe22C61F33e6d39c04dE80B7DE4B1d83f75210C4";
            }
-
-         await deploy("ChildERC20", {
-            from: deployer,
-            args: [taskArgs.name,taskArgs.symbol,childChainManager],
+       let Impl = await ethers.getContractFactory("ChildERC20");
+        await deploy("ChildERC20", {
+            from: deployer.address,
+            args: [],
             log: true,
             contract: "ChildERC20",
         })
+        let impl = await ethers.getContract("ChildERC20");
+        console.log("ChildERC20 impl deployed to ",impl.address);
+        let data = Impl.interface.encodeFunctionData("initialize", [deployer.address, taskArgs.name, taskArgs.symbol,childChainManager]);
+
+        await deploy("ChildERC20Proxy", {
+            from: deployer.address,
+            args: [impl.address,data],
+            log: true,
+            contract: "ChildERC20Proxy",
+        })
+        let proxy = await ethers.getContract("ChildERC20Proxy");
+
+        console.log("ChildERC20 proxy deployed to ",proxy.address);
         } else {
            throw("unsupport chain")
         }    
