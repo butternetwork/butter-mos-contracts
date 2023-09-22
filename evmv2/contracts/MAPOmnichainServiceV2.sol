@@ -143,6 +143,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         bytes calldata _swapData
     )
     external
+    virtual
     override
     nonReentrant
     whenNotPaused
@@ -180,6 +181,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         bytes calldata _swapData
     )
     external
+    virtual
     override
     payable
     nonReentrant
