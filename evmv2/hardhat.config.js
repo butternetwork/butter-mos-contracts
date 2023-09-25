@@ -80,7 +80,7 @@ module.exports = {
       accounts: accounts
     },
     Klay: {
-      url: `https://public-node-api.klaytnapi.com/v1/cypress`,
+      url: `https://klaytn.blockpi.network/v1/rpc/public`,
       chainId : 8217,
       accounts: accounts
     },
@@ -110,6 +110,11 @@ module.exports = {
     BttcTest: {
       url: `https://testrpc.bittorrentchain.io`,
       chainId : 1028,
+      accounts: accounts
+    },
+    Conflux: {
+      url: `https://evm.confluxrpc.com`,
+      chainId : 1030,
       accounts: accounts
     },
   },
