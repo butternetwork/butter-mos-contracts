@@ -138,7 +138,7 @@ exports.tronSetMintableToken = async function (artifacts,network,token,mintable)
   let deployer = tronWeb.defaultAddress.hex.substring(2);
   console.log("deployer :",tronWeb.address.fromHex(deployer));
   let deploy = await readFromFile(network);
-  if(!deploy[network]['mosProxy']){
+  if (!deploy[network]['mosProxy']) {
       throw "mos proxy not deployed ..."
   }
   let Mos = await artifacts.readArtifact("MAPOmnichainServiceTron");
@@ -154,12 +154,16 @@ exports.tronSetMintableToken = async function (artifacts,network,token,mintable)
 }
 }
 
-exports.tronDeployRootToken = async function(artifacts,network,name,symbol,totalSupply){
+exports.tronDeployRootToken = async function(artifacts, network, name, symbol, decimals){
+    console.log("network: ", network);
+    console.log("name: ", name);
+    console.log("symbol: ", symbol);
+    console.log("decimal: ", decimals);
   let tronWeb = await getTronWeb(network)
-  let deployer = tronWeb.defaultAddress.hex.substring(2);
+  let deployer = tronWeb.defaultAddress.hex;
   console.log("deployer :",tronWeb.address.fromHex(deployer));
   let deploy = await readFromFile(network);
-  let rootToken = await deploy_contract(artifacts,"RootERC20",[name,symbol,totalSupply],tronWeb);
+  let rootToken = await deploy_contract(artifacts,"RootERC20",[name, symbol, decimals], tronWeb);
   deploy[network]["rootToken"] = rootToken;
   await writeToFile(deploy);
 }
@@ -216,6 +220,29 @@ exports.tronList = async function (artifacts,network,mos_addr,token) {
   }
 }
 
+exports.getTron = async function (network) {
+    if(network === "Tron" || network === "TronTest"){
+        if(network === "Tron") {
+            return new TronWeb(
+                "https://api.trongrid.io/",
+                "https://api.trongrid.io/",
+                "https://api.trongrid.io/",
+                process.env.TRON_PRIVATE_KEY
+            )
+        } else {
+            return new TronWeb(
+                "https://api.nileex.io/",
+                "https://api.nileex.io/",
+                "https://api.nileex.io/",
+                process.env.TRON_PRIVATE_KEY
+            )
+        }
+    } else {
+        throw("unsupported network", network);
+    }
+
+}
+
 
 
 
@@ -228,9 +255,13 @@ async function deploy_contract(artifacts,name,args,tronWeb){
       callValue:0,
       parameters:args
     });
-    console.log(`${name} deployed on: ${contract_instance.address}`);
-    
-    return '0x' + contract_instance.address.substring(2);
+
+    let contract_address = tronWeb.address.fromHex(contract_instance.address);
+
+    console.log(`${name} deployed on: ${contract_address}`);
+
+    return contract_address;
+    // return '0x' + contract_instance.address.substring(2);
   }
 
 

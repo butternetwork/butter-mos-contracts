@@ -1,20 +1,23 @@
 {
-	"Map":{
-	  "mosProxy":"0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	"Map": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
 	},
-	"Bsc":{
-	  "mosProxy":"0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	"Bsc": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
 	},
-	"Matic":{
-	  "mosProxy":"0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	"Matic": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
 	},
-	"Eth":{
-	  "mosProxy":"0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	"Eth": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
 	},
-	"Klay":{
-	  "mosProxy":"0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	"Klay": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
 	},
-	"Conflux":{
-		"mosProxy":"0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	"Conflux": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	},
+	"TronTest": {
+		"rootToken": "TB6UJbULDwp86EWEtChLNFVDWi5oyKZatv"
 	}
-  }
+}

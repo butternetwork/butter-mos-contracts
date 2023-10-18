@@ -2,23 +2,7 @@
 
 pragma solidity 0.8.7;
 
-import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
-import "@mapprotocol/protocol/contracts/interface/ILightNode.sol";
-import "@mapprotocol/protocol/contracts/utils/Utils.sol";
-import "@mapprotocol/protocol/contracts/lib/RLPReader.sol";
-import "../interface/IWrappedToken.sol";
-import "../interface/IMintableToken.sol";
-import "../interface/IButterMosV2.sol";
-import "../utils/EvmDecoder.sol";
+
 import "../interface/IRootChainManager.sol";
 import "../MAPOmnichainServiceV2.sol";
 
@@ -67,20 +51,19 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
         if (isMintable(_token)) {
             IMintableToken(_token).burnFrom(msg.sender, _amount);
         } else {
-            SafeERC20.safeTransferFrom(IERC20(_token),msg.sender,address(this),_amount);
+            SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), _amount);
         }
  
         orderId = _getOrderID(msg.sender, _to, _toChain); 
         
         {
+            bytes memory mosData = abi.encode(selfChainId, _toChain, orderId, Utils.toBytes(_token), Utils.toBytes(_initiatorAddress), _to, _amount, _swapData);
 
-            bytes memory datas = abi.encode(selfChainId,_toChain,orderId,Utils.toBytes(_token),Utils.toBytes(_initiatorAddress),_to,_amount,_swapData);
-
-            uint256 depositAmount = 1;
+            uint256 depositAmount = 1000000000000000000;
 
             payFee(_initiatorAddress);
 
-            rootChainManager.depositFor(_initiatorAddress,address(rootToken),abi.encodePacked(depositAmount,datas));
+            rootChainManager.depositFor(_initiatorAddress, address(rootToken), abi.encodePacked(depositAmount, mosData));
         }
 
         emit mapSwapOut(

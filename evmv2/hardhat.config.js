@@ -90,14 +90,14 @@ module.exports = {
       accounts: accounts
     },
     Tron: {
-      url: `https://public-node-api.klaytnapi.com/v1/cypress`,
-      chainId : 8217,
+      url: `https://api.trongrid.io`,
+      chainId : 728126428,
       accounts: accounts
     },
 
     TronTest: {
-      url: `https://public-node-api.klaytnapi.com/v1/cypress`,
-      chainId : 8217,
+      url: `https://nile.trongrid.io`,
+      chainId : 3448148188,
       accounts: accounts
     },
 
