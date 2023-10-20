@@ -17,6 +17,10 @@
 	"Conflux": {
 		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
 	},
+	"Tron": {
+		"rootToken": "TYNaAmYK7TLjRFiftTb9tHtjqHaRLCUmNR",
+		"mosProxy": "TAR515UoMxTa2ruua6KqnXDwPJQEu66RVU"
+	},
 	"TronTest": {
 		"rootToken": "TB6UJbULDwp86EWEtChLNFVDWi5oyKZatv"
 	}

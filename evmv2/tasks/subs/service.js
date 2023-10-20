@@ -123,7 +123,10 @@ task("mos:registerToken","MapCrossChainService settings allow cross-chain tokens
     .addParam("chains", "chain ids allowed to cross, separated by ',', ex. `1,2,3` ")
     .addOptionalParam("enable", "true or false", true, types.boolean)
     .setAction(async (taskArgs,hre) => {
-       if(hre.network.name === 'Tron' || hre.network.name === 'TronTest') {
+
+        console.log("mos register token, network:", hre.network.name);
+
+       if (hre.network.name === 'Tron' || hre.network.name === 'TronTest') {
           await tronRegisterToken(hre.artifacts,hre.network.name,taskArgs.token,taskArgs.chains,taskArgs.enable)
        } else {
         const accounts = await ethers.getSigners()
@@ -133,14 +136,14 @@ task("mos:registerToken","MapCrossChainService settings allow cross-chain tokens
     
         let mos = await getMos(chainId,hre.network.name)
     
-        if(mos === undefined) {
+        if (mos === undefined) {
             throw "mos not deployed ..."
         }
         console.log("mos address:", mos.address);
     
         let ids = taskArgs.chains.split(",");
     
-        for (let i = 0; i < ids.length; i++){
+        for (let i = 0; i < ids.length; i++) {
             await (await mos.connect(deployer).registerToken(
                 taskArgs.token,
                 ids[i],

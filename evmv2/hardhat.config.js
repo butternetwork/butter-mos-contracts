@@ -108,8 +108,8 @@ module.exports = {
     },
 
     BttcTest: {
-      url: `https://testrpc.bittorrentchain.io`,
-      chainId : 1028,
+      url: `https://pre-rpc.bt.io`,
+      chainId : 1029,
       accounts: accounts
     },
     Conflux: {

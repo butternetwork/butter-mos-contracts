@@ -33,14 +33,15 @@ task("token:deposit","Cross-chain deposit token")
                 address,
                 {value:taskArgs.value}
             )).wait();
-
-        }else {
+        } else {
             let token = await ethers.getContractAt("IERC20", taskArgs.token);
+            console.log("approve token... ");
             await (await token.connect(deployer).approve(
                 mos.address,
                 taskArgs.value
             )).wait();
 
+            console.log("deposit token... ");
             await (await mos.connect(deployer).depositToken(
                 taskArgs.token,
                 address,

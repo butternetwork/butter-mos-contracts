@@ -31,7 +31,7 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
     }
 
      function swapOutToken(
-        address _initiatorAddress, // swap initiator address
+        address _from, // swap initiator address
         address _token, // src token
         bytes memory _to,
         uint256 _amount,
@@ -54,32 +54,11 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
             SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), _amount);
         }
  
-        orderId = _getOrderID(msg.sender, _to, _toChain); 
-        
-        {
-            bytes memory mosData = abi.encode(selfChainId, _toChain, orderId, Utils.toBytes(_token), Utils.toBytes(_initiatorAddress), _to, _amount, _swapData);
-
-            uint256 depositAmount = 1000000000000000000;
-
-            payFee(_initiatorAddress);
-
-            rootChainManager.depositFor(_initiatorAddress, address(rootToken), abi.encodePacked(depositAmount, mosData));
-        }
-
-        emit mapSwapOut(
-            selfChainId,
-            _toChain,
-            orderId,
-            Utils.toBytes(_token),
-            Utils.toBytes(_initiatorAddress),
-            _to,
-            _amount,
-            _swapData
-        );
+        return _swapOut(_from, _token, _to, _amount, _toChain, _swapData);
     }
 
     function swapOutNative(
-        address _initiatorAddress, // swap initiator address
+        address _from, // swap initiator address
         bytes memory _to,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
@@ -96,26 +75,29 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
         uint amount = msg.value;
         require(amount > 0, "value is zero");
         IWrappedToken(wToken).deposit{value : amount}();
+
+        return _swapOut(_from, wToken, _to, amount, _toChain, _swapData);
+    }
+
+    function _swapOut(address _from, address _token, bytes memory _to, uint256 _amount, uint256 _toChain, bytes calldata _swapData) internal returns(bytes32 orderId) {
+
         orderId = _getOrderID(msg.sender, _to, _toChain);
 
-        {
-            bytes memory datas = abi.encode(selfChainId,_toChain,orderId,Utils.toBytes(wToken),Utils.toBytes(_initiatorAddress),_to,amount,_swapData);
-            uint256 depositAmount = 1;
-            //rootToken.approve(predicate,depositAmount);
-            payFee(_initiatorAddress);
-            rootChainManager.depositFor(_initiatorAddress,address(rootToken),abi.encodePacked(depositAmount,datas));
-        }
+        bytes memory mosData = abi.encode(selfChainId, _toChain, orderId, Utils.toBytes(_token), Utils.toBytes(_from), _to, _amount, _swapData);
+        uint256 depositAmount = 1000000000000000000;
+        payFee(_from);
+        rootChainManager.depositFor(_from, address(rootToken), abi.encodePacked(depositAmount, mosData));
+
         emit mapSwapOut(
             selfChainId,
             _toChain,
             orderId,
-            Utils.toBytes(wToken),
-            Utils.toBytes(_initiatorAddress),
+            Utils.toBytes(_token),
+            Utils.toBytes(_from),
             _to,
-            amount,
+            _amount,
             _swapData
         );
-
     }
 
     function payFee(address _payer) private {
@@ -124,7 +106,7 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
        uint256 feeAmount = rootChainManager.feeAmount();
 
        if(address(feeToken) != address(0x0) && (feeAmount > 0)){
-          SafeERC20.safeTransferFrom(IERC20(feeToken),_payer,address(this),feeAmount);
+          SafeERC20.safeTransferFrom(IERC20(feeToken), _payer, address(this), feeAmount);
           IERC20(feeToken).approve(address(rootChainManager), feeAmount);
        }
     }
