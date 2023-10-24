@@ -196,78 +196,7 @@ task("mos:setMintableToken","MapCrossChainService settings mintable token")
         
 });
 
-task("mos:deployRootToken","deploy root token on tron")
-    .addParam("name", "tron root token name")
-    .addParam("symbol", "tron root token symbol")
-    .addParam("supply", "tron root token totalSupply")
-    .setAction(async (taskArgs,hre) => {
-        if(hre.network.name === 'Tron' || hre.network.name === 'TronTest'){
-           await tronDeployRootToken(hre.artifacts,hre.network.name,taskArgs.name,taskArgs.symbol,taskArgs.supply)
-        } else {
-           throw("unsupport chain")
-        }    
-});
 
-
-task("mos:deployChildToken","deploy child token on bttc")
-    .addParam("name", "tron root token name")
-    .addParam("symbol", "tron root token symbol")
-    .setAction(async (taskArgs,hre) => {
-        const {deploy} = hre.deployments
-        const accounts = await ethers.getSigners()
-        const deployer = accounts[0];
-        console.log("deployer address:",deployer.address);
-        if(hre.network.name === 'Bttc' || hre.network.name === 'BttcTest'){
-           let childChainManager;
-           if(hre.network.name === 'Bttc') {
-            childChainManager = "0x9a15f3a682d086c515be4037bda3b0676203a8ef";
-           } else {
-             childChainManager = "0xfe22C61F33e6d39c04dE80B7DE4B1d83f75210C4";
-           }
-       let Impl = await ethers.getContractFactory("ChildERC20");
-        await deploy("ChildERC20", {
-            from: deployer.address,
-            args: [],
-            log: true,
-            contract: "ChildERC20",
-        })
-        let impl = await ethers.getContract("ChildERC20");
-        console.log("ChildERC20 impl deployed to ",impl.address);
-        let data = Impl.interface.encodeFunctionData("initialize", [deployer.address, taskArgs.name, taskArgs.symbol,childChainManager]);
-
-        await deploy("ChildERC20Proxy", {
-            from: deployer.address,
-            args: [impl.address,data],
-            log: true,
-            contract: "ChildERC20Proxy",
-        })
-        let proxy = await ethers.getContract("ChildERC20Proxy");
-
-        console.log("ChildERC20 proxy deployed to ",proxy.address);
-        } else {
-           throw("unsupport chain")
-        }    
-});
-
-
-task("mos:deployEventRelay","deploy event relay on bttc")
-    .addParam("childtoken", "child token address")
-    .setAction(async (taskArgs,hre) => {
-        const {deploy} = hre.deployments
-        const accounts = await ethers.getSigners()
-        const deployer = accounts[0];
-        console.log("deployer address:",deployer.address);
-        if(hre.network.name === 'Bttc' || hre.network.name === 'BttcTest'){
-         await deploy("EventRelay", {
-            from: deployer,
-            args: [taskArgs.childtoken],
-            log: true,
-            contract: "EventRelay",
-        })
-        } else {
-           throw("unsupport chain")
-        }    
-});
 
 
 const chainlist = [1,5,
