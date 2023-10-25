@@ -1,4 +1,5 @@
 let { tronDeployRootToken } = require("../utils/tron.js");
+//const {task} = require("hardhat/src/internal/core/config/config-env");
 
 task("rootToken:deploy", "deploy root token on tron")
   .addParam("name", "tron root token name")
@@ -35,12 +36,12 @@ task("childToken:deploy", "deploy child token on bttc")
         contract: "ChildERC20",
       });
     } else {
-      throw "unsupport chain";
+      throw "unsupported chain";
     }
   });
 
 task("childToken:verify", "verify child token")
-  .addParam("addr", "tron child token name")
+  .addOptionalParam("addr", "tron child token name", "", types.string)
   .addParam("name", "tron child token name")
   .addParam("symbol", "tron child token symbol")
   .addParam("decimals", "tron child token decimals")
@@ -57,14 +58,20 @@ task("childToken:verify", "verify child token")
         childChainManager = "0xfe22C61F33e6d39c04dE80B7DE4B1d83f75210C4";
       }
 
+      let addr = taskArgs.addr;
+      if (addr === "") {
+          let childERC20 = await deployments.get('ChildERC20');
+          addr = childERC20.address;
+      }
+
       // await verify("0x3067c49494d25BF468d5eef7d8937a2fa0d5cC0E",[],"contracts/tron/child/ChildERC20.sol:ChildERC20")
       await hre.run("verify:verify", {
-        address: taskArgs.addr,
+        address: addr,
         constructorArguments: [taskArgs.name, taskArgs.symbol, taskArgs.decimals, childChainManager],
         contract: "contracts/tron/tokens/child/ChildERC20.sol:ChildERC20",
       });
     } else {
-      throw "unsupport chain";
+      throw "unsupported chain";
     }
   });
 

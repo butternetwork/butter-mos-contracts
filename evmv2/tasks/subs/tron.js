@@ -165,7 +165,7 @@ task("tron:deployChildToken", "deploy child token on bttc")
 
       console.log("ChildERC20 proxy deployed to ", proxy.address);
     } else {
-      throw "unsupport chain";
+      throw "unsupported chain";
     }
   });
 

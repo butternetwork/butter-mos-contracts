@@ -14,7 +14,7 @@ contract ChildERC20 is ERC20, IChildToken, AccessControlMixin, NativeMetaTransac
 
     event ReceiveFormRootChain(address user, bytes depositData);
 
-    constructor(string memory name_,string memory symbol_,uint8 decimals_,address childChainManager_) ERC20(name_, symbol_) {
+    constructor(string memory name_, string memory symbol_, uint8 decimals_, address childChainManager_) ERC20(name_, symbol_) {
         _setupContractId("ChildERC20");
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(DEPOSITOR_ROLE, childChainManager_);
