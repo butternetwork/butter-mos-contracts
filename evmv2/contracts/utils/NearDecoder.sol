@@ -13,11 +13,9 @@ library NearDecoder {
     bytes32 constant NEAR_DEPOSITOUT = 0x3ad224e3e42a516df08d1fca74990eac30205afb5287a46132a6975ce0b2cede;
     bytes32 constant NEAR_SWAPOUT = 0x525e2d5d6e874e1f98c7b3e9a12be276d31598c25f92fb38ce6af0c1591371c4;
 
-
-    function decodeNearSwapLog(bytes memory logsHash)
-    internal
-    pure
-    returns (bytes memory executorId, IEvent.swapOutEvent[] memory _outEvents) {
+    function decodeNearSwapLog(
+        bytes memory logsHash
+    ) internal pure returns (bytes memory executorId, IEvent.swapOutEvent[] memory _outEvents) {
         RLPReader.RLPItem[] memory ls = logsHash.toRlpItem().toList();
 
         require(ls.length >= 2, "logsHash length to low");
@@ -54,11 +52,9 @@ library NearDecoder {
         }
     }
 
-    function decodeNearDepositLog(bytes memory logsHash)
-
-    internal
-    pure
-    returns (bytes memory executorId, IEvent.depositOutEvent[] memory _outEvents) {
+    function decodeNearDepositLog(
+        bytes memory logsHash
+    ) internal pure returns (bytes memory executorId, IEvent.depositOutEvent[] memory _outEvents) {
         RLPReader.RLPItem[] memory ls = logsHash.toRlpItem().toList();
         require(ls.length >= 2, "logsHash length to low");
 
@@ -80,16 +76,15 @@ library NearDecoder {
 
                 require(logList.length >= 7, "logsHash length to low");
 
-                IEvent.depositOutEvent memory _outEvent = IEvent
-                    .depositOutEvent({
-                        fromChain: logList[0].toUint(),
-                        toChain: logList[1].toUint(),
-                        orderId: bytes32(logList[2].toBytes()),
-                        token: logList[3].toBytes(),
-                        from: logList[4].toBytes(),
-                        to: logList[5].toBytes(),
-                        amount: logList[6].toUint()
-                    });
+                IEvent.depositOutEvent memory _outEvent = IEvent.depositOutEvent({
+                    fromChain: logList[0].toUint(),
+                    toChain: logList[1].toUint(),
+                    orderId: bytes32(logList[2].toBytes()),
+                    token: logList[3].toBytes(),
+                    from: logList[4].toBytes(),
+                    to: logList[5].toBytes(),
+                    amount: logList[6].toUint()
+                });
                 _outEvents[i] = _outEvent;
             }
         }

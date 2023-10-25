@@ -22,8 +22,6 @@ import "./interface/IButterMosV2.sol";
 import "./utils/EvmDecoder.sol";
 import "./utils/NearDecoder.sol";
 
-
-
 contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable, IButterMosV2, UUPSUpgradeable {
     using SafeMath for uint256;
     using Address for address;
@@ -70,17 +68,16 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     event SetLightClientManager(address lightClient);
     event RegisterChain(uint256 _chainId, bytes _address, chainType _type);
     event SetDistributeRate(uint _id, address _to, uint _rate);
-    
+
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
-    event CollectFee(bytes32 indexed orderId,address indexed token,uint256 value);
+    event CollectFee(bytes32 indexed orderId, address indexed token, uint256 value);
 
-    function initialize(address _wToken, address _managerAddress, address _owner) public
-        initializer
-        checkAddress(_wToken)
-        checkAddress(_managerAddress)
-        checkAddress(_owner)
-    {
+    function initialize(
+        address _wToken,
+        address _managerAddress,
+        address _owner
+    ) public initializer checkAddress(_wToken) checkAddress(_managerAddress) checkAddress(_owner) {
         wToken = _wToken;
         lightClientManager = ILightClientManager(_managerAddress);
         _changeAdmin(_owner);
@@ -147,7 +144,6 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         _withdraw(token, payable(msg.sender), amount);
     }
 
-
     function setDistributeRate(uint _id, address _to, uint _rate) external onlyOwner checkAddress(_to) {
         require(_id < 3, "Invalid rate id");
 
@@ -170,7 +166,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(_toChain != selfChainId, "Cannot swap to self chain");
         require(_amount > 0, "Sending value is zero");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
-        SafeERC20.safeTransferFrom(IERC20(_token),msg.sender,address(this),_amount);
+        SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), _amount);
         orderId = _swapOut(_token, _to, _initiatorAddress, _amount, _toChain, _swapData);
     }
 
@@ -183,26 +179,25 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(_toChain != selfChainId, "Cannot swap to self chain");
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
-        IWrappedToken(wToken).deposit{value : amount}();
+        IWrappedToken(wToken).deposit{value: amount}();
         orderId = _swapOut(wToken, _to, _initiatorAddress, amount, _toChain, _swapData);
     }
 
     function depositToken(address _token, address _to, uint _amount) external override nonReentrant whenNotPaused {
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "balance too low");
-        require(_amount > 0, "value too low");  
+        require(_amount > 0, "value too low");
         require(_token.isContract(), "token is not contract");
-        SafeERC20.safeTransferFrom(IERC20(_token),msg.sender,address(this),_amount);
-       
+        SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), _amount);
+
         _deposit(_token, Utils.toBytes(msg.sender), _to, _amount, bytes32(""), selfChainId);
     }
 
-    function depositNative(address _to) external override payable nonReentrant whenNotPaused {
+    function depositNative(address _to) external payable override nonReentrant whenNotPaused {
         uint256 amount = msg.value;
         require(amount > 0, "value too low");
-        IWrappedToken(wToken).deposit{value : amount}();
+        IWrappedToken(wToken).deposit{value: amount}();
         _deposit(wToken, Utils.toBytes(msg.sender), _to, amount, bytes32(""), selfChainId);
     }
-
 
     function swapIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
         (bool success,string memory message,bytes memory logArray) = lightClientManager.verifyProofData(_chainId, _receiptProof);
@@ -266,18 +261,21 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         emit mapTransferExecute(_chainId, selfChainId, msg.sender);
     }
 
-
-    function getFee(uint256 _id, uint256 _amount) view public returns (uint256, address){
+    function getFee(uint256 _id, uint256 _amount) public view returns (uint256, address) {
         Rate memory rate = distributeRate[_id];
         return (_amount.mul(rate.rate).div(1000000), rate.receiver);
     }
 
-
-    function _getOrderId(address _from, bytes memory _to, uint256 _toChain) internal returns (bytes32){
+    function _getOrderId(address _from, bytes memory _to, uint256 _toChain) internal returns (bytes32) {
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 
-    function _collectFee(address _token, uint256 _mapAmount, uint256 _fromChain, uint256 _toChain) internal returns (uint256, uint256) {
+    function _collectFee(
+        address _token,
+        uint256 _mapAmount,
+        uint256 _fromChain,
+        uint256 _toChain
+    ) internal returns (uint256, uint256) {
         address token = _token;
         address vaultToken = tokenRegister.getVaultToken(token);
         require(vaultToken != address(0), "vault token not registered");
@@ -313,9 +311,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         return (mapOutAmount, outAmount);
     }
 
-
-    function _swapIn(uint256 _chainId, IEvent.swapOutEvent memory _outEvent)
-    internal checkOrder(_outEvent.orderId) {
+    function _swapIn(uint256 _chainId, IEvent.swapOutEvent memory _outEvent) internal checkOrder(_outEvent.orderId) {
         require(_chainId == _outEvent.fromChain, "invalid chain id");
         address token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
         require(token != address(0), "map token not registered");
@@ -334,8 +330,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         if (_outEvent.toChain == selfChainId) {
             address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
             if (_outEvent.swapData.length > 0) {
-                SafeERC20.safeTransfer(IERC20(token),butterRouter,mapOutAmount);
-                (bool result,) = butterRouter.call(
+                SafeERC20.safeTransfer(IERC20(token), butterRouter, mapOutAmount);
+                (bool result, ) = butterRouter.call(
                     abi.encodeWithSignature(
                         "remoteSwapAndCall(bytes32,address,uint256,uint256,bytes,bytes)",
                         _outEvent.orderId,
@@ -352,7 +348,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
                     Address.sendValue(payable(toAddress), mapOutAmount);
                 } else {
                     require(IERC20(token).balanceOf(address(this)) >= mapOutAmount, "balance too low");
-                    SafeERC20.safeTransfer(IERC20(token),toAddress,mapOutAmount);
+                    SafeERC20.safeTransfer(IERC20(token), toAddress, mapOutAmount);
                 }
             }
             emit mapSwapIn(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, token, _outEvent.from, toAddress, mapOutAmount);
@@ -394,20 +390,13 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             IMintableToken(_token).burn(mapOutAmount);
         }
 
-        emit mapSwapOut(
-            selfChainId,
-            _toChain,
-            orderId,
-            toToken,
-            Utils.toBytes(_from),
-            _to,
-            outAmount,
-            _swapData
-        );
+        emit mapSwapOut(selfChainId, _toChain, orderId, toToken, Utils.toBytes(_from), _to, outAmount, _swapData);
     }
 
-    function _depositIn(uint256 _chainId, IEvent.depositOutEvent memory _depositEvent)
-    internal checkOrder(_depositEvent.orderId) {
+    function _depositIn(
+        uint256 _chainId,
+        IEvent.depositOutEvent memory _depositEvent
+    ) internal checkOrder(_depositEvent.orderId) {
         require(_chainId == _depositEvent.fromChain, "invalid chain id");
         require(selfChainId == _depositEvent.toChain, "invalid chain id");
         address token = tokenRegister.getRelayChainToken(_depositEvent.fromChain, _depositEvent.token);
@@ -421,8 +410,14 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         _deposit(token, _depositEvent.from, Utils.fromBytes(_depositEvent.to), mapAmount, _depositEvent.orderId, _depositEvent.fromChain);
     }
 
-    function _deposit(address _token, bytes memory _from, address _to, uint256 _amount, bytes32 _orderId, uint256 _fromChain)
-    internal {
+    function _deposit(
+        address _token,
+        bytes memory _from,
+        address _to,
+        uint256 _amount,
+        bytes32 _orderId,
+        uint256 _fromChain
+    ) internal {
         address vaultToken = tokenRegister.getVaultToken(_token);
         require(vaultToken != address(0), "vault token not registered");
 

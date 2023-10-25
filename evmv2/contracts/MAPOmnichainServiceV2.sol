@@ -20,7 +20,6 @@ import "./interface/IMintableToken.sol";
 import "./interface/IButterMosV2.sol";
 import "./utils/EvmDecoder.sol";
 
-
 contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IButterMosV2, UUPSUpgradeable {
     using SafeMath for uint;
     using RLPReader for bytes;
@@ -55,12 +54,11 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     event RegisterChain(uint256 _chainId, chainType _type);
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
-    function initialize(address _wToken, address _lightNode, address _owner) public
-        initializer
-        checkAddress(_wToken)
-        checkAddress(_lightNode)
-        checkAddress(_owner)
-    {
+    function initialize(
+        address _wToken,
+        address _lightNode,
+        address _owner
+    ) public initializer checkAddress(_wToken) checkAddress(_lightNode) checkAddress(_owner) {
         wToken = _wToken;
         lightNode = ILightNode(_lightNode);
         _changeAdmin(_owner);
@@ -129,7 +127,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     }
 
     function registerToken(address _token, uint _toChain, bool _enable) external onlyOwner {
-        require(_token.isContract(),"token is not contract");
+        require(_token.isContract(), "token is not contract");
         tokenMappingList[_toChain][_token] = _enable;
         emit RegisterToken(_token, _toChain, _enable);
     }
@@ -143,15 +141,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
-    )
-        external
-        virtual
-        override
-        nonReentrant
-        whenNotPaused
-        checkBridgeable(_token, _toChain)
-        returns (bytes32 orderId)
-    {
+    ) external virtual override nonReentrant whenNotPaused checkBridgeable(_token, _toChain) returns (bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         require(_amount > 0, "Sending value is zero");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
@@ -159,7 +149,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         if (isMintable(_token)) {
             IMintableToken(_token).burnFrom(msg.sender, _amount);
         } else {
-            SafeERC20.safeTransferFrom(IERC20(_token),msg.sender,address(this),_amount);
+            SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), _amount);
         }
 
         orderId = _getOrderID(msg.sender, _to, _toChain);
@@ -208,11 +198,11 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         );
     }
 
-    function depositToken(address _token, address _to, uint _amount) external override
-        nonReentrant
-        whenNotPaused
-        checkBridgeable(_token, relayChainId)
-    {
+    function depositToken(
+        address _token,
+        address _to,
+        uint _amount
+    ) external override nonReentrant whenNotPaused checkBridgeable(_token, relayChainId) {
         address from = msg.sender;
         require(_amount > 0, "Sending value is zero");
         //require(IERC20(token).balanceOf(_from) >= _amount, "balance too low");
@@ -220,21 +210,22 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         if (isMintable(_token)) {
             IMintableToken(_token).burnFrom(from, _amount);
         } else {
-            SafeERC20.safeTransferFrom(IERC20(_token),from,address(this),_amount);
+            SafeERC20.safeTransferFrom(IERC20(_token), from, address(this), _amount);
         }
 
         bytes32 orderId = _getOrderID(from, Utils.toBytes(_to), relayChainId);
         emit mapDepositOut(selfChainId, relayChainId, orderId, _token, Utils.toBytes(from), _to, _amount);
     }
 
-    function depositNative(address _to) external payable override nonReentrant whenNotPaused
-    checkBridgeable(wToken, relayChainId) {
+    function depositNative(
+        address _to
+    ) external payable override nonReentrant whenNotPaused checkBridgeable(wToken, relayChainId) {
         address from = msg.sender;
         uint amount = msg.value;
         require(amount > 0, "Sending value is zero");
         bytes32 orderId = _getOrderID(from, Utils.toBytes(_to), relayChainId);
 
-        IWrappedToken(wToken).deposit{value : amount}();
+        IWrappedToken(wToken).deposit{value: amount}();
         emit mapDepositOut(selfChainId, relayChainId, orderId, wToken, Utils.toBytes(from), _to, amount);
     }
 
@@ -246,10 +237,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         for (uint i = 0; i < logs.length; i++) {
             IEvent.txLog memory log = logs[i];
             bytes32 topic = abi.decode(log.topics[0], (bytes32));
-            if (
-                topic == EvmDecoder.MAP_SWAPOUT_TOPIC &&
-                relayContract == log.addr
-            ) {
+            if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
                 (, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
                 // there might be more than one events to multi-chains
                 // only process the event for this chain
@@ -270,7 +258,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         return tokenMappingList[_toChain][_token];
     }
 
-    function _getOrderID(address _from, bytes memory _to, uint _toChain) internal returns (bytes32){
+    function _getOrderID(address _from, bytes memory _to, uint _toChain) internal returns (bytes32) {
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 
@@ -287,7 +275,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
 
         // if swap params is not empty, then we need to do swap on current chain
         if (_outEvent.swapData.length > 0) {
-            SafeERC20.safeTransfer(IERC20(tokenIn),butterRouter, actualAmountIn);
+            SafeERC20.safeTransfer(IERC20(tokenIn), butterRouter, actualAmountIn);
 
             (bool result, ) = butterRouter.call(
                 abi.encodeWithSignature(
@@ -306,7 +294,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
                 IWrappedToken(wToken).withdraw(actualAmountIn);
                 Address.sendValue(payable(toAddress), actualAmountIn);
             } else {
-               SafeERC20.safeTransfer(IERC20(tokenIn), toAddress, actualAmountIn);
+                SafeERC20.safeTransfer(IERC20(tokenIn), toAddress, actualAmountIn);
             }
         }
 
