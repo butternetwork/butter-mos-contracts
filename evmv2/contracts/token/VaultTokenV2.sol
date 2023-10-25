@@ -10,9 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "../interface/IVaultTokenV2.sol";
 
-
-
-contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable,ERC20Burnable {
+contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable, ERC20Burnable {
     using SafeMath for uint256;
     using SafeCast for uint256;
 
@@ -27,7 +25,6 @@ contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable,ERC20Burnable {
 
     event DepositVault(address indexed token, address indexed to, uint256 vaultValue, uint256 value);
     event WithdrawVault(address indexed token, address indexed to, uint256 vaultValue, uint256 value);
-
 
     /**
      * @dev Grants `DEFAULT_ADMIN_ROLE`, `MANAGER_ROLE` to the
@@ -46,16 +43,16 @@ contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable,ERC20Burnable {
         _decimals = IERC20Metadata(underlying).decimals();
     }
 
-    modifier onlyManager(){
+    modifier onlyManager() {
         require(hasRole(MANAGER_ROLE, msg.sender), "Caller is not a manager");
         _;
     }
 
-    function addManager(address _manager) external onlyRole(DEFAULT_ADMIN_ROLE){
+    function addManager(address _manager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _setupRole(MANAGER_ROLE, _manager);
     }
 
-    function removeManager(address _manager) external onlyRole(DEFAULT_ADMIN_ROLE){
+    function removeManager(address _manager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _revokeRole(MANAGER_ROLE, _manager);
     }
 
@@ -63,7 +60,7 @@ contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable,ERC20Burnable {
         return _decimals;
     }
 
-    function getVaultTokenAmount(uint256 _amount) public view returns (uint256){
+    function getVaultTokenAmount(uint256 _amount) public view returns (uint256) {
         if (totalSupply() == 0) {
             return _amount;
         }
@@ -71,7 +68,7 @@ contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable,ERC20Burnable {
         return _amount.mul(allVToken).div(totalVault);
     }
 
-    function getTokenAmount(uint256 _amount) public override view returns (uint256){
+    function getTokenAmount(uint256 _amount) public view override returns (uint256) {
         uint allVToken = totalSupply();
         if (allVToken == 0) {
             return _amount;
@@ -79,7 +76,7 @@ contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable,ERC20Burnable {
         return _amount.mul(totalVault).div(allVToken);
     }
 
-    function getTokenAddress() public override view returns (address){
+    function getTokenAddress() public view override returns (address) {
         return underlying;
     }
 
@@ -103,7 +100,14 @@ contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable,ERC20Burnable {
         emit WithdrawVault(underlying, _to, _vaultAmount, amount);
     }
 
-    function transferToken(uint256 _fromChain, uint256 _amount,  uint256 _toChain, uint256 _outAmount, uint256 _relayChain, uint256 _fee) external override onlyManager {
+    function transferToken(
+        uint256 _fromChain,
+        uint256 _amount,
+        uint256 _toChain,
+        uint256 _outAmount,
+        uint256 _relayChain,
+        uint256 _fee
+    ) external override onlyManager {
         vaultBalance[_fromChain] += _amount.toInt256();
         vaultBalance[_toChain] -= _outAmount.toInt256();
 

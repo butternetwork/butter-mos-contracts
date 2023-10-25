@@ -11,7 +11,8 @@
   "main": "index.js",
   "scripts": {
     "butter:deploy:MapCrossChainServiceProxyUp": "npx hardhat deploy --tags MAPCrossChainServiceRelayProxyUp --network Bsc",
-    "butter:deploy:MapCrossChainServiceRelayProxyUp": "npx hardhat deploy --tags MapCrossChainServiceRelayProxyUp --network Map"
+    "butter:deploy:MapCrossChainServiceRelayProxyUp": "npx hardhat deploy --tags MapCrossChainServiceRelayProxyUp --network Map",
+    "format": "prettier --print-width 120 --write ./contracts ./deploy ./tasks ./test"
   },
   "repository": {
     "type": "git",
@@ -58,8 +59,8 @@
     "hardhat-deploy-ethers": "^0.3.0-beta.7",
     "hardhat-gas-reporter": "^1.0.4",
     "hardhat-spdx-license-identifier": "^2.0.3",
-    "prettier": "^2.2.1",
-    "prettier-plugin-solidity": "^1.0.0-beta.5",
+    "prettier": "^2.8.8",
+    "prettier-plugin-solidity": "^1.1.0",
     "solidity-coverage": "^0.7.22",
     "ts-node": "^9.1.1",
     "typescript": "^4.2.2",

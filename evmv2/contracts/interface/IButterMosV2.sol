@@ -9,17 +9,18 @@ interface IButterMosV2 {
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
-    ) external returns(bytes32 orderId);
+    ) external returns (bytes32 orderId);
 
     function swapOutNative(
         address _sender,
         bytes memory _to,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
-    ) external payable returns(bytes32 orderId);
+    ) external payable returns (bytes32 orderId);
 
     function depositToken(address _token, address to, uint _amount) external;
-    function depositNative(address _to) external payable ;
+
+    function depositNative(address _to) external payable;
 
     event SetButterRouterAddress(address indexed _newRouter);
 
@@ -34,9 +35,15 @@ interface IButterMosV2 {
         bytes toChainToken
     );
 
-
-    event mapDepositOut(uint256 indexed fromChain, uint256 indexed toChain, bytes32 orderId,
-        address token, bytes from, address to, uint256 amount);
+    event mapDepositOut(
+        uint256 indexed fromChain,
+        uint256 indexed toChain,
+        bytes32 orderId,
+        address token,
+        bytes from,
+        address to,
+        uint256 amount
+    );
 
     event mapSwapOut(
         uint256 indexed fromChain, // from chain
@@ -58,5 +65,4 @@ interface IButterMosV2 {
         address toAddress,
         uint256 amountOut
     );
-
 }

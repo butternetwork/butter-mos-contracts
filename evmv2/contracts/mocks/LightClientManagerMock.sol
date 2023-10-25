@@ -10,14 +10,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightClientManager.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightNode.sol";
 
-
-contract LightClientManager is ILightClientManager,Ownable {
+contract LightClientManager is ILightClientManager, Ownable {
     mapping(uint256 => address) public lightClientContract;
     mapping(uint256 => address) public updateBlockContract;
 
-    function updateLightClient(uint256 _chainId, bytes memory _data) external override{
-            
-    }
+    function updateLightClient(uint256 _chainId, bytes memory _data) external override {}
 
     function updateBlockHeader(uint256 _chainId, bytes memory _blockHeader) external override {
         require(updateBlockContract[_chainId] != address(0), "not register");
@@ -25,26 +22,27 @@ contract LightClientManager is ILightClientManager,Ownable {
         lightNode.updateBlockHeader(_blockHeader);
     }
 
-    function verifyProofData(uint _chainId, bytes memory _receiptProof) external view override
-    returns (bool success, string memory message, bytes memory logs) {
-//        require(lightClientContract[_chainId] != address(0), "not register");
-//        ILightNode lightNode = ILightNode(lightClientContract[_chainId]);
-//        return lightNode.verifyProofData(_receiptProof);
-        if(_chainId == 888){
-            return(false,"fail",_receiptProof);
-        }else{
-            return(true,"success",_receiptProof);
+    function verifyProofData(
+        uint _chainId,
+        bytes memory _receiptProof
+    ) external view override returns (bool success, string memory message, bytes memory logs) {
+        //        require(lightClientContract[_chainId] != address(0), "not register");
+        //        ILightNode lightNode = ILightNode(lightClientContract[_chainId]);
+        //        return lightNode.verifyProofData(_receiptProof);
+        if (_chainId == 888) {
+            return (false, "fail", _receiptProof);
+        } else {
+            return (true, "success", _receiptProof);
         }
-
     }
 
-    function headerHeight(uint256 _chainId) external view override returns (uint256){
+    function headerHeight(uint256 _chainId) external view override returns (uint256) {
         require(lightClientContract[_chainId] != address(0), "not register");
         ILightNode lightNode = ILightNode(updateBlockContract[_chainId]);
-        if(_chainId == 34434){
-            (uint256 number) = lightNode.headerHeight();
+        if (_chainId == 34434) {
+            uint256 number = lightNode.headerHeight();
             return number;
-        }else{
+        } else {
             return lightNode.headerHeight();
         }
     }
@@ -53,7 +51,7 @@ contract LightClientManager is ILightClientManager,Ownable {
         return (0, 0);
     }
 
-    function clientState(uint256 _chainId) external view override returns(bytes memory){
+    function clientState(uint256 _chainId) external view override returns (bytes memory) {
         return bytes("");
     }
 }

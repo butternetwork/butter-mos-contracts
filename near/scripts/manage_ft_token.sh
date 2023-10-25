@@ -11,6 +11,7 @@ function printHelp() {
   echo "  list                                                  view registered fungible tokens and their to chains"
   echo "  register <token> <mintable>  transfer out ft token    register token"
   echo "  deposit <token> <from> <to> <amount>                  deposit out ft token"
+  echo "  transfer <token> <from> <to> <amount>  <to chain>    transfer out ft token"
   echo "  balance <token> <account>                             view account balance of ft token"
   echo "  help                                                  show help"
 }
@@ -27,6 +28,11 @@ function list_tokens() {
 function deposit_out() {
   echo "deposit out $4 $1 token from $2 to $3 on MAP chain"
   near call $1 ft_transfer_call '{"receiver_id":"'$MCS_ACCOUNT'", "amount":"'$4'", "memo": "", "msg": "{\"type\": \"Deposit\", \"to\": \"'$3'\"}"}' --accountId $2 --depositYocto 1 --gas 60000000000000
+}
+
+function transfer_out() {
+  echo "transfer out $4 $1 token from $2 to $3 on chain $5"
+  near call $1 ft_transfer_call '{"receiver_id":"'$MCS_ACCOUNT'", "amount":"'$4'", "memo": "", "msg": "{\"type\": \"Swap\", \"to\": \"'$3'\", \"to_chain\": \"'$5'\", \"swap_info\": \"\"}"}' --accountId $2 --depositYocto 1 --gas 60000000000000
 }
 
 function balance() {

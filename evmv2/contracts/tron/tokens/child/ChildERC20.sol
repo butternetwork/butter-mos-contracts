@@ -1,4 +1,4 @@
-	// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.7;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -7,17 +7,14 @@ import {IChildToken} from "./interfaces/IChildToken.sol";
 import {NativeMetaTransaction} from "./abstract/NativeMetaTransaction.sol";
 import {ContextMixin} from "./abstract/ContextMixin.sol";
 
-
-contract ChildERC20 is ERC20,IChildToken,AccessControlMixin,NativeMetaTransaction,ContextMixin{
-
+contract ChildERC20 is ERC20, IChildToken, AccessControlMixin, NativeMetaTransaction, ContextMixin {
     uint8 private _decimals;
-    mapping (bytes32 => uint256) public deposits;
+    mapping(bytes32 => uint256) public deposits;
     bytes32 public constant DEPOSITOR_ROLE = keccak256("DEPOSITOR_ROLE");
 
+    event ReceiveFormRootChain(address user, bytes depositData);
 
-    event ReceiveFormRootChain(address user,bytes depositData);
-
-    constructor(string memory name_,string memory symbol_,uint8 decimals_,address childChainManager_)  ERC20(name_, symbol_) {
+    constructor(string memory name_,string memory symbol_,uint8 decimals_,address childChainManager_) ERC20(name_, symbol_) {
         _setupContractId("ChildERC20");
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(DEPOSITOR_ROLE, childChainManager_);
@@ -31,8 +28,7 @@ contract ChildERC20 is ERC20,IChildToken,AccessControlMixin,NativeMetaTransactio
 
     // This is to support Native meta transactions
     // never use msg.sender directly, use _msgSender() instead
-    function _msgSender()internal override view returns (address sender)
-    {
+    function _msgSender() internal view override returns (address sender) {
         return ContextMixin.msgSender();
     }
 
@@ -44,15 +40,11 @@ contract ChildERC20 is ERC20,IChildToken,AccessControlMixin,NativeMetaTransactio
      * @param user user address for whom deposit is being done
      * @param depositData abi encoded amount
      */
-    function deposit(address user, bytes calldata depositData)
-        external
-        override
-        only(DEPOSITOR_ROLE)
-    {
+    function deposit(address user, bytes calldata depositData) external override only(DEPOSITOR_ROLE) {
         uint256 amount = abi.decode(depositData, (uint256));
         _mint(user, amount);
         deposits[keccak256(depositData)] = block.timestamp;
-        emit ReceiveFormRootChain(user,depositData);
+        emit ReceiveFormRootChain(user, depositData);
     }
 
     /**

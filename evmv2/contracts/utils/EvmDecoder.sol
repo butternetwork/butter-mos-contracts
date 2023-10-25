@@ -2,12 +2,11 @@
 
 pragma solidity 0.8.7;
 
-
 import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "@mapprotocol/protocol/contracts/lib/RLPReader.sol";
 import "../interface/IEvent.sol";
-library EvmDecoder {
 
+library EvmDecoder {
     using RLPReader for bytes;
     using RLPReader for RLPReader.RLPItem;
 
@@ -18,7 +17,7 @@ library EvmDecoder {
     function decodeTxLogs(bytes memory logsHash)
     internal
     pure
-    returns (IEvent.txLog[] memory _txLogs){
+    returns (IEvent.txLog[] memory _txLogs) {
         RLPReader.RLPItem[] memory ls = logsHash.toRlpItem().toList();
         _txLogs = new IEvent.txLog[](ls.length);
         for (uint256 i = 0; i < ls.length; i++) {
@@ -32,9 +31,9 @@ library EvmDecoder {
                 topic[j] = firstItemList[j].toBytes();
             }
             _txLogs[i] = IEvent.txLog({
-            addr : item[0].toAddress(),
-            topics : topic,
-            data : item[2].toBytes()
+                addr: item[0].toAddress(),
+                topics: topic,
+                data: item[2].toBytes()
             });
         }
     }
@@ -55,7 +54,7 @@ library EvmDecoder {
     function decodeDepositOutLog(IEvent.txLog memory log)
     internal
     pure
-    returns (bytes memory executorId, IEvent.depositOutEvent memory depositEvent){
+    returns (bytes memory executorId, IEvent.depositOutEvent memory depositEvent) {
         executorId = Utils.toBytes(log.addr);
 
         depositEvent.fromChain = abi.decode(log.topics[1], (uint256));
@@ -68,6 +67,5 @@ library EvmDecoder {
 
         depositEvent.token = Utils.toBytes(token);
         depositEvent.to = Utils.toBytes(toAddress);
-
     }
 }

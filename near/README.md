@@ -1,10 +1,10 @@
-# MAP cross-chain service
+# Butter cross-chain service on Near Protocol
 
 The project includes 4 types of contracts, which are:
 1. **multisig contract**: owner account of map light client contract and mcs contract to avoid centralization risk
-2. **mcs factory contract**: factory contract to create multisig contract and mcs contract
-3. **mcs contract**: MAP cross chain service contract
-4. **mcs token contract**: NEP-141 token created by mcs contract
+2. **mos factory contract**: factory contract to create multisig contract and mcs contract
+3. **map ominichain service contract**: Butter cross chain service contract
+4. **mos token contract**: NEP-141 token created by mcs contract
 
 ## Pre-requisites
 
@@ -52,9 +52,9 @@ Run below script to build:
 ```
 
 5 wasm files will be generated in directory ./script/res, which are: (the first 2 files are copied from mapclients project)
-1. **mcs.wasm**: MAP cross chain service contract
-2. **mcs_factory.wasm**: factory contract to deploy and initialize the MCS contract and make MCS contract account in locked state.
-3. **mcs_token.wasm**: NEP-141 token contract deployed by MCS contract
+1. **mos.wasm**: MAP cross chain service contract
+2. **mos_factory.wasm**: factory contract to deploy and initialize the MCS contract and make MCS contract account in locked state.
+3. **mos_token.wasm**: NEP-141 token contract deployed by MCS contract
 4. **mock_map_client.wasm**: mocked MAP light client contract which is for testing
 5. **multisig.wasm**: multisig contract
 
