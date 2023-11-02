@@ -24,7 +24,11 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
         emit SetRootToken(_rootToken);
     }
 
-    function giveAllowance(address _token, address _spender, uint256 _amount) external onlyOwner {
+    function giveAllowance(
+        address _token,
+        address _spender,
+        uint256 _amount
+    ) external onlyOwner {
         IERC20(_token).approve(_spender, _amount);
     }
 
@@ -55,7 +59,7 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
         bytes calldata _swapData
     ) external payable override nonReentrant whenNotPaused checkBridgeable(wToken, _toChain) returns (bytes32 orderId) {
         require(_toChain != selfChainId, "self chain");
-        uint amount = msg.value;
+        uint256 amount = msg.value;
         require(amount > 0, "value is zero");
         IWrappedToken(wToken).deposit{value: amount}();
 

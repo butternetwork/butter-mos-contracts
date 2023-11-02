@@ -18,7 +18,11 @@ interface IButterMosV2 {
         bytes calldata _swapData
     ) external payable returns (bytes32 orderId);
 
-    function depositToken(address _token, address to, uint _amount) external;
+    function depositToken(
+        address _token,
+        address to,
+        uint256 _amount
+    ) external;
 
     function depositNative(address _to) external payable;
 
