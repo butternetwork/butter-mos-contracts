@@ -21,13 +21,13 @@ import "./interface/IButterMosV2.sol";
 import "./utils/EvmDecoder.sol";
 
 contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IButterMosV2, UUPSUpgradeable {
-    using SafeMath for uint;
+    using SafeMath for uint256;
     using RLPReader for bytes;
     using RLPReader for RLPReader.RLPItem;
     using Address for address;
 
-    uint public immutable selfChainId = block.chainid;
-    uint public nonce;
+    uint256 public immutable selfChainId = block.chainid;
+    uint256 public nonce;
     address public wToken; // native wrapped token
     address public relayContract;
     uint256 public relayChainId;
@@ -50,7 +50,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     event AddMintableToken(address[] _token);
     event RemoveMintableToken(address[] _token);
     event SetRelayContract(uint256 _chainId, address _relay);
-    event RegisterToken(address _token, uint _toChain, bool _enable);
+    event RegisterToken(address _token, uint256 _toChain, bool _enable);
     event RegisterChain(uint256 _chainId, chainType _type);
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
@@ -72,7 +72,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         _;
     }
 
-    modifier checkBridgeable(address _token, uint _chainId) {
+    modifier checkBridgeable(address _token, uint256 _chainId) {
         require(tokenMappingList[_chainId][_token], "token not registered");
         _;
     }
@@ -101,14 +101,14 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     }
 
     function addMintableToken(address[] memory _token) external onlyOwner {
-        for (uint i = 0; i < _token.length; i++) {
+        for (uint256 i = 0; i < _token.length; i++) {
             mintableTokens[_token[i]] = true;
         }
         emit AddMintableToken(_token);
     }
 
     function removeMintableToken(address[] memory _token) external onlyOwner {
-        for (uint i = 0; i < _token.length; i++) {
+        for (uint256 i = 0; i < _token.length; i++) {
             mintableTokens[_token[i]] = false;
         }
         emit RemoveMintableToken(_token);
@@ -126,7 +126,11 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         emit SetButterRouterAddress(_butterRouter);
     }
 
-    function registerToken(address _token, uint _toChain, bool _enable) external onlyOwner {
+    function registerToken(
+        address _token,
+        uint256 _toChain,
+        bool _enable
+    ) external onlyOwner {
         require(_token.isContract(), "token is not contract");
         tokenMappingList[_toChain][_token] = _enable;
         emit RegisterToken(_token, _toChain, _enable);
@@ -182,7 +186,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         returns (bytes32 orderId)
     {
         require(_toChain != selfChainId, "Cannot swap to self chain");
-        uint amount = msg.value;
+        uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWrappedToken(wToken).deposit{value: amount}();
         orderId = _getOrderID(msg.sender, _to, _toChain);
@@ -201,7 +205,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     function depositToken(
         address _token,
         address _to,
-        uint _amount
+        uint256 _amount
     ) external override nonReentrant whenNotPaused checkBridgeable(_token, relayChainId) {
         address from = msg.sender;
         require(_amount > 0, "Sending value is zero");
@@ -217,11 +221,16 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         emit mapDepositOut(selfChainId, relayChainId, orderId, _token, Utils.toBytes(from), _to, _amount);
     }
 
-    function depositNative(
-        address _to
-    ) external payable override nonReentrant whenNotPaused checkBridgeable(wToken, relayChainId) {
+    function depositNative(address _to)
+        external
+        payable
+        override
+        nonReentrant
+        whenNotPaused
+        checkBridgeable(wToken, relayChainId)
+    {
         address from = msg.sender;
-        uint amount = msg.value;
+        uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         bytes32 orderId = _getOrderID(from, Utils.toBytes(_to), relayChainId);
 
@@ -234,7 +243,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
         require(success, message);
         IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
-        for (uint i = 0; i < logs.length; i++) {
+        for (uint256 i = 0; i < logs.length; i++) {
             IEvent.txLog memory log = logs[i];
             bytes32 topic = abi.decode(log.topics[0], (bytes32));
             if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
@@ -258,7 +267,11 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         return tokenMappingList[_toChain][_token];
     }
 
-    function _getOrderID(address _from, bytes memory _to, uint _toChain) internal returns (bytes32) {
+    function _getOrderID(
+        address _from,
+        bytes memory _to,
+        uint256 _toChain
+    ) internal returns (bytes32) {
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 
@@ -267,7 +280,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         // receiving address
         address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
         // amount of token need to be sent
-        uint actualAmountIn = _outEvent.amount;
+        uint256 actualAmountIn = _outEvent.amount;
 
         if (isMintable(tokenIn)) {
             IMintableToken(tokenIn).mint(address(this), actualAmountIn);
@@ -298,7 +311,15 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
             }
         }
 
-        emit mapSwapIn(_outEvent.fromChain, selfChainId, _outEvent.orderId, tokenIn, _outEvent.from, toAddress, actualAmountIn);
+        emit mapSwapIn(
+            _outEvent.fromChain,
+            selfChainId,
+            _outEvent.orderId,
+            tokenIn,
+            _outEvent.from,
+            toAddress,
+            actualAmountIn
+        );
     }
 
     /** UUPS *********************************************************/

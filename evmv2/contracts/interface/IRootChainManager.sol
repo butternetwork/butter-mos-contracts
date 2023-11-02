@@ -2,11 +2,14 @@
 
 pragma solidity ^0.8.0;
 
+interface IRootChainManager {
+    function depositFor(
+        address user,
+        address rootToken,
+        bytes calldata depositData
+    ) external;
 
-interface IRootChainManager { 
-    function depositFor(address user, address rootToken, bytes calldata depositData) external;
+    function feeToken() external view returns (address);
 
-    function feeToken()external view returns(address);
-
-    function feeAmount() external view returns(uint256);
+    function feeAmount() external view returns (uint256);
 }

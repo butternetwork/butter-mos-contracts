@@ -11,7 +11,7 @@ import "./interface/ITokenRegisterV2.sol";
 import "./interface/IVaultTokenV2.sol";
 
 contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
-    using SafeMath for uint;
+    using SafeMath for uint256;
 
     uint256 constant MAX_RATE_UNI = 1000000;
 
@@ -32,7 +32,7 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         mapping(uint256 => bytes) mappingTokens;
     }
 
-    uint public immutable selfChainId = block.chainid;
+    uint256 public immutable selfChainId = block.chainid;
 
     //Source chain to Relay chain address
     // [chain_id => [source_token => map_token]]
@@ -51,7 +51,7 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
     }
 
     event RegisterToken(address _token, address _vaultToken, bool _mintable);
-    event SetTokenFee(address _token, uint256 _toChain, uint _lowest, uint _highest, uint _rate);
+    event SetTokenFee(address _token, uint256 _toChain, uint256 _lowest, uint256 _highest, uint256 _rate);
 
     function initialize(address _owner) public initializer checkAddress(_owner) {
         _changeAdmin(_owner);
@@ -89,9 +89,9 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
     function setTokenFee(
         address _token,
         uint256 _toChain,
-        uint _lowest,
-        uint _highest,
-        uint _rate
+        uint256 _lowest,
+        uint256 _highest,
+        uint256 _rate
     ) external onlyOwner checkAddress(_token) {
         Token storage token = tokenList[_token];
         require(token.vaultToken != address(0), "invalid map token");
@@ -105,10 +105,12 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
 
     // --------------------------------------------------------
 
-    function getToChainToken(
-        address _token,
-        uint256 _toChain
-    ) external view override returns (bytes memory _toChainToken) {
+    function getToChainToken(address _token, uint256 _toChain)
+        external
+        view
+        override
+        returns (bytes memory _toChainToken)
+    {
         if (_toChain == selfChainId) {
             _toChainToken = Utils.toBytes(_token);
         } else {
@@ -135,13 +137,15 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         if (decimalsFrom == decimalsTo) {
             return _amount;
         }
-        return _amount.mul(10 ** decimalsTo).div(10 ** decimalsFrom);
+        return _amount.mul(10**decimalsTo).div(10**decimalsFrom);
     }
 
-    function getRelayChainToken(
-        uint256 _fromChain,
-        bytes memory _fromToken
-    ) external view override returns (address token) {
+    function getRelayChainToken(uint256 _fromChain, bytes memory _fromToken)
+        external
+        view
+        override
+        returns (address token)
+    {
         if (_fromChain == selfChainId) {
             token = Utils.fromBytes(_fromToken);
         } else {
@@ -162,7 +166,7 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         if (decimalsFrom == decimalsTo) {
             return _amount;
         }
-        return _amount.mul(10 ** decimalsTo).div(10 ** decimalsFrom);
+        return _amount.mul(10**decimalsTo).div(10**decimalsFrom);
     }
 
     function checkMintable(address _token) external view override returns (bool) {
@@ -173,7 +177,11 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         return tokenList[_token].vaultToken;
     }
 
-    function getTokenFee(address _token, uint256 _amount, uint256 _toChain) external view override returns (uint256) {
+    function getTokenFee(
+        address _token,
+        uint256 _amount,
+        uint256 _toChain
+    ) external view override returns (uint256) {
         FeeRate memory feeRate = tokenList[_token].fees[_toChain];
 
         uint256 fee = _amount.mul(feeRate.rate).div(MAX_RATE_UNI);
@@ -185,10 +193,15 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         return fee;
     }
 
-    function getToChainTokenInfo(
-        address _token,
-        uint256 _toChain
-    ) external view returns (bytes memory toChainToken, uint8 decimals, FeeRate memory feeRate) {
+    function getToChainTokenInfo(address _token, uint256 _toChain)
+        external
+        view
+        returns (
+            bytes memory toChainToken,
+            uint8 decimals,
+            FeeRate memory feeRate
+        )
+    {
         if (_toChain == selfChainId) {
             toChainToken = Utils.toBytes(_token);
             decimals = tokenList[_token].decimals;
@@ -208,7 +221,14 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
     )
         external
         view
-        returns (uint256 _feeAmount, FeeRate memory _feeRate, address _relayToken, uint8 _relayTokenDecimals, bytes memory _toToken, uint8 _toTokenDecimals)
+        returns (
+            uint256 _feeAmount,
+            FeeRate memory _feeRate,
+            address _relayToken,
+            uint8 _relayTokenDecimals,
+            bytes memory _toToken,
+            uint8 _toTokenDecimals
+        )
     {
         (_relayToken, , _feeAmount) = this.getRelayFee(_fromChain, _fromToken, _fromAmount, _toChain);
         (_toToken, _toTokenDecimals, _feeRate) = this.getToChainTokenInfo(_relayToken, _toChain);
@@ -224,7 +244,12 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
     )
         external
         view
-        returns (uint256 _srcFeeAmount, uint256 _relayChainAmount, int256 _vaultBalance, bytes memory _toChainToken)
+        returns (
+            uint256 _srcFeeAmount,
+            uint256 _relayChainAmount,
+            int256 _vaultBalance,
+            bytes memory _toChainToken
+        )
     {
         address relayToken;
         uint256 feeAmount;
@@ -245,7 +270,12 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
     )
         external
         view
-        returns (uint256 _srcFeeAmount, uint256 _srcChainAmount, int256 _vaultBalance, bytes memory _srcChainToken)
+        returns (
+            uint256 _srcFeeAmount,
+            uint256 _srcChainAmount,
+            int256 _vaultBalance,
+            bytes memory _srcChainToken
+        )
     {
         address relayToken = this.getRelayChainToken(_targetChain, _targetToken);
         uint256 relayChainAmount = this.getRelayChainAmount(relayToken, _targetChain, _targetAmount);
@@ -256,7 +286,11 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         _vaultBalance = getVaultBalance(relayToken, _targetAmount);
     }
 
-    function _getAmountBeforeFee(address _token, uint256 _amount, uint256 _toChain) internal view returns (uint256) {
+    function _getAmountBeforeFee(
+        address _token,
+        uint256 _amount,
+        uint256 _toChain
+    ) internal view returns (uint256) {
         FeeRate memory feeRate = tokenList[_token].fees[_toChain];
         uint256 outAmount = _amount.mul(MAX_RATE_UNI).div(MAX_RATE_UNI.sub(feeRate.rate));
         if (outAmount > _amount.add(feeRate.highest)) {
@@ -291,7 +325,15 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         bytes memory _fromToken,
         uint256 _fromAmount,
         uint256 _toChain
-    ) external view returns (address _relayToken, uint256 _relayChainAmount, uint256 _feeAmount) {
+    )
+        external
+        view
+        returns (
+            address _relayToken,
+            uint256 _relayChainAmount,
+            uint256 _feeAmount
+        )
+    {
         _relayToken = this.getRelayChainToken(_fromChain, _fromToken);
 
         _relayChainAmount = this.getRelayChainAmount(_relayToken, _fromChain, _fromAmount);

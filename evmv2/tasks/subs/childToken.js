@@ -60,8 +60,8 @@ task("childToken:verify", "verify child token")
 
       let addr = taskArgs.addr;
       if (addr === "") {
-          let childERC20 = await deployments.get('ChildERC20');
-          addr = childERC20.address;
+        let childERC20 = await deployments.get("ChildERC20");
+        addr = childERC20.address;
       }
 
       // await verify("0x3067c49494d25BF468d5eef7d8937a2fa0d5cC0E",[],"contracts/tron/child/ChildERC20.sol:ChildERC20")

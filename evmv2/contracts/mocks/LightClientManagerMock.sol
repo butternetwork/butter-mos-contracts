@@ -22,10 +22,16 @@ contract LightClientManager is ILightClientManager, Ownable {
         lightNode.updateBlockHeader(_blockHeader);
     }
 
-    function verifyProofData(
-        uint _chainId,
-        bytes memory _receiptProof
-    ) external view override returns (bool success, string memory message, bytes memory logs) {
+    function verifyProofData(uint256 _chainId, bytes memory _receiptProof)
+        external
+        view
+        override
+        returns (
+            bool success,
+            string memory message,
+            bytes memory logs
+        )
+    {
         //        require(lightClientContract[_chainId] != address(0), "not register");
         //        ILightNode lightNode = ILightNode(lightClientContract[_chainId]);
         //        return lightNode.verifyProofData(_receiptProof);
