@@ -126,11 +126,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         emit SetButterRouterAddress(_butterRouter);
     }
 
-    function registerToken(
-        address _token,
-        uint256 _toChain,
-        bool _enable
-    ) external onlyOwner {
+    function registerToken(address _token, uint256 _toChain, bool _enable) external onlyOwner {
         require(_token.isContract(), "token is not contract");
         tokenMappingList[_toChain][_token] = _enable;
         emit RegisterToken(_token, _toChain, _enable);
@@ -221,14 +217,9 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         emit mapDepositOut(selfChainId, relayChainId, orderId, _token, Utils.toBytes(from), _to, _amount);
     }
 
-    function depositNative(address _to)
-        external
-        payable
-        override
-        nonReentrant
-        whenNotPaused
-        checkBridgeable(wToken, relayChainId)
-    {
+    function depositNative(
+        address _to
+    ) external payable override nonReentrant whenNotPaused checkBridgeable(wToken, relayChainId) {
         address from = msg.sender;
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
@@ -267,11 +258,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         return tokenMappingList[_toChain][_token];
     }
 
-    function _getOrderID(
-        address _from,
-        bytes memory _to,
-        uint256 _toChain
-    ) internal returns (bytes32) {
+    function _getOrderID(address _from, bytes memory _to, uint256 _toChain) internal returns (bytes32) {
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 

@@ -7,11 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol"
 contract MintableToken is ERC20PresetMinterPauser {
     uint8 private _decimals;
 
-    constructor(
-        string memory name,
-        string memory symbol,
-        uint8 decimals_
-    ) ERC20PresetMinterPauser(name, symbol) {
+    constructor(string memory name, string memory symbol, uint8 decimals_) ERC20PresetMinterPauser(name, symbol) {
         _decimals = decimals_;
     }
 

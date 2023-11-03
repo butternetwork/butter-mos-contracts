@@ -32,11 +32,9 @@ library EvmDecoder {
         }
     }
 
-    function decodeSwapOutLog(IEvent.txLog memory log)
-        internal
-        pure
-        returns (bytes memory executorId, IEvent.swapOutEvent memory outEvent)
-    {
+    function decodeSwapOutLog(
+        IEvent.txLog memory log
+    ) internal pure returns (bytes memory executorId, IEvent.swapOutEvent memory outEvent) {
         executorId = Utils.toBytes(log.addr);
         outEvent.fromChain = abi.decode(log.topics[1], (uint256));
         outEvent.toChain = abi.decode(log.topics[2], (uint256));
@@ -47,11 +45,9 @@ library EvmDecoder {
         );
     }
 
-    function decodeDepositOutLog(IEvent.txLog memory log)
-        internal
-        pure
-        returns (bytes memory executorId, IEvent.depositOutEvent memory depositEvent)
-    {
+    function decodeDepositOutLog(
+        IEvent.txLog memory log
+    ) internal pure returns (bytes memory executorId, IEvent.depositOutEvent memory depositEvent) {
         executorId = Utils.toBytes(log.addr);
 
         depositEvent.fromChain = abi.decode(log.topics[1], (uint256));

@@ -24,11 +24,7 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
         emit SetRootToken(_rootToken);
     }
 
-    function giveAllowance(
-        address _token,
-        address _spender,
-        uint256 _amount
-    ) external onlyOwner {
+    function giveAllowance(address _token, address _spender, uint256 _amount) external onlyOwner {
         IERC20(_token).approve(_spender, _amount);
     }
 

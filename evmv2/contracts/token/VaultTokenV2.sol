@@ -32,11 +32,7 @@ contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable, ERC20Burnable {
      *
      * See {ERC20-constructor}.
      */
-    constructor(
-        address _underlying,
-        string memory _name,
-        string memory _symbol
-    ) ERC20(_name, _symbol) {
+    constructor(address _underlying, string memory _name, string memory _symbol) ERC20(_name, _symbol) {
         require(_underlying != address(0), "underlying address is zero");
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
@@ -84,11 +80,7 @@ contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable, ERC20Burnable {
         return underlying;
     }
 
-    function deposit(
-        uint256 _fromChain,
-        uint256 _amount,
-        address _to
-    ) external override onlyManager {
+    function deposit(uint256 _fromChain, uint256 _amount, address _to) external override onlyManager {
         uint256 amount = getVaultTokenAmount(_amount);
         _mint(_to, amount);
 
@@ -98,11 +90,7 @@ contract VaultTokenV2 is IVaultTokenV2, AccessControlEnumerable, ERC20Burnable {
         emit DepositVault(underlying, _to, _amount, amount);
     }
 
-    function withdraw(
-        uint256 _toChain,
-        uint256 _vaultAmount,
-        address _to
-    ) external override onlyManager {
+    function withdraw(uint256 _toChain, uint256 _vaultAmount, address _to) external override onlyManager {
         uint256 amount = getTokenAmount(_vaultAmount);
         _burn(_to, _vaultAmount);
 
