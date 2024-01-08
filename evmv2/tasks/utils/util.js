@@ -39,6 +39,21 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
     deployment[hre.network.name]["mosProxy"] = mos_proxy;
 
     await writeToFile(deployment);
+
+    if(needVerify(chainId)){
+        await run("verify:verify", {
+            address: mos_proxy,
+            constructorArguments: [impl.address,data],
+            contract: "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2"
+          });
+    
+        await run("verify:verify", {
+            address: impl.address,
+            constructorArguments: [],
+            contract: "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2"
+        });
+    }
+    
 };
 
 exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_addr) {
@@ -69,6 +84,15 @@ exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_ad
         let impl = await ethers.getContract(implContract);
 
         impl_addr = impl.address;
+
+        if(needVerify(chainId)){
+            //verify impl
+            await run("verify:verify", {
+                address: impl_addr,
+                constructorArguments: [],
+                contract: "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2"
+            });
+        }
     }
 
     console.log(`${implContract} implementation address: ${impl_addr}`);
@@ -86,6 +110,14 @@ exports.stringToHex = async function (str) {
         })
         .join("");
 };
+
+function needVerify(chainId){
+    if(chainId === 1 || chainId === 56 || chainId === 137 || chainId === 199){
+        return true;
+    } else {
+        return false;
+    }
+}
 
 exports.verify = async function (addr, args, code) {
     // await verify("0x3067c49494d25BF468d5eef7d8937a2fa0d5cC0E",[],"contracts/tron/child/ChildERC20.sol:ChildERC20")

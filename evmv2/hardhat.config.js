@@ -148,7 +148,10 @@ module.exports = {
   },
   etherscan: {
     apiKey: {
-      Bttc: "NN5AG76YXFGKASE11ZG5M7P71QGPQ6EIFN",
+      Bttc: process.env.API_KEY_BTTC,
+      Eth:  process.env.API_KEY_ETH,
+      Bsc:  process.env.API_KEY_BSC,
+      Matic: process.env.API_KEY_MATIC,
     },
     customChains: [
       {
@@ -157,6 +160,30 @@ module.exports = {
         urls: {
           apiURL: "https://api.bttcscan.com/api",
           browserURL: "https://bttcscan.com/",
+        },
+      },
+      {
+        network: "Eth",
+        chainId: 1,
+        urls: {
+          apiURL: "https://api.etherscan.io/api",
+          browserURL: "https://etherscan.com/",
+        },
+      },
+      {
+        network: "Bsc",
+        chainId: 56,
+        urls: {
+          apiURL: "https://api.bscscan.com/api",
+          browserURL: "https://bscscan.com/",
+        },
+      },
+      {
+        network: "Matic",
+        chainId: 237,
+        urls: {
+          apiURL: "https://api.polygonscan.com/api",
+          browserURL: "https://polygonscan.com/",
         },
       },
     ],
