@@ -45,13 +45,11 @@ task("mos:upgrade", "upgrade mos evm contract in proxy")
 
 //settype
 //client -> update mos light client
-//butterrouter ->  Update butter router contract address in MOS
-task("mos:setup", "set associated contracts for mos")
-    .addParam("type", "associated contracts type (client/router) to set for mos")
-    .addParam("address", "associated contracts address")
+task("mos:setLightClient", "set light client contracts for mos")
+    .addParam("address", "light client contracts address")
     .setAction(async (taskArgs, hre) => {
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-            await tronSetup(hre.artifacts, hre.network.name, taskArgs.address, taskArgs.type);
+            await tronSetup(hre.artifacts, hre.network.name, taskArgs.address);
         } else {
             const accounts = await ethers.getSigners();
             const deployer = accounts[0];
@@ -60,18 +58,9 @@ task("mos:setup", "set associated contracts for mos")
             if (mos == undefined) {
                 throw "mos not deployed ...";
             }
-
             console.log("mos address", mos.address);
-
-            if (taskArgs.type === "client") {
-                await (await mos.connect(deployer).setLightClient(taskArgs.address)).wait();
-                console.log(`mos set  light client ${taskArgs.address} successfully `);
-            } else if (taskArgs.type === "router") {
-                await (await mos.connect(deployer).setButterRouterAddress(taskArgs.address)).wait();
-                console.log(`mos set butter router to ${taskArgs.address} `);
-            } else {
-                throw "unsuport set type";
-            }
+            await (await mos.connect(deployer).setLightClient(taskArgs.address)).wait();
+            console.log(`mos set  light client ${taskArgs.address} successfully `);
         }
     });
 

@@ -17,6 +17,7 @@ import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "@mapprotocol/protocol/contracts/lib/RLPReader.sol";
 import "./interface/IWrappedToken.sol";
 import "./interface/IMintableToken.sol";
+import "./interface/IButterReceiver.sol";
 import "./interface/IButterMosV2.sol";
 import "./utils/EvmDecoder.sol";
 
@@ -42,7 +43,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     mapping(bytes32 => bool) public orderList;
     mapping(address => bool) public mintableTokens;
     mapping(uint256 => mapping(address => bool)) public tokenMappingList;
-
+    //pre version,now placeholder the slot
     address public butterRouter;
 
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
@@ -119,11 +120,6 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         relayChainId = _chainId;
 
         emit SetRelayContract(_chainId, _relay);
-    }
-
-    function setButterRouterAddress(address _butterRouter) external onlyOwner checkAddress(_butterRouter) {
-        butterRouter = _butterRouter;
-        emit SetButterRouterAddress(_butterRouter);
     }
 
     function registerToken(address _token, uint256 _toChain, bool _enable) external onlyOwner {
@@ -275,11 +271,9 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
 
         // if swap params is not empty, then we need to do swap on current chain
         if (_outEvent.swapData.length > 0) {
-            SafeERC20.safeTransfer(IERC20(tokenIn), butterRouter, actualAmountIn);
-
-            (bool result, ) = butterRouter.call(
-                abi.encodeWithSignature(
-                    "remoteSwapAndCall(bytes32,address,uint256,uint256,bytes,bytes)",
+            SafeERC20.safeTransfer(IERC20(tokenIn), toAddress, actualAmountIn);
+            try
+                IButterReceiver(toAddress).butterReceive(
                     _outEvent.orderId,
                     tokenIn,
                     actualAmountIn,
@@ -287,7 +281,11 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
                     _outEvent.from,
                     _outEvent.swapData
                 )
-            );
+            {
+                // do nothing
+            } catch {
+                // do nothing
+            }
         } else {
             // transfer token if swap did not happen
             if (tokenIn == wToken) {

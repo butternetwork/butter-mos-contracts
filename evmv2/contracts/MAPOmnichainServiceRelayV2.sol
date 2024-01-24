@@ -18,6 +18,7 @@ import "./interface/IWrappedToken.sol";
 import "./interface/IMintableToken.sol";
 import "./interface/IVaultTokenV2.sol";
 import "./interface/ITokenRegisterV2.sol";
+import "./interface/IButterReceiver.sol";
 import "./interface/IButterMosV2.sol";
 import "./utils/EvmDecoder.sol";
 import "./utils/NearDecoder.sol";
@@ -49,7 +50,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     mapping(bytes32 => bool) public orderList;
     mapping(uint256 => bytes) public mosContracts;
     mapping(uint256 => chainType) public chainTypes;
-
+    //pre version,now placeholder the slot
     address public butterRouter;
 
     event mapDepositIn(
@@ -121,15 +122,14 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         emit SetLightClientManager(_managerAddress);
     }
 
-    function registerChain(uint256 _chainId, bytes memory _address, chainType _type) external onlyOwner {
+    function registerChain(
+        uint256 _chainId,
+        bytes memory _address,
+        chainType _type
+    ) external onlyOwner {
         mosContracts[_chainId] = _address;
         chainTypes[_chainId] = _type;
         emit RegisterChain(_chainId, _address, _type);
-    }
-
-    function setButterRouterAddress(address _butterRouter) external onlyOwner checkAddress(_butterRouter) {
-        butterRouter = _butterRouter;
-        emit SetButterRouterAddress(_butterRouter);
     }
 
     // withdraw deposit token using vault token.
@@ -144,7 +144,11 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         _withdraw(token, payable(msg.sender), amount);
     }
 
-    function setDistributeRate(uint256 _id, address _to, uint256 _rate) external onlyOwner checkAddress(_to) {
+    function setDistributeRate(
+        uint256 _id,
+        address _to,
+        uint256 _rate
+    ) external onlyOwner checkAddress(_to) {
         require(_id < 3, "Invalid rate id");
 
         distributeRate[_id] = Rate(_to, _rate);
@@ -186,7 +190,11 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         orderId = _swapOut(wToken, _to, _initiatorAddress, amount, _toChain, _swapData);
     }
 
-    function depositToken(address _token, address _to, uint256 _amount) external override nonReentrant whenNotPaused {
+    function depositToken(
+        address _token,
+        address _to,
+        uint256 _amount
+    ) external override nonReentrant whenNotPaused {
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "balance too low");
         require(_amount > 0, "value too low");
         require(_token.isContract(), "token is not contract");
@@ -343,10 +351,9 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         if (_outEvent.toChain == selfChainId) {
             address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
             if (_outEvent.swapData.length > 0) {
-                SafeERC20.safeTransfer(IERC20(token), butterRouter, mapOutAmount);
-                (bool result, ) = butterRouter.call(
-                    abi.encodeWithSignature(
-                        "remoteSwapAndCall(bytes32,address,uint256,uint256,bytes,bytes)",
+                SafeERC20.safeTransfer(IERC20(token), toAddress, mapOutAmount);
+                try
+                    IButterReceiver(toAddress).butterReceive(
                         _outEvent.orderId,
                         token,
                         mapOutAmount,
@@ -354,7 +361,11 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
                         _outEvent.from,
                         _outEvent.swapData
                     )
-                );
+                {
+                    // do nothing
+                } catch {
+                    // do nothing
+                }
             } else {
                 if (token == wToken) {
                     IWrappedToken(wToken).withdraw(mapOutAmount);

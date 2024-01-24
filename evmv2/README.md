@@ -77,14 +77,7 @@ npx hardhat relay:setUp --settype tokenregister --address <token register addres
    ```
    npx hardhat relay:setUp --settype client --address <light client manager address> --network <network>
    ```
-
-5. set butter router
-
-   ```
-   npx hardhat relay:setUp --settype butterrouter --address <butter router address> --network <network>
-   ```
-
-6. sets fee distribution
+5. sets fee distribution
 
 ```
 npx hardhat relay:setDistributeRate --type <0 to the token vault, 1 to specified receiver> --address <fee receiver address> --rate <rate 0-1000000, uni 0.000001> --network <network>
@@ -108,16 +101,9 @@ npx hardhat mos:setRelay --address <Relay address> --chain <map chainId> --netwo
 3. set light client(if need change from deploy)
 
    ```
-   npx hardhat mos:setUp --settype client --address <light client manager address> --network <network>
+   npx hardhat mos:setLightClient --address <light client manager address> --network <network>
    ```
-
-4. set butter router
-
-   ```
-   npx hardhat mos:setUp --settype butterrouter --address <butter router address> --network <network>
-   ```
-
-5. Register
+4. Register
    The following command applies to the cross-chain contract configuration of Map mainnet and Makalu testnet
 
 ```

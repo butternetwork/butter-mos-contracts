@@ -26,7 +26,6 @@ task("relay:upgrade", "upgrade mos evm contract in proxy")
 
 //settype
 //client -> Update client manager on relay chain
-//butterrouter ->  Update butter router contract address in MOS
 //tokenregister ->  update tokenRegister for mos in relay chain
 task("relay:setup", "set associated contracts for mos")
     .addParam("type", "associated contracts type (client/router/register) to set for mos")
@@ -45,9 +44,6 @@ task("relay:setup", "set associated contracts for mos")
         if (taskArgs.type === "client") {
             await (await mos.connect(deployer).setLightClientManager(taskArgs.address)).wait();
             console.log("set client manager:", taskArgs.address);
-        } else if (taskArgs.type === "router") {
-            await (await mos.connect(deployer).setButterRouterAddress(taskArgs.address)).wait();
-            console.log(`mos set butter router to ${taskArgs.address} `);
         } else if (taskArgs.type === "tokenregister") {
             await (await mos.connect(deployer).setTokenRegister(taskArgs.address)).wait();
             console.log("set token register:", taskArgs.address);
