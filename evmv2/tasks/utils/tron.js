@@ -62,7 +62,7 @@ exports.tronMosUpgrade = async function (artifacts, network, impl_addr) {
     console.log("new impl", await mos.getImplementation().call());
 };
 
-exports.tronSetup = async function (artifacts, network, addr, type) {
+exports.tronSetup = async function (artifacts, network, addr) {
     let tronWeb = await getTronWeb(network);
     console.log("deployer :", tronWeb.defaultAddress);
 
@@ -78,15 +78,9 @@ exports.tronSetup = async function (artifacts, network, addr, type) {
 
     let addrHex = tronWeb.address.toHex(addr).replace(/^(41)/, "0x");
 
-    if (type === "client") {
-        await mos.setLightClient(addrHex).send();
-        console.log(`mos set  light client ${addr} ( ${addrHex} ) successfully `);
-    } else if (type === "router") {
-        await mos.setButterRouterAddress(addrHex).send();
-        console.log(`mos set butter router to ${addr}( ${addrHex} )`);
-    } else {
-        throw "unsuport set type";
-    }
+    await mos.setLightClient(addrHex).send();
+    console.log(`mos set  light client ${addr} ( ${addrHex} ) successfully `);
+    
 };
 
 exports.tronSetRelay = async function (artifacts, network, addr, chain) {
