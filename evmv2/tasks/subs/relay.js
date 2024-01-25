@@ -157,6 +157,47 @@ task("relay:setTokenFee", "Set token fee to target chain")
         console.log(`Token register manager set token ${taskArgs.token} to chain ${taskArgs.chain} fee success`);
     });
 
+task("relay:simpleSwapIn", "Swap to target chain")
+    .addParam("order", "order id")
+    .addParam("src", "from chain id")
+    .addParam("from", "from address")
+    .addParam("to", "to address")
+    .addParam("amount", "amount")
+    .addParam("token", "token address")
+    .addOptionalParam("dst", "target chain id, must be 22776", 22776, types.int)
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        const chainId = await deployer.getChainId();
+        console.log("deployer address:", deployer.address);
+
+        let mos = await getMos(chainId, hre.network.name);
+
+        if (mos === undefined) {
+            throw "mos not deployed ..";
+        }
+
+        console.log("mos address:", mos.address);
+
+        await (
+            await mos
+                .connect(deployer)
+                .simpleSwapIn(
+                    taskArgs.src,
+                    taskArgs.dst,
+                    taskArgs.order,
+                    taskArgs.from,
+                    taskArgs.to,
+                    taskArgs.token,
+                    taskArgs.amount
+                )
+        ).wait();
+
+        console.log(
+            `mos simply swapIn order(${taskArgs.order}) from(${taskArgs.from}) fromChain (${taskArgs.src}) success`
+        );
+    });
+
 task("relay:setDistributeRate", "Set the fee to enter the vault address")
     .addOptionalParam("type", "0 or 1, type 0 is vault, default 0", 0, types.int)
     .addOptionalParam("address", "receiver address", "0x0000000000000000000000000000000000000DEF", types.string)

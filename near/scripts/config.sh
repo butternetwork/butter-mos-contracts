@@ -15,7 +15,7 @@ NEAR_CHAIN_ID=1360100178526209    # NEAR blockchain ID
 MAP_CHAIN_ID=22776  # MAP blockchain ID
 CLIENT_ACCOUNT="client2.cfac.mapprotocol.near" # the account ID of the map light client contract which has already been deployed
 REF_EXCHANGER="v2.ref-finance.near"
-BUTTER_CORE='["core20.corefac.butternetwork.nearr","core21.corefac.butternetwork.near"]'
+BUTTER_CORE='["core20.corefac.butternetwork.near","core21.corefac.butternetwork.near","core22.corefac.butternetwork.near","core23.corefac.butternetwork.near","core24.corefac.butternetwork.near"]'
 
 export MCS_FACTORY_ACCOUNT=$MCS_FACTORY_NAME.$MASTER_ACCOUNT
 export MCS_ACCOUNT=$MCS_NAME.$MCS_FACTORY_ACCOUNT

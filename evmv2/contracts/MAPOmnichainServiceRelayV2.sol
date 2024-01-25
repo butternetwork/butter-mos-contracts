@@ -122,11 +122,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         emit SetLightClientManager(_managerAddress);
     }
 
-    function registerChain(
-        uint256 _chainId,
-        bytes memory _address,
-        chainType _type
-    ) external onlyOwner {
+    function registerChain(uint256 _chainId, bytes memory _address, chainType _type) external onlyOwner {
         mosContracts[_chainId] = _address;
         chainTypes[_chainId] = _type;
         emit RegisterChain(_chainId, _address, _type);
@@ -144,11 +140,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         _withdraw(token, payable(msg.sender), amount);
     }
 
-    function setDistributeRate(
-        uint256 _id,
-        address _to,
-        uint256 _rate
-    ) external onlyOwner checkAddress(_to) {
+    function setDistributeRate(uint256 _id, address _to, uint256 _rate) external onlyOwner checkAddress(_to) {
         require(_id < 3, "Invalid rate id");
 
         distributeRate[_id] = Rate(_to, _rate);
@@ -190,11 +182,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         orderId = _swapOut(wToken, _to, _initiatorAddress, amount, _toChain, _swapData);
     }
 
-    function depositToken(
-        address _token,
-        address _to,
-        uint256 _amount
-    ) external override nonReentrant whenNotPaused {
+    function depositToken(address _token, address _to, uint256 _amount) external override nonReentrant whenNotPaused {
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "balance too low");
         require(_amount > 0, "value too low");
         require(_token.isContract(), "token is not contract");
@@ -353,7 +341,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             if (_outEvent.swapData.length > 0) {
                 SafeERC20.safeTransfer(IERC20(token), toAddress, mapOutAmount);
                 try
-                    IButterReceiver(toAddress).butterReceive(
+                    IButterReceiver(toAddress).onReceived(
                         _outEvent.orderId,
                         token,
                         mapOutAmount,

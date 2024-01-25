@@ -1,5 +1,14 @@
 const { getMos } = require("../../utils/helper");
 
+function stringToHex(str) {
+    return str
+        .split("")
+        .map(function (c) {
+            return ("0" + c.charCodeAt(0).toString(16)).slice(-2);
+        })
+        .join("");
+}
+
 task("token:deposit", "Cross-chain deposit token")
     .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
     .addOptionalParam("address", "The receiver address", "", types.string)
@@ -19,7 +28,7 @@ task("token:deposit", "Cross-chain deposit token")
         }
         console.log("mos address:", mos.address);
 
-        // let mos = await ethers.getContractAt('IButterMosV2', taskArgs.mos);
+        //let mos = await ethers.getContractAt('IButterMosV2', taskArgs.mos);
 
         let address = taskArgs.address;
         if (taskArgs.address === "") {
@@ -29,7 +38,7 @@ task("token:deposit", "Cross-chain deposit token")
         if (taskArgs.token === "0x0000000000000000000000000000000000000000") {
             await (await mos.connect(deployer).depositNative(address, { value: taskArgs.value })).wait();
         } else {
-            let token = await ethers.getContractAt("IERC20", taskArgs.token);
+            let token = await ethers.getContractAt("MintableToken", taskArgs.token);
             console.log("approve token... ");
             await (await token.connect(deployer).approve(mos.address, taskArgs.value)).wait();
 
@@ -40,16 +49,16 @@ task("token:deposit", "Cross-chain deposit token")
         console.log(`deposit token ${taskArgs.token} ${taskArgs.value} to ${address} successful`);
     });
 
-task("token:transfer", "Cross-chain transfer token")
+task("token:transferOut", "Cross-chain transfer token")
     .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
     .addOptionalParam("address", "The receiver address", "", types.string)
     .addOptionalParam("chain", "The receiver chain", 22776, types.int)
-    .addParam("value", "deposit value, unit WEI")
+    .addParam("value", "transfer out value, unit WEI")
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
 
-        console.log("deposit address:", deployer.address);
+        console.log("transfer address:", deployer.address);
 
         const chainId = hre.network.chainId;
 
@@ -61,10 +70,13 @@ task("token:transfer", "Cross-chain transfer token")
         console.log("mos address:", mos.address);
 
         // let mos = await ethers.getContractAt('IButterMosV2', taskArgs.mos);
-
         let address = taskArgs.address;
         if (taskArgs.address === "") {
             address = deployer.address;
+        } else {
+            if (taskArgs.address.substr(0, 2) != "0x") {
+                address = "0x" + stringToHex(taskArgs.address);
+            }
         }
 
         if (taskArgs.token === "0x0000000000000000000000000000000000000000") {
@@ -74,7 +86,9 @@ task("token:transfer", "Cross-chain transfer token")
                 })
             ).wait();
         } else {
-            let token = await ethers.getContractAt("IERC20", taskArgs.token);
+            console.log("token receiver:", taskArgs.address);
+
+            let token = await ethers.getContractAt("MintableToken", taskArgs.token);
             await (await token.connect(deployer).approve(mos.address, taskArgs.value)).wait();
 
             await (
@@ -167,4 +181,24 @@ task("token:mint", "mint token")
         await token.mint(deployer.address, taskArgs.amount);
 
         console.log(`Mint '${taskArgs.token}' Token ${taskArgs.amount} `);
+    });
+
+task("token:transfer", "transfer token")
+    .addParam("token", "token address")
+    .addParam("receiver", "receiver address")
+    .addParam("amount", "mint amount")
+    .setAction(async (taskArgs, hre) => {
+        const { deploy } = hre.deployments;
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
+        console.log("deployer address:", deployer.address);
+
+        let token = await ethers.getContractAt("MintableToken", taskArgs.token);
+
+        console.log("Token address:", token.address);
+
+        await token.transfer(taskArgs.receiver, taskArgs.amount);
+
+        console.log(`Transfer '${taskArgs.token}' Token ${taskArgs.amount} to ${taskArgs.receiver} `);
     });

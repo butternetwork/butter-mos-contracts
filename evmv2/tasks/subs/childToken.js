@@ -40,7 +40,6 @@ task("childToken:deploy", "deploy child token on bttc")
             let token = await ethers.getContract("ChildERC20");
 
             console.log("ChildERC20 deployed to ", token.address);
-
         } else {
             throw "unsupported chain";
         }

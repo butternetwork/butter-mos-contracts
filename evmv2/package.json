@@ -1,6 +1,6 @@
 {
   "name": "@butternetwork/bridge",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Butter bridge contracts based on MAP Protocol",
   "files": [
     "artifacts/contracts/**/*.sol/*.json",

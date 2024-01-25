@@ -80,7 +80,6 @@ exports.tronSetup = async function (artifacts, network, addr) {
 
     await mos.setLightClient(addrHex).send();
     console.log(`mos set  light client ${addr} ( ${addrHex} ) successfully `);
-    
 };
 
 exports.tronSetRelay = async function (artifacts, network, addr, chain) {

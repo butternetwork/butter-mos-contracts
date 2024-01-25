@@ -40,20 +40,19 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
 
     await writeToFile(deployment);
 
-    if(needVerify(chainId)){
+    if (needVerify(chainId)) {
         await run("verify:verify", {
             address: mos_proxy,
-            constructorArguments: [impl.address,data],
-            contract: "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2"
-          });
-    
+            constructorArguments: [impl.address, data],
+            contract: "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2",
+        });
+
         await run("verify:verify", {
             address: impl.address,
             constructorArguments: [],
-            contract: "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2"
+            contract: "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2",
         });
     }
-    
 };
 
 exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_addr) {
@@ -85,12 +84,12 @@ exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_ad
 
         impl_addr = impl.address;
 
-        if(needVerify(chainId)){
+        if (needVerify(chainId)) {
             //verify impl
             await run("verify:verify", {
                 address: impl_addr,
                 constructorArguments: [],
-                contract: "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2"
+                contract: "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2",
             });
         }
     }
@@ -111,8 +110,8 @@ exports.stringToHex = async function (str) {
         .join("");
 };
 
-function needVerify(chainId){
-    if(chainId === 1 || chainId === 56 || chainId === 137 || chainId === 199){
+function needVerify(chainId) {
+    if (chainId === 1 || chainId === 56 || chainId === 137 || chainId === 199) {
         return true;
     } else {
         return false;

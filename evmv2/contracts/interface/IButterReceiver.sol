@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 interface IButterReceiver {
     //_srcToken received token (wtoken or erc20 token)
-    function butterReceive(
+    function onReceived(
         bytes32 _orderId,
         address _srcToken,
         uint256 _amount,

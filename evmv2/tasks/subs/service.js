@@ -127,7 +127,7 @@ task("mos:registerToken", "MapCrossChainService settings allow cross-chain token
             for (let i = 0; i < ids.length; i++) {
                 await (await mos.connect(deployer).registerToken(taskArgs.token, ids[i], taskArgs.enable)).wait();
 
-                console.log(`mos register token ${taskArgs.token} to chain ${ids[i]} success`);
+                console.log(`mos register token ${taskArgs.token} to chain ${ids[i]} ${taskArgs.enable} success`);
             }
 
             console.log("mos registerToken success");
@@ -167,6 +167,32 @@ task("mos:setMintableToken", "MapCrossChainService settings mintable token")
         }
     });
 
+task("mos:setPause", "set pause for mos")
+    .addOptionalParam("pause", "Set pause, default true", true, types.boolean)
+    .setAction(async (taskArgs, hre) => {
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await tronSetup(hre.artifacts, hre.network.name, taskArgs.address, taskArgs.type);
+        } else {
+            const accounts = await ethers.getSigners();
+            const deployer = accounts[0];
+            const chainId = await hre.network.config.chainId;
+            let mos = await getMos(chainId, hre.network.name);
+            if (mos == undefined) {
+                throw "mos not deployed ...";
+            }
+
+            console.log("mos address", mos.address);
+
+            if (taskArgs.pause === true) {
+                await (await mos.connect(deployer).setPause()).wait();
+                console.log(`mos set pause ${taskArgs.pause} successfully `);
+            } else {
+                await (await mos.connect(deployer).setUnpause()).wait();
+                console.log(`mos set pause to ${taskArgs.pause} `);
+            }
+        }
+    });
+
 const chainlist = [
     1,
     5,
@@ -178,6 +204,7 @@ const chainlist = [
     22776, // mapo
     1001,
     8217, // klaytn
+    1030, // conflux
     "1360100178526209",
     "1360100178526210", // near
 ];

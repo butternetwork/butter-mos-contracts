@@ -273,7 +273,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         if (_outEvent.swapData.length > 0) {
             SafeERC20.safeTransfer(IERC20(tokenIn), toAddress, actualAmountIn);
             try
-                IButterReceiver(toAddress).butterReceive(
+                IButterReceiver(toAddress).onReceived(
                     _outEvent.orderId,
                     tokenIn,
                     actualAmountIn,
