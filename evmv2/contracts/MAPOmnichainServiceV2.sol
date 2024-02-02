@@ -46,6 +46,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     //pre version,now placeholder the slot
     address public butterRouter;
 
+    event SetButterRouterAddress(address indexed _newRouter);
+
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
     event SetLightClient(address _lightNode);
     event AddMintableToken(address[] _token);
