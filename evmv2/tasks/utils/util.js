@@ -1,5 +1,7 @@
 let { getMos, create, readFromFile, writeToFile } = require("../../utils/helper.js");
 
+const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
+
 exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode) {
     let implContract;
     if (chainId === 212 || chainId === 22776) {
@@ -41,6 +43,8 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
     await writeToFile(deployment);
 
     if (needVerify(chainId)) {
+        sleep(10000);
+
         await run("verify:verify", {
             address: mos_proxy,
             constructorArguments: [impl.address, data],
@@ -86,6 +90,7 @@ exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_ad
 
         if (needVerify(chainId)) {
             //verify impl
+            sleep(10000);
             await run("verify:verify", {
                 address: impl_addr,
                 constructorArguments: [],

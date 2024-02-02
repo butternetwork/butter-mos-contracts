@@ -48,7 +48,7 @@ module.exports = {
       accounts: accounts,
     },
     Matic: {
-      url: `https://rpc-mainnet.maticvigil.com`,
+      url: `https://rpc.ankr.com/polygon`,
       chainId: 137,
       accounts: accounts,
     },
@@ -58,7 +58,7 @@ module.exports = {
       accounts: accounts,
     },
     Bsc: {
-      url: `https://bsc-dataseed1.binance.org/`,
+      url: `https://rpc.ankr.com/bsc`,
       chainId: 56,
       accounts: accounts,
     },
@@ -151,7 +151,7 @@ module.exports = {
       Bttc: process.env.API_KEY_BTTC,
       Eth:  process.env.API_KEY_ETH,
       Bsc:  process.env.API_KEY_BSC,
-      Matic: process.env.API_KEY_MATIC,
+      polygon: process.env.API_KEY_MATIC,
     },
     customChains: [
       {
