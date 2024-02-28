@@ -464,10 +464,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     }
 
     function _notifyLightClient(uint256 _chainId,bytes memory _data) internal {
-        // notify if nodeType is oracle node
-        if(lightClientManager.nodeType(_chainId) == 3){
-            lightClientManager.notifyLightClient(_chainId,_data);
-        }
+        lightClientManager.notifyLightClient(_chainId,_data);
     }
 
     /** UUPS *********************************************************/
