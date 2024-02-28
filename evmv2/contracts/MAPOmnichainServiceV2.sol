@@ -315,10 +315,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     }
 
     function _notifyLightClient(bytes memory _data) internal {
-        // notify if nodeType is oracle node
-        if(lightNode.nodeType() == 3){
-            lightNode.notifyLightClient(_data);
-        }
+        lightNode.notifyLightClient(_data);
     }
 
     /** UUPS *********************************************************/
