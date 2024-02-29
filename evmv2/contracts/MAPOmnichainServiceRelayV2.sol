@@ -411,7 +411,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         if (tokenRegister.checkMintable(_token)) {
             IMintableToken(_token).burn(mapOutAmount);
         }
-
+        _notifyLightClient(_toChain,bytes(""));
         emit mapSwapOut(selfChainId, _toChain, orderId, toToken, Utils.toBytes(_from), _to, outAmount, _swapData);
     }
 
@@ -461,6 +461,10 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         } else {
             SafeERC20.safeTransfer(IERC20(_token), _receiver, _amount);
         }
+    }
+
+    function _notifyLightClient(uint256 _chainId,bytes memory _data) internal {
+        lightClientManager.notifyLightClient(_chainId,_data);
     }
 
     /** UUPS *********************************************************/

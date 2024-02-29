@@ -140,28 +140,14 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         uint256 _toChain, // target chain id
         bytes calldata _swapData
     ) external virtual override nonReentrant whenNotPaused checkBridgeable(_token, _toChain) returns (bytes32 orderId) {
-        require(_toChain != selfChainId, "Cannot swap to self chain");
         require(_amount > 0, "Sending value is zero");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
-
         if (isMintable(_token)) {
             IMintableToken(_token).burnFrom(msg.sender, _amount);
         } else {
             SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), _amount);
         }
-
-        orderId = _getOrderID(msg.sender, _to, _toChain);
-
-        emit mapSwapOut(
-            selfChainId,
-            _toChain,
-            orderId,
-            Utils.toBytes(_token),
-            Utils.toBytes(_initiatorAddress),
-            _to,
-            _amount,
-            _swapData
-        );
+        orderId = _swapOut(_token, _to, _initiatorAddress, _amount, _toChain, _swapData);
     }
 
     function swapOutNative(
@@ -179,21 +165,10 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         checkBridgeable(wToken, _toChain)
         returns (bytes32 orderId)
     {
-        require(_toChain != selfChainId, "Cannot swap to self chain");
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWrappedToken(wToken).deposit{value: amount}();
-        orderId = _getOrderID(msg.sender, _to, _toChain);
-        emit mapSwapOut(
-            selfChainId,
-            _toChain,
-            orderId,
-            Utils.toBytes(wToken),
-            Utils.toBytes(_initiatorAddress),
-            _to,
-            amount,
-            _swapData
-        );
+        orderId = _swapOut(wToken, _to, _initiatorAddress, amount, _toChain, _swapData);
     }
 
     function depositToken(
@@ -210,9 +185,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         } else {
             SafeERC20.safeTransferFrom(IERC20(_token), from, address(this), _amount);
         }
-
-        bytes32 orderId = _getOrderID(from, Utils.toBytes(_to), relayChainId);
-        emit mapDepositOut(selfChainId, relayChainId, orderId, _token, Utils.toBytes(from), _to, _amount);
+        _deposit(_token,from,_to,_amount);
     }
 
     function depositNative(
@@ -221,10 +194,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         address from = msg.sender;
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
-        bytes32 orderId = _getOrderID(from, Utils.toBytes(_to), relayChainId);
-
         IWrappedToken(wToken).deposit{value: amount}();
-        emit mapDepositOut(selfChainId, relayChainId, orderId, wToken, Utils.toBytes(from), _to, amount);
+        _deposit(wToken,from,_to,amount);
     }
 
     function swapIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
@@ -307,6 +278,44 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
             toAddress,
             actualAmountIn
         );
+    }
+
+    function _swapOut(
+        address _token, // src token
+        bytes memory _to,
+        address _from,
+        uint256 _amount,
+        uint256 _toChain, // target chain id
+        bytes calldata _swapData
+    ) internal returns (bytes32 orderId) {
+        require(_toChain != selfChainId, "Cannot swap to self chain");
+        orderId = _getOrderID(msg.sender, _to, _toChain);
+        _notifyLightClient(bytes(''));
+        emit mapSwapOut(
+            selfChainId,
+            _toChain,
+            orderId,
+            Utils.toBytes(_token),
+            Utils.toBytes(_from),
+            _to,
+            _amount,
+            _swapData
+        );
+    }
+
+    function _deposit(
+        address _token,
+        address _from,
+        address _to,
+        uint256 _amount
+    ) internal {
+        bytes32 orderId = _getOrderID(_from, Utils.toBytes(_to), relayChainId);
+        _notifyLightClient(bytes(''));
+        emit mapDepositOut(selfChainId, relayChainId, orderId, _token, Utils.toBytes(_from), _to, _amount);
+    }
+
+    function _notifyLightClient(bytes memory _data) internal {
+        lightNode.notifyLightClient(_data);
     }
 
     /** UUPS *********************************************************/
