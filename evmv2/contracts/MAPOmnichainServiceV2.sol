@@ -227,7 +227,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         return tokenMappingList[_toChain][_token];
     }
 
-    function getOrderStatus(uint256 _blockNum,bytes32 _orderId)external view returns(bool exists,bool verifiable,uint256 nodeType){
+    function getOrderStatus(uint256,uint256 _blockNum,bytes32 _orderId) external view override returns (bool exists,bool verifiable,uint256 nodeType) {
         exists = orderList[_orderId];
         verifiable = lightNode.isVerifiable(_blockNum,bytes32(""));
         nodeType = lightNode.nodeType();
