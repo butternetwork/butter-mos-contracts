@@ -277,6 +277,12 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         return (_amount.mul(rate.rate).div(1000000), rate.receiver);
     }
 
+    function getOrderStatus(uint256 _chainId,uint256 _blockNum,bytes32 _orderId)external view returns(bool exists,bool verifiable,uint256 nodeType){
+        exists = orderList[_orderId];
+        verifiable = lightClientManager.isVerifiable(_chainId,_blockNum,bytes32(""));
+        nodeType = lightClientManager.nodeType(_chainId);
+    }
+
     function _getOrderId(address _from, bytes memory _to, uint256 _toChain) internal returns (bytes32) {
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
