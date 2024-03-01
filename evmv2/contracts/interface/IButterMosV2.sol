@@ -22,6 +22,12 @@ interface IButterMosV2 {
 
     function depositNative(address _to) external payable;
 
+    function getOrderStatus(
+        uint256 _chainId,
+        uint256 _blockNum,
+        bytes32 _orderId
+    )external view returns(bool exists,bool verifiable,uint256 nodeType);
+
     event mapTransferOut(
         uint256 indexed fromChain,
         uint256 indexed toChain,
