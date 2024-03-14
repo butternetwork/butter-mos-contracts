@@ -188,7 +188,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         } else {
             SafeERC20.safeTransferFrom(IERC20(_token), from, address(this), _amount);
         }
-        _deposit(_token,from,_to,_amount);
+        _deposit(_token, from, _to, _amount);
     }
 
     function depositNative(
@@ -198,7 +198,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWrappedToken(wToken).deposit{value: amount}();
-        _deposit(wToken,from,_to,amount);
+        _deposit(wToken, from, _to, amount);
     }
 
     function verifyAndstore(uint256 _chainId, bytes memory _receiptProof)external nonReentrant whenNotPaused {
@@ -257,9 +257,13 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         return tokenMappingList[_toChain][_token];
     }
 
-    function getOrderStatus(uint256,uint256 _blockNum,bytes32 _orderId) external view override returns (bool exists,bool verifiable,uint256 nodeType) {
+    function getOrderStatus(
+        uint256,
+        uint256 _blockNum,
+        bytes32 _orderId
+    ) external view override returns (bool exists, bool verifiable, uint256 nodeType) {
         exists = orderList[_orderId];
-        verifiable = lightNode.isVerifiable(_blockNum,bytes32(""));
+        verifiable = lightNode.isVerifiable(_blockNum, bytes32(""));
         nodeType = lightNode.nodeType();
     }
 
@@ -337,7 +341,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     ) internal returns (bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         orderId = _getOrderID(msg.sender, _to, _toChain);
-        _notifyLightClient(bytes(''));
+        _notifyLightClient(bytes(""));
         emit mapSwapOut(
             selfChainId,
             _toChain,
@@ -350,19 +354,14 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         );
     }
 
-    function _deposit(
-        address _token,
-        address _from,
-        address _to,
-        uint256 _amount
-    ) internal {
+    function _deposit(address _token, address _from, address _to, uint256 _amount) internal {
         bytes32 orderId = _getOrderID(_from, Utils.toBytes(_to), relayChainId);
-        _notifyLightClient(bytes(''));
+        _notifyLightClient(bytes(""));
         emit mapDepositOut(selfChainId, relayChainId, orderId, _token, Utils.toBytes(_from), _to, _amount);
     }
 
     function _notifyLightClient(bytes memory _data) internal {
-        lightNode.notifyLightClient(_data);
+        lightNode.notifyLightClient(address(this), _data);
     }
 
     /** UUPS *********************************************************/

@@ -199,7 +199,7 @@ task("relay:simpleSwapIn", "Swap to target chain")
     });
 
 task("relay:setDistributeRate", "Set the fee to enter the vault address")
-    .addOptionalParam("type", "0 or 1, type 0 is vault, default 0", 0, types.int)
+    .addOptionalParam("type", "0 - vault, 1 - relayer, 2 - protocol, default 0", 0, types.int)
     .addOptionalParam("address", "receiver address", "0x0000000000000000000000000000000000000DEF", types.string)
     .addParam("rate", "The percentage value of the fee charged, unit 0.000001")
     .setAction(async (taskArgs, hre) => {
@@ -232,8 +232,11 @@ const chainlist = [
     22776, // mapo
     1001,
     8217, // klaytn
+    1030, // conflux
     "1360100178526209",
     "1360100178526210", // near
+    1501, // bevm
+    4200, // merlin
 ];
 task("relay:list", "List relay infos")
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)

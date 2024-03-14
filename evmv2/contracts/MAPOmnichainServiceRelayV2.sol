@@ -277,9 +277,13 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         return (_amount.mul(rate.rate).div(1000000), rate.receiver);
     }
 
-    function getOrderStatus(uint256 _chainId,uint256 _blockNum,bytes32 _orderId) external view override returns (bool exists,bool verifiable,uint256 nodeType) {
+    function getOrderStatus(
+        uint256 _chainId,
+        uint256 _blockNum,
+        bytes32 _orderId
+    ) external view override returns (bool exists, bool verifiable, uint256 nodeType) {
         exists = orderList[_orderId];
-        verifiable = lightClientManager.isVerifiable(_chainId,_blockNum,bytes32(""));
+        verifiable = lightClientManager.isVerifiable(_chainId, _blockNum, bytes32(""));
         nodeType = lightClientManager.nodeType(_chainId);
     }
 
@@ -417,7 +421,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         if (tokenRegister.checkMintable(_token)) {
             IMintableToken(_token).burn(mapOutAmount);
         }
-        _notifyLightClient(_toChain,bytes(""));
+        _notifyLightClient(_toChain, bytes(""));
         emit mapSwapOut(selfChainId, _toChain, orderId, toToken, Utils.toBytes(_from), _to, outAmount, _swapData);
     }
 
@@ -469,8 +473,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         }
     }
 
-    function _notifyLightClient(uint256 _chainId,bytes memory _data) internal {
-        lightClientManager.notifyLightClient(_chainId,_data);
+    function _notifyLightClient(uint256 _chainId, bytes memory _data) internal {
+        lightClientManager.notifyLightClient(_chainId, address(this), _data);
     }
 
     /** UUPS *********************************************************/

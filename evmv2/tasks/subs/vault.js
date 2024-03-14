@@ -99,7 +99,7 @@ task("vault:withdraw", "withdraw token")
 
         console.log(`token address: ${token}, vault token address: ${vaultAddress}`);
 
-        let vaultToken = await ethers.getContractAt("IERC20", vaultAddress);
+        // let vaultToken = await ethers.getContractAt("IERC20", vaultAddress);
 
         await (await mos.connect(deployer).withdraw(vaultAddress, taskArgs.value)).wait();
 

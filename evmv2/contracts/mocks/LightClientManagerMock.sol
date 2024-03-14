@@ -55,32 +55,22 @@ contract LightClientManager is ILightClientManager, Ownable {
         return bytes("");
     }
 
-    function finalizedState(uint256 _chainId, bytes memory _data) external view override returns (bytes memory){
+    function finalizedState(uint256 _chainId, bytes memory _data) external view override returns (bytes memory) {
         return bytes("");
     }
 
-    function nodeType(uint256 _chainId) external view override returns (uint256){
+    function nodeType(uint256 _chainId) external view override returns (uint256) {
         return 0;
     }
 
-    function notifyLightClient(uint256 _chainId, bytes memory _data) external override {
+    function notifyLightClient(uint256 _chainId,  address _from, bytes memory _data) external override {}
 
-    }
-    function isVerifiable(
-        uint256 _chainId,
-        uint256 _blockHeight,
-        bytes32 _hash
-    ) external view override returns (bool){
+    function isVerifiable(uint256 _chainId, uint256 _blockHeight, bytes32 _hash) external view override returns (bool) {
         return false;
     }
-    function verifyProofDataWithCache(uint256 _chainId, bytes memory _receiptProof)
-        external
-        override
-        returns (
-            bool success,
-            string memory message,
-            bytes memory logs
-        ){
-         
-        }
+
+    function verifyProofDataWithCache(
+        uint256 _chainId,
+        bytes memory _receiptProof
+    ) external override returns (bool success, string memory message, bytes memory logs) {}
 }

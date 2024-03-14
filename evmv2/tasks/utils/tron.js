@@ -4,7 +4,6 @@ require("dotenv").config();
 
 exports.tronMosDeploy = async function (artifacts, network, wtoken, lightnode) {
     let tronWeb = await getTronWeb(network);
-    //let deployer = '0x' + tronWeb.defaultAddress.hex.substring(2);
     console.log("deployer :", tronWeb.defaultAddress);
 
     let wtokenHex = tronWeb.address.toHex(wtoken).replace(/^(41)/, "0x");
@@ -20,6 +19,7 @@ exports.tronMosDeploy = async function (artifacts, network, wtoken, lightnode) {
     let interface = new ethers.utils.Interface([
         "function initialize(address _wToken, address _lightNode,address _owner) external",
     ]);
+
     let data = interface.encodeFunctionData("initialize", [wtokenHex, lightnodeHex, deployer]);
     let mos_addr = await deploy_contract(artifacts, "MAPOmnichainServiceProxyV2", [impl, data], tronWeb);
 
@@ -44,21 +44,24 @@ exports.tronMosDeploy = async function (artifacts, network, wtoken, lightnode) {
     console.log("rootChainManager", await mos.rootChainManager().call());
 };
 
-exports.tronMosUpgrade = async function (artifacts, network, impl_addr) {
+exports.tronMosUpgrade = async function (artifacts, network, impl) {
     let tronWeb = await getTronWeb(network);
     console.log("deployer :", tronWeb.defaultAddress);
+
+    let implAddr = tronWeb.address.toHex(impl).replace(/^(41)/, "0x");
 
     let deploy = await readFromFile(network);
     if (!deploy[network]["mosProxy"]) {
         throw "mos proxy not deployed ...";
     }
+    console.log("mos proxy :", deploy[network]["mosProxy"]);
     let Mos = await artifacts.readArtifact("MAPOmnichainServiceTron");
     let mos = await tronWeb.contract(Mos.abi, deploy[network]["mosProxy"]);
-    if (impl_addr === ethers.constants.AddressZero) {
-        impl_addr = await deploy_contract(artifacts, "MAPOmnichainServiceTron", [], tronWeb);
+    if (implAddr === ethers.constants.AddressZero) {
+        implAddr = await deploy_contract(artifacts, "MAPOmnichainServiceTron", [], tronWeb);
     }
     console.log("old impl", await mos.getImplementation().call());
-    await mos.upgradeTo(impl_addr).send();
+    await mos.upgradeTo(implAddr).send();
     console.log("new impl", await mos.getImplementation().call());
 };
 
@@ -159,7 +162,9 @@ exports.tronDeployRootToken = async function (artifacts, network, name, symbol, 
     console.log("deployer :", tronWeb.address.fromHex(deployer));
     let deploy = await readFromFile(network);
     let rootToken = await deploy_contract(artifacts, "RootERC20", [name, symbol, decimals], tronWeb);
-    deploy[network]["rootToken"] = rootToken;
+
+    let rootTokenAddr = tronWeb.address.fromHex(rootToken);
+    deploy[network]["rootToken"] = rootTokenAddr;
     await writeToFile(deploy);
 };
 
@@ -255,10 +260,10 @@ async function deploy_contract(artifacts, name, args, tronWeb) {
 
     let contract_address = tronWeb.address.fromHex(contract_instance.address);
 
-    console.log(`${name} deployed on: ${contract_address}`);
+    console.log(`${name} deployed on: ${contract_address} (${contract_instance.address})`);
 
-    return contract_address;
-    // return '0x' + contract_instance.address.substring(2);
+    //return contract_address;
+    return "0x" + contract_instance.address.substring(2);
 }
 
 async function getTronWeb(network) {

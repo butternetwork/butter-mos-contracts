@@ -1,6 +1,6 @@
 let { getMos, create, readFromFile, writeToFile } = require("../../utils/helper.js");
 
-const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
+const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
 
 exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode) {
     let implContract;

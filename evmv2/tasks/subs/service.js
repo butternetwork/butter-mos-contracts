@@ -11,8 +11,6 @@ let {
     tronDeployRootToken,
 } = require("../utils/tron.js");
 
-
-
 task("mos:deploy", "mos service deploy")
     .addParam("wrapped", "native wrapped token address")
     .addParam("lightnode", "lightNode contract address")
