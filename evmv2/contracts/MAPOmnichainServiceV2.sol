@@ -218,6 +218,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
 
     function swapInVerifiedLogs(uint256 num) external nonReentrant whenNotPaused {
         uint256 len = verifiedLogs.length;
+        require(len > 0,"verifiedLogs empty");
         uint256 end = (len > num) ? (len - num) : 0;
         for(uint256 i = len; i > end; i--){
             IEvent.swapOutEvent memory outEvent = verifiedLogs[i - 1];
