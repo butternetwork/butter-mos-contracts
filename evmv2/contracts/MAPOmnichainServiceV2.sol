@@ -46,6 +46,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     //pre version,now placeholder the slot
     address public butterRouter;
 
+    IEvent.swapOutEvent[] private verifiedLogs;
+
     event SetButterRouterAddress(address indexed _newRouter);
 
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
@@ -198,11 +200,35 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         _deposit(wToken,from,_to,amount);
     }
 
+    function verifyAndstore(uint256 _chainId, bytes memory _receiptProof)external nonReentrant whenNotPaused {
+        IEvent.txLog[] memory logs = _verify(_chainId,_receiptProof);
+        for (uint256 i = 0; i < logs.length; i++) {
+            IEvent.txLog memory log = logs[i];
+            bytes32 topic = abi.decode(log.topics[0], (bytes32));
+            if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
+                (, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
+                // there might be more than one events to multi-chains
+                // only process the event for this chain
+                if (selfChainId == outEvent.toChain) {
+                    verifiedLogs.push(outEvent);
+                }
+            }
+        }
+    }
+
+    function swapInVerifiedLogs(uint256 num) external nonReentrant whenNotPaused {
+        uint256 len = verifiedLogs.length;
+        require(len > 0,"verifiedLogs empty");
+        uint256 end = (len > num) ? (len - num) : 0;
+        for(uint256 i = len; i > end; i--){
+            IEvent.swapOutEvent memory outEvent = verifiedLogs[i - 1];
+            _swapIn(outEvent);
+            verifiedLogs.pop();
+        }
+    }
+
     function swapIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
-        require(_chainId == relayChainId, "invalid chain id");
-        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
-        require(success, message);
-        IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
+        IEvent.txLog[] memory logs = _verify(_chainId,_receiptProof);
         for (uint256 i = 0; i < logs.length; i++) {
             IEvent.txLog memory log = logs[i];
             bytes32 topic = abi.decode(log.topics[0], (bytes32));
@@ -237,6 +263,17 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 
+    function getStoredCount() external view returns(uint256) {
+        return verifiedLogs.length;
+    }
+
+    function _verify(uint256 _chainId, bytes memory _receiptProof) private view returns(IEvent.txLog[] memory logs) {
+        require(_chainId == relayChainId, "invalid chain id");
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
+        require(success, message);
+        return EvmDecoder.decodeTxLogs(logArray);
+    }
+
     function _swapIn(IEvent.swapOutEvent memory _outEvent) internal checkOrder(_outEvent.orderId) {
         address tokenIn = Utils.fromBytes(_outEvent.token);
         // receiving address
@@ -249,7 +286,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         }
 
         // if swap params is not empty, then we need to do swap on current chain
-        if (_outEvent.swapData.length > 0) {
+        if (_outEvent.swapData.length > 0 && address(toAddress).isContract()) {
             SafeERC20.safeTransfer(IERC20(tokenIn), toAddress, actualAmountIn);
             try
                 IButterReceiver(toAddress).onReceived(
