@@ -88,6 +88,8 @@ exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_ad
 
         impl_addr = impl.address;
 
+        console.log("new mos impl to address:", impl_addr);
+
         if (needVerify(chainId)) {
             //verify impl
             sleep(10000);

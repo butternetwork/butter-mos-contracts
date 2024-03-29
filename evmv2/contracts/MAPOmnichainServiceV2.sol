@@ -59,6 +59,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     event RegisterToken(address _token, uint256 _toChain, bool _enable);
     event RegisterChain(uint256 _chainId, chainType _type);
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
+    event mapSwapInVerified(uint256 indexed fromChain, uint256 indexed toChain, bytes32 indexed orderId);
 
     function initialize(
         address _wToken,
@@ -201,7 +202,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         _deposit(wToken, from, _to, amount);
     }
 
-    function verifyAndstore(uint256 _chainId, bytes memory _receiptProof)external nonReentrant whenNotPaused {
+    // verify swap in logs and store
+    function swapInVerify(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
         IEvent.txLog[] memory logs = _verify(_chainId,_receiptProof);
         for (uint256 i = 0; i < logs.length; i++) {
             IEvent.txLog memory log = logs[i];
@@ -211,19 +213,22 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
                 // there might be more than one events to multi-chains
                 // only process the event for this chain
                 if (selfChainId == outEvent.toChain) {
-                    require(!storedOrderId[outEvent.orderId],"orderId stored");
+                    require(!storedOrderId[outEvent.orderId], "orderId stored");
                     verifiedLogs.push(outEvent);
                     storedOrderId[outEvent.orderId] = true;
+
+                    emit mapSwapInVerified(outEvent.fromChain, outEvent.toChain, outEvent.orderId);
                 }
             }
         }
     }
 
-    function swapInVerifiedLogs(uint256 num) external nonReentrant whenNotPaused {
+    // execute stored swap in logs
+    function swapInVerified(uint256 num) external nonReentrant whenNotPaused {
         uint256 len = verifiedLogs.length;
-        require(len > 0,"verifiedLogs empty");
+        require(len > 0, "verifiedLogs empty");
         uint256 end = (len > num) ? (len - num) : 0;
-        for(uint256 i = len; i > end; i--){
+        for (uint256 i = len; i > end; i--) {
             IEvent.swapOutEvent memory outEvent = verifiedLogs[i - 1];
             _swapIn(outEvent);
             verifiedLogs.pop();
