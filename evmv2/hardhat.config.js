@@ -117,10 +117,9 @@ module.exports = {
       accounts: accounts,
     },
     Merlin: {
-      url: `https://merlin.blockpi.network/v1/rpc/8063ca3128245fa7410bb257db8d84da0190a6fd`,
+      url: `https://rpc.merlinchain.io/`,
       chainId: 4200,
       gasPrice: 50000000,
-      gas: 3000000,
       accounts: accounts,
     },
     Bevm: {
