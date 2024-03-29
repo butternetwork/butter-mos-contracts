@@ -47,6 +47,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     address public butterRouter;
 
     IEvent.swapOutEvent[] private verifiedLogs;
+    mapping(bytes32 => bool) public  storedOrderId;
 
     event SetButterRouterAddress(address indexed _newRouter);
 
@@ -210,7 +211,9 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
                 // there might be more than one events to multi-chains
                 // only process the event for this chain
                 if (selfChainId == outEvent.toChain) {
+                    require(!storedOrderId[outEvent.orderId],"orderId stored");
                     verifiedLogs.push(outEvent);
+                    storedOrderId[outEvent.orderId] = true;
                 }
             }
         }
@@ -224,6 +227,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
             IEvent.swapOutEvent memory outEvent = verifiedLogs[i - 1];
             _swapIn(outEvent);
             verifiedLogs.pop();
+            delete storedOrderId[outEvent.orderId];
         }
     }
 
