@@ -46,8 +46,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     //pre version,now placeholder the slot
     address public butterRouter;
 
-    IEvent.swapOutEvent[] private verifiedLogs;
-    mapping(bytes32 => bool) public  storedOrderId;
+    // logs hash
+    mapping(bytes32 => bool) public verifiedLogsHash;
 
     event SetButterRouterAddress(address indexed _newRouter);
 
@@ -59,7 +59,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     event RegisterToken(address _token, uint256 _toChain, bool _enable);
     event RegisterChain(uint256 _chainId, chainType _type);
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
-    event mapSwapInVerified(uint256 indexed fromChain, uint256 indexed toChain, bytes32 indexed orderId);
+    event mapSwapInVerified(bytes logs);
 
     function initialize(
         address _wToken,
@@ -202,55 +202,28 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         _deposit(wToken, from, _to, amount);
     }
 
-    // verify swap in logs and store
+    // verify swap in logs and store hash
     function swapInVerify(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
-        IEvent.txLog[] memory logs = _verify(_chainId,_receiptProof);
-        for (uint256 i = 0; i < logs.length; i++) {
-            IEvent.txLog memory log = logs[i];
-            bytes32 topic = abi.decode(log.topics[0], (bytes32));
-            if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
-                (, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
-                // there might be more than one events to multi-chains
-                // only process the event for this chain
-                if (selfChainId == outEvent.toChain) {
-                    require(!storedOrderId[outEvent.orderId], "orderId stored");
-                    verifiedLogs.push(outEvent);
-                    storedOrderId[outEvent.orderId] = true;
-
-                    emit mapSwapInVerified(outEvent.fromChain, outEvent.toChain, outEvent.orderId);
-                }
-            }
-        }
+        require(_chainId == relayChainId, "invalid chain id");
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
+        require(success, message);
+        bytes32 hash = keccak256(logArray);
+        require(!verifiedLogsHash[hash],"already verified");
+        verifiedLogsHash[hash] = true;
+        emit mapSwapInVerified(logArray);
     }
-
     // execute stored swap in logs
-    function swapInVerified(uint256 num) external nonReentrant whenNotPaused {
-        uint256 len = verifiedLogs.length;
-        require(len > 0, "verifiedLogs empty");
-        uint256 end = (len > num) ? (len - num) : 0;
-        for (uint256 i = len; i > end; i--) {
-            IEvent.swapOutEvent memory outEvent = verifiedLogs[i - 1];
-            _swapIn(outEvent);
-            verifiedLogs.pop();
-            delete storedOrderId[outEvent.orderId];
-        }
+    function swapInVerified(bytes calldata logArray) external nonReentrant whenNotPaused {
+        bytes32 hash = keccak256(logArray);
+        require(verifiedLogsHash[hash],"not verified");
+        _swapIn(logArray);
     }
 
     function swapIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
-        IEvent.txLog[] memory logs = _verify(_chainId,_receiptProof);
-        for (uint256 i = 0; i < logs.length; i++) {
-            IEvent.txLog memory log = logs[i];
-            bytes32 topic = abi.decode(log.topics[0], (bytes32));
-            if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
-                (, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
-                // there might be more than one events to multi-chains
-                // only process the event for this chain
-                if (selfChainId == outEvent.toChain) {
-                    _swapIn(outEvent);
-                }
-            }
-        }
-
+        require(_chainId == relayChainId, "invalid chain id");
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
+        require(success, message);
+        _swapIn(logArray);
         emit mapSwapExecute(_chainId, selfChainId, msg.sender);
     }
 
@@ -276,15 +249,20 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 
-    function getStoredCount() external view returns(uint256) {
-        return verifiedLogs.length;
-    }
-
-    function _verify(uint256 _chainId, bytes memory _receiptProof) private view returns(IEvent.txLog[] memory logs) {
-        require(_chainId == relayChainId, "invalid chain id");
-        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
-        require(success, message);
-        return EvmDecoder.decodeTxLogs(logArray);
+    function _swapIn(bytes memory logArray) private{
+        IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
+        for (uint256 i = 0; i < logs.length; i++) {
+            IEvent.txLog memory log = logs[i];  
+            bytes32 topic = abi.decode(log.topics[0], (bytes32));
+            if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
+                (, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
+                // there might be more than one events to multi-chains
+                // only process the event for this chain
+                if (selfChainId == outEvent.toChain) {
+                   _swapIn(outEvent);
+                }
+            }
+       }
     }
 
     function _swapIn(IEvent.swapOutEvent memory _outEvent) internal checkOrder(_outEvent.orderId) {
@@ -324,7 +302,6 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
                 SafeERC20.safeTransfer(IERC20(tokenIn), toAddress, actualAmountIn);
             }
         }
-
         emit mapSwapIn(
             _outEvent.fromChain,
             selfChainId,
