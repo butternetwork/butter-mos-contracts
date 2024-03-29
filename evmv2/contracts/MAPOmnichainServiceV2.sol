@@ -46,8 +46,10 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     //pre version,now placeholder the slot
     address public butterRouter;
 
-    // logs hash
-    mapping(bytes32 => bool) public verifiedLogsHash;
+    // reserved
+    IEvent.swapOutEvent[] private verifiedLogs;
+
+    mapping(bytes32 => bool) public  storedOrderId;     // log hash
 
     event SetButterRouterAddress(address indexed _newRouter);
 
@@ -208,14 +210,14 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
         require(success, message);
         bytes32 hash = keccak256(logArray);
-        require(!verifiedLogsHash[hash],"already verified");
-        verifiedLogsHash[hash] = true;
+        require(!storedOrderId[hash], "already verified");
+        storedOrderId[hash] = true;
         emit mapSwapInVerified(logArray);
     }
     // execute stored swap in logs
     function swapInVerified(bytes calldata logArray) external nonReentrant whenNotPaused {
         bytes32 hash = keccak256(logArray);
-        require(verifiedLogsHash[hash],"not verified");
+        require(storedOrderId[hash], "not verified");
         _swapIn(logArray);
     }
 
@@ -249,7 +251,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 
-    function _swapIn(bytes memory logArray) private{
+    function _swapIn(bytes memory logArray) private {
         IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
         for (uint256 i = 0; i < logs.length; i++) {
             IEvent.txLog memory log = logs[i];  

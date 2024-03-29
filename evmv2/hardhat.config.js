@@ -127,6 +127,11 @@ module.exports = {
       chainId : 1501,
       accounts: accounts,
     },
+    Blast: {
+      url: `https://rpc.blastblockchain.com`,
+      chainId : 238,
+      accounts: accounts,
+    },
   },
   solidity: {
     compilers: [
