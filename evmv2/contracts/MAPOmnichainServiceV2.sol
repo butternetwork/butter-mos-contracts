@@ -208,6 +208,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
         require(success, message);
         bytes32 hash = keccak256(logArray);
+        require(!verifiedLogsHash[hash],"already verified");
         verifiedLogsHash[hash] = true;
         emit mapSwapInVerified(logArray);
     }
