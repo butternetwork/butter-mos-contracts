@@ -117,6 +117,10 @@ exports.stringToHex = async function (str) {
         .join("");
 };
 
+exports.needVerify = function(chainId) {
+     return needVerify(chainId);
+}
+
 function needVerify(chainId) {
     if (chainId === 1 || chainId === 56 || chainId === 137 || chainId === 199) {
         return true;
