@@ -63,7 +63,7 @@ contract LightClientManager is ILightClientManager, Ownable {
         return 0;
     }
 
-    function notifyLightClient(uint256 _chainId,  address _from, bytes memory _data) external override {}
+    function notifyLightClient(uint256 _chainId, address _from, bytes memory _data) external override {}
 
     function isVerifiable(uint256 _chainId, uint256 _blockHeight, bytes32 _hash) external view override returns (bool) {
         return false;
