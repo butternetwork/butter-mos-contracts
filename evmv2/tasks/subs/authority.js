@@ -1,37 +1,37 @@
 let { create, readFromFile, writeToFile } = require("../../utils/helper.js");
 let { needVerify } = require("../utils/util.js");
 
-task("manage:deploy", "mos relay deploy")
-    .addParam("admin", "defualt admin address")
+task("auth:deploy", "mos relay deploy")
+    .addParam("admin", "default admin address")
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
         const chainId = await hre.network.config.chainId;
         console.log("deployer address:", deployer.address);
 
-        let MAPOmnichainMange = await ethers.getContractFactory("MAPOmnichainMange");
-        let salt = process.env.MANAGE_SALT;
+        let Authority = await ethers.getContractFactory("Authority");
+        let salt = process.env.AUTH_SALT;
         let param = ethers.utils.defaultAbiCoder.encode(["address"], [taskArgs.admin]);
-        let createResult = await create(salt, MAPOmnichainMange.bytecode, param);
+        let createResult = await create(salt, Authority.bytecode, param);
         if (!createResult[1]) {
             return;
         }
-        let manage = createResult[0];
-        console.log(`Deploy manage address ${manage} successful`);
+        let authority = createResult[0];
+        console.log(`Deploy authority address ${authority} successful`);
         let deployment = await readFromFile(hre.network.name);
-        deployment[hre.network.name]["manage"] = manage;
+        deployment[hre.network.name]["authority"] = authority;
         await writeToFile(deployment);
         if (needVerify(chainId)) {
             sleep(10000);
             await run("verify:verify", {
-                address: manage,
+                address: authority,
                 constructorArguments: [taskArgs.admin],
-                contract: "contracts/MAPOmnichainMange.sol:MAPOmnichainMange",
+                contract: "contracts/Authority.sol:Authority",
             });
         }
     });
 
-task("manage:addToControl", "add execute AddToControl")
+task("auth:addControl", "add control")
     .addParam("target", "call target address")
     .addParam("func", "call function signature")
     .addParam("role", "control role")
@@ -40,22 +40,22 @@ task("manage:addToControl", "add execute AddToControl")
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
         let deployment = await readFromFile(hre.network.name);
-        if (!deployment[hre.network.name]["manage"]) {
-            throw "manage not deployed";
+        if (!deployment[hre.network.name]["authority"]) {
+            throw "authority not deployed";
         }
-        let MAPOmnichainMange = await ethers.getContractFactory("MAPOmnichainMange");
-        let manage = MAPOmnichainMange.attach(deployment[hre.network.name]["manage"]);
+        let Authority = await ethers.getContractFactory("Authority");
+        let authority = Authority.attach(deployment[hre.network.name]["authority"]);
 
-        console.log("manage address", manage.address);
+        console.log("authority address", authority.address);
 
-        await (await manage.addToControl(taskArgs.target, taskArgs.func, taskArgs.role)).wait();
+        await (await authority.addToControl(taskArgs.target, taskArgs.func, taskArgs.role)).wait();
 
         console.log(
-            `add target address ${taskArgs.target} function ${taskArgs.func} controled by role ${taskArgs.role} successfully`
+            `add target address ${taskArgs.target} function ${taskArgs.func} controlled by role ${taskArgs.role} successfully`
         );
     });
 
-task("manage:grantRole", "grantRole")
+task("auth:grantRole", "grantRole")
     .addParam("account", "account to grantRole")
     .addParam("role", "control role")
     .setAction(async (taskArgs, hre) => {
@@ -63,20 +63,20 @@ task("manage:grantRole", "grantRole")
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
         let deployment = await readFromFile(hre.network.name);
-        if (!deployment[hre.network.name]["manage"]) {
-            throw "manage not deployed";
+        if (!deployment[hre.network.name]["authority"]) {
+            throw "authority not deployed";
         }
-        let MAPOmnichainMange = await ethers.getContractFactory("MAPOmnichainMange");
-        let manage = MAPOmnichainMange.attach(deployment[hre.network.name]["manage"]);
+        let Authority = await ethers.getContractFactory("Authority");
+        let authority = Authority.attach(deployment[hre.network.name]["authority"]);
 
-        console.log("manage address", manage.address);
+        console.log("authority address", authority.address);
 
-        await (await manage.grantRole(taskArgs.role, taskArgs.account)).wait();
+        await (await authority.grantRole(taskArgs.role, taskArgs.account)).wait();
 
         console.log(`grant role ${taskArgs.role} to ${taskArgs.account} successfully`);
     });
 
-task("manage:revokeRole", "revokeRole")
+task("auth:revokeRole", "revokeRole")
     .addParam("account", "account to revokeRole")
     .addParam("role", "control role")
     .setAction(async (taskArgs, hre) => {
@@ -84,15 +84,15 @@ task("manage:revokeRole", "revokeRole")
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
         let deployment = await readFromFile(hre.network.name);
-        if (!deployment[hre.network.name]["manage"]) {
-            throw "manage not deployed";
+        if (!deployment[hre.network.name]["authority"]) {
+            throw "authority not deployed";
         }
-        let MAPOmnichainMange = await ethers.getContractFactory("MAPOmnichainMange");
-        let manage = MAPOmnichainMange.attach(deployment[hre.network.name]["manage"]);
+        let Authority = await ethers.getContractFactory("Authority");
+        let authority = Authority.attach(deployment[hre.network.name]["authority"]);
 
-        console.log("manage address", manage.address);
+        console.log("authority address", authority.address);
 
-        await (await manage.revokeRole(taskArgs.role, taskArgs.account)).wait();
+        await (await authority.revokeRole(taskArgs.role, taskArgs.account)).wait();
 
         console.log(`revoke ${taskArgs.account} role ${taskArgs.role} successfully`);
     });

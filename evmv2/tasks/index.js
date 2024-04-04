@@ -4,4 +4,4 @@ require("./subs/token.js");
 require("./subs/vault.js");
 require("./subs/tron.js");
 require("./subs/childToken.js");
-require("./subs/manage.js");
+require("./subs/authority.js");
