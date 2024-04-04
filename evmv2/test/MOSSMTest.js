@@ -35,8 +35,6 @@ describe("MAPOmnichainServiceV2 start test", function () {
 
     const abi = ethers.utils.defaultAbiCoder;
 
-
-
     beforeEach(async function () {
         [addr6, owner, addr1, addr2, addr3, addr4, addr5, addr7, addr8, addr9, ...addrs] = await ethers.getSigners();
     });
@@ -70,7 +68,7 @@ describe("MAPOmnichainServiceV2 start test", function () {
         const MapCrossChainServiceProxy = await ethers.getContractFactory("MAPOmnichainServiceProxyV2");
         let mossp = await MapCrossChainServiceProxy.deploy(moss.address, initData);
         await mossp.deployed();
-       moss = MOSS.connect(owner).attach(mossp.address);
+        moss = MOSS.connect(owner).attach(mossp.address);
     });
 
     it("mos set", async function () {

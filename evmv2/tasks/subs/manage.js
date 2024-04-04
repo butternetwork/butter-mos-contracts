@@ -1,5 +1,5 @@
-let { create, readFromFile, writeToFile} = require("../../utils/helper.js");
-let { needVerify} = require("../utils/util.js");
+let { create, readFromFile, writeToFile } = require("../../utils/helper.js");
+let { needVerify } = require("../utils/util.js");
 
 task("manage:deploy", "mos relay deploy")
     .addParam("admin", "defualt admin address")
@@ -40,21 +40,22 @@ task("manage:addToControl", "add execute AddToControl")
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
         let deployment = await readFromFile(hre.network.name);
-        if(!deployment[hre.network.name]["manage"]){
-            throw("manage not deployed");
+        if (!deployment[hre.network.name]["manage"]) {
+            throw "manage not deployed";
         }
         let MAPOmnichainMange = await ethers.getContractFactory("MAPOmnichainMange");
         let manage = MAPOmnichainMange.attach(deployment[hre.network.name]["manage"]);
 
-        console.log("manage address",manage.address);
+        console.log("manage address", manage.address);
 
-        await(await manage.addToControl(taskArgs.target,taskArgs.func,taskArgs.role)).wait();
+        await (await manage.addToControl(taskArgs.target, taskArgs.func, taskArgs.role)).wait();
 
-        console.log(`add target address ${taskArgs.target} function ${taskArgs.func} controled by role ${taskArgs.role} successfully`);
-
+        console.log(
+            `add target address ${taskArgs.target} function ${taskArgs.func} controled by role ${taskArgs.role} successfully`
+        );
     });
 
-    task("manage:grantRole", "grantRole")
+task("manage:grantRole", "grantRole")
     .addParam("account", "account to grantRole")
     .addParam("role", "control role")
     .setAction(async (taskArgs, hre) => {
@@ -62,20 +63,20 @@ task("manage:addToControl", "add execute AddToControl")
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
         let deployment = await readFromFile(hre.network.name);
-        if(!deployment[hre.network.name]["manage"]){
-            throw("manage not deployed");
+        if (!deployment[hre.network.name]["manage"]) {
+            throw "manage not deployed";
         }
         let MAPOmnichainMange = await ethers.getContractFactory("MAPOmnichainMange");
         let manage = MAPOmnichainMange.attach(deployment[hre.network.name]["manage"]);
 
-        console.log("manage address",manage.address);
+        console.log("manage address", manage.address);
 
-        await(await manage.grantRole(taskArgs.role,taskArgs.account)).wait();
+        await (await manage.grantRole(taskArgs.role, taskArgs.account)).wait();
 
         console.log(`grant role ${taskArgs.role} to ${taskArgs.account} successfully`);
     });
 
-    task("manage:revokeRole", "revokeRole")
+task("manage:revokeRole", "revokeRole")
     .addParam("account", "account to revokeRole")
     .addParam("role", "control role")
     .setAction(async (taskArgs, hre) => {
@@ -83,16 +84,15 @@ task("manage:addToControl", "add execute AddToControl")
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
         let deployment = await readFromFile(hre.network.name);
-        if(!deployment[hre.network.name]["manage"]){
-            throw("manage not deployed");
+        if (!deployment[hre.network.name]["manage"]) {
+            throw "manage not deployed";
         }
         let MAPOmnichainMange = await ethers.getContractFactory("MAPOmnichainMange");
         let manage = MAPOmnichainMange.attach(deployment[hre.network.name]["manage"]);
 
-        console.log("manage address",manage.address);
+        console.log("manage address", manage.address);
 
-        await(await manage.revokeRole(taskArgs.role,taskArgs.account)).wait();
+        await (await manage.revokeRole(taskArgs.role, taskArgs.account)).wait();
 
         console.log(`revoke ${taskArgs.account} role ${taskArgs.role} successfully`);
     });
-

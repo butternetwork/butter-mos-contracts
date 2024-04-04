@@ -1,5 +1,5 @@
-let { create, readFromFile, writeToFile, getMos } = require("../../utils/helper.js");
-let { mosDeploy, mosUpgrade } = require("../utils/util.js");
+let { create, readFromFile, writeToFile, getMos, getToken } = require("../../utils/helper.js");
+let { mosDeploy, mosUpgrade, mosVerify } = require("../utils/util.js");
 let {
     tronMosDeploy,
     tronMosUpgrade,
@@ -25,6 +25,23 @@ task("mos:deploy", "mos service deploy")
             const chainId = await hre.network.config.chainId;
             console.log("deployer address:", deployer.address);
             await mosDeploy(deploy, chainId, deployer.address, taskArgs.wrapped, taskArgs.lightnode);
+        }
+    });
+
+task("mos:verify", "mos service verify")
+    .addParam("wrapped", "native wrapped token address")
+    .addParam("lightnode", "lightNode contract address")
+    .setAction(async (taskArgs, hre) => {
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            console.log(hre.network.name);
+            await tronMosDeploy(hre.artifacts, hre.network.name, taskArgs.wrapped, taskArgs.lightnode);
+        } else {
+            const { deploy } = hre.deployments;
+            const accounts = await ethers.getSigners();
+            const deployer = accounts[0];
+            const chainId = await hre.network.config.chainId;
+            console.log("deployer address:", deployer.address);
+            await mosVerify(deploy, chainId, deployer.address, taskArgs.wrapped, taskArgs.lightnode);
         }
     });
 
@@ -122,10 +139,13 @@ task("mos:registerToken", "MapCrossChainService settings allow cross-chain token
             }
             console.log("mos address:", mos.address);
 
+            let token = await getToken(hre.network.config.chainId, taskArgs.token);
+            console.log("token address:", token);
+
             let ids = taskArgs.chains.split(",");
 
             for (let i = 0; i < ids.length; i++) {
-                await (await mos.connect(deployer).registerToken(taskArgs.token, ids[i], taskArgs.enable)).wait();
+                await (await mos.connect(deployer).registerToken(token, ids[i], taskArgs.enable)).wait();
 
                 console.log(`mos register token ${taskArgs.token} to chain ${ids[i]} ${taskArgs.enable} success`);
             }

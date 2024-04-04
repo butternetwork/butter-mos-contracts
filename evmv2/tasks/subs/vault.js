@@ -1,4 +1,5 @@
-const { getMos } = require("../../utils/helper");
+const { getMos, getToken } = require("../../utils/helper");
+// const {task} = require("hardhat/src/internal/core/config/config-env");
 
 task("vault:deploy", "Deploy the vault token")
     .addParam("token", "The token address on relay chain")
@@ -104,4 +105,31 @@ task("vault:withdraw", "withdraw token")
         await (await mos.connect(deployer).withdraw(vaultAddress, taskArgs.value)).wait();
 
         console.log(`withdraw token ${token} from vault ${vaultAddress} ${taskArgs.value} to  ${address} successful`);
+    });
+
+task("vault:transfer", "Add vaultToken manager")
+    .addParam("vault", "The vault token address")
+    .addParam("from", "the manager address, default is relay")
+    .addParam("to", "the manager address, default is relay")
+    .addParam("fromamount", "the manager address, default is relay")
+    .addParam("toamount", "the manager address, default is relay")
+    .addParam("fee", "the manager address, default is relay")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+
+        let vaultToken = await ethers.getContractAt("VaultTokenV2", taskArgs.vault);
+        console.log("vault address:", vaultToken.address);
+        console.log("from chain:", taskArgs.from);
+        console.log("to chain:", taskArgs.to);
+        console.log("from amount:", taskArgs.fromamount);
+        console.log("to amount:", taskArgs.toamount);
+
+        await (
+            await vaultToken
+                .connect(deployer)
+                .transferToken(taskArgs.from, taskArgs.fromamount, taskArgs.to, taskArgs.toamount, 22776, taskArgs.fee)
+        ).wait();
+        console.log(`MAPVaultToken ${taskArgs.vault} set amount success`);
     });

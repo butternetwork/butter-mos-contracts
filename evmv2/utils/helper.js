@@ -65,6 +65,47 @@ async function readFromFile(network) {
     return deploy;
 }
 
+async function getToken(chainId, token) {
+    if (chainId === 1360100178526209 || chainId === 1360100178526210) {
+        // near
+        if (token.length > 4) {
+            return token;
+        }
+    } else if (chainId === 728126428 || chainId === 728126429) {
+        // tron
+        if (token.length === 34) {
+            return token;
+        }
+    } else {
+        if (token.substr(0, 2) === "0x") {
+            return token;
+        }
+    }
+    let tokens = await getTokensFromFile(chainId);
+    if (tokens[chainId][token]) {
+        return tokens[chainId][token];
+    }
+
+    throw "token not support ..";
+}
+
+async function getTokensFromFile(network) {
+    let p = path.join(__dirname, "./token.json");
+    let tokens;
+    if (!fs.existsSync(p)) {
+        tokens = {};
+        tokens[network] = {};
+    } else {
+        let rawdata = fs.readFileSync(p);
+        tokens = JSON.parse(rawdata);
+        if (!tokens[network]) {
+            tokens[network] = {};
+        }
+    }
+
+    return tokens;
+}
+
 async function writeToFile(deploy) {
     let p = path.join(__dirname, "../deployments/mos.json");
     await folder("../deployments/");
@@ -86,4 +127,5 @@ module.exports = {
     readFromFile,
     getMos,
     create,
+    getToken,
 };

@@ -128,8 +128,8 @@ module.exports = {
       accounts: accounts,
     },
     Blast: {
-      url: `https://rpc.blastblockchain.com`,
-      chainId : 238,
+      url: `https://rpc.blast.io`,
+      chainId : 81457,
       accounts: accounts,
     },
   },
@@ -177,6 +177,7 @@ module.exports = {
       Eth:  process.env.API_KEY_ETH,
       Bsc:  process.env.API_KEY_BSC,
       polygon: process.env.API_KEY_MATIC,
+      Blast: process.env.API_KEY_BLAST
     },
     customChains: [
       {
@@ -209,6 +210,14 @@ module.exports = {
         urls: {
           apiURL: "https://api.polygonscan.com/api",
           browserURL: "https://polygonscan.com/",
+        },
+      },
+      {
+        network: "Blast",
+        chainId: 81457,
+        urls: {
+          apiURL: "https://api.blastscan.io/api",
+          browserURL: "https://blastscan.io/",
         },
       },
     ],

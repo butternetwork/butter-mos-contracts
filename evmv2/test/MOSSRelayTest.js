@@ -152,8 +152,6 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         await tokenRegister.setTokenFee(usdt.address, 97, "1000000000000000", "2000000000000000000", "500000");
     });
 
-
-
     it("set test", async function () {
         console.log(await mossR.getAdmin());
         await mossR.setPause();
@@ -173,8 +171,6 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
 
         expect(await mossR.getAdmin()).to.equal(addr5.address);
     });
-
-
 
     it("Upgrade", async function () {
         let MOSSRelayUpGrade = await ethers.getContractFactory("MAPOmnichainServiceRelayV2");

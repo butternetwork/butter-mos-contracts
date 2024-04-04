@@ -1,4 +1,4 @@
-const { getMos } = require("../../utils/helper");
+const { getMos, getToken } = require("../../utils/helper");
 
 function stringToHex(str) {
     return str
@@ -35,15 +35,17 @@ task("token:deposit", "Cross-chain deposit token")
             address = deployer.address;
         }
 
-        if (taskArgs.token === "0x0000000000000000000000000000000000000000") {
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+
+        if (tokenAddr === "0x0000000000000000000000000000000000000000") {
             await (await mos.connect(deployer).depositNative(address, { value: taskArgs.value })).wait();
         } else {
-            let token = await ethers.getContractAt("MintableToken", taskArgs.token);
+            let token = await ethers.getContractAt("MintableToken", tokenAddr);
             console.log("approve token... ");
             await (await token.connect(deployer).approve(mos.address, taskArgs.value)).wait();
 
             console.log("deposit token... ");
-            await (await mos.connect(deployer).depositToken(taskArgs.token, address, taskArgs.value)).wait();
+            await (await mos.connect(deployer).depositToken(tokenAddr, address, taskArgs.value)).wait();
         }
 
         console.log(`deposit token ${taskArgs.token} ${taskArgs.value} to ${address} successful`);
@@ -63,7 +65,6 @@ task("token:transferOut", "Cross-chain transfer token")
         const chainId = hre.network.chainId;
 
         let mos = await getMos(chainId, hre.network.name);
-
         if (!mos) {
             throw "mos not deployed ...";
         }
@@ -79,7 +80,10 @@ task("token:transferOut", "Cross-chain transfer token")
             }
         }
 
-        if (taskArgs.token === "0x0000000000000000000000000000000000000000") {
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        console.log(`token ${taskArgs.token} address ${tokenAddr}`);
+
+        if (tokenAddr === "0x0000000000000000000000000000000000000000") {
             await (
                 await mos.connect(deployer).swapOutNative(deployer.address, address, taskArgs.chain, "0x", {
                     value: taskArgs.value,
@@ -88,13 +92,13 @@ task("token:transferOut", "Cross-chain transfer token")
         } else {
             console.log("token receiver:", taskArgs.address);
 
-            let token = await ethers.getContractAt("MintableToken", taskArgs.token);
+            let token = await ethers.getContractAt("MintableToken", tokenAddr);
             await (await token.connect(deployer).approve(mos.address, taskArgs.value)).wait();
 
             await (
                 await mos
                     .connect(deployer)
-                    .swapOutToken(deployer.address, taskArgs.token, address, taskArgs.value, taskArgs.chain, "0x")
+                    .swapOutToken(deployer.address, tokenAddr, address, taskArgs.value, taskArgs.chain, "0x")
             ).wait();
         }
 
@@ -145,6 +149,8 @@ task("token:grant", "Grant a mintable token mint role")
 
         console.log("deployer address:", deployer.address);
 
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+
         let token = await ethers.getContractAt("MintableToken", taskArgs.token);
 
         console.log("Mintable Token address:", token.address);
@@ -174,6 +180,8 @@ task("token:mint", "mint token")
 
         console.log("deployer address:", deployer.address);
 
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+
         let token = await ethers.getContractAt("MintableToken", taskArgs.token);
 
         console.log("Mintable Token address:", token.address);
@@ -193,6 +201,8 @@ task("token:transfer", "transfer token")
         const deployer = accounts[0];
 
         console.log("deployer address:", deployer.address);
+
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
 
         let token = await ethers.getContractAt("MintableToken", taskArgs.token);
 

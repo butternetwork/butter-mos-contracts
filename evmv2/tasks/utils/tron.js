@@ -1,4 +1,4 @@
-let { getMos, create, readFromFile, writeToFile } = require("../../utils/helper.js");
+let { getMos, create, readFromFile, writeToFile, getToken } = require("../../utils/helper.js");
 const TronWeb = require("tronweb");
 require("dotenv").config();
 

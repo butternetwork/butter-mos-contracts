@@ -1,4 +1,4 @@
-let { create, readFromFile, writeToFile, getMos } = require("../../utils/helper.js");
+let { create, readFromFile, writeToFile, getMos, getToken } = require("../../utils/helper.js");
 let { mosDeploy, mosUpgrade } = require("../utils/util.js");
 
 let {

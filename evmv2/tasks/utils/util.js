@@ -1,4 +1,4 @@
-let { getMos, create, readFromFile, writeToFile } = require("../../utils/helper.js");
+let { getMos, create, readFromFile, writeToFile, getToken } = require("../../utils/helper.js");
 
 const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
 
@@ -45,6 +45,39 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
     if (needVerify(chainId)) {
         sleep(10000);
 
+        await run("verify:verify", {
+            address: mos_proxy,
+            constructorArguments: [impl.address, data],
+            contract: "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2",
+        });
+
+        await run("verify:verify", {
+            address: impl.address,
+            constructorArguments: [],
+            contract: "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2",
+        });
+    }
+};
+
+exports.mosVerify = async function (deploy, chainId, deployer, wtoken, lightnode) {
+    let implContract;
+    if (chainId === 212 || chainId === 22776) {
+        // Map or Makalu
+        implContract = "MAPOmnichainServiceRelayV2";
+    } else {
+        implContract = "MAPOmnichainServiceV2";
+    }
+
+    let impl = await ethers.getContract(implContract);
+    console.log(`${implContract} address: ${impl.address}`);
+
+    let data = Impl.interface.encodeFunctionData("initialize", [wtoken, lightnode, deployer]);
+
+    let deployment = await readFromFile(hre.network.name);
+    let mos_proxy = deployment[hre.network.name]["mosProxy"];
+    console.log(`Deploy ${implContract} proxy address ${mos_proxy} successful`);
+
+    if (needVerify(chainId)) {
         await run("verify:verify", {
             address: mos_proxy,
             constructorArguments: [impl.address, data],
@@ -117,12 +150,12 @@ exports.stringToHex = async function (str) {
         .join("");
 };
 
-exports.needVerify = function(chainId) {
-     return needVerify(chainId);
-}
+exports.needVerify = function (chainId) {
+    return needVerify(chainId);
+};
 
 function needVerify(chainId) {
-    if (chainId === 1 || chainId === 56 || chainId === 137 || chainId === 199) {
+    if (chainId === 1 || chainId === 56 || chainId === 137 || chainId === 199 || chainId === 81457) {
         return true;
     } else {
         return false;
