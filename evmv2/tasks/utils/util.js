@@ -92,7 +92,7 @@ exports.mosVerify = async function (deploy, chainId, deployer, wtoken, lightnode
     }
 };
 
-exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_addr) {
+exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_addr, auth) {
     let mos = await getMos(chainId, network);
 
     if (mos === undefined) {
@@ -136,7 +136,22 @@ exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_ad
 
     console.log(`${implContract} implementation address: ${impl_addr}`);
 
-    await mos.upgradeTo(impl_addr);
+    if (auth) {
+        let deployment = await readFromFile(hre.network.name);
+        if (!deployment[hre.network.name]["authority"]) {
+            throw "authority not deployed";
+        }
+        let Authority = await ethers.getContractFactory("Authority");
+        let authority = Authority.attach(deployment[hre.network.name]["authority"]);
+
+        let data = mos.interface.encodeFunctionData("upgradeTo", [impl_addr]);
+        let executeData = authority.interface.encodeFunctionData("execute", [mos.address, 0, data]);
+        console.log("execute input", executeData);
+
+        await (await authority.execute(mos.address, 0, data)).wait();
+    } else {
+        await mos.upgradeTo(impl_addr);
+    }
 
     console.log("upgrade mos impl to address:", impl_addr);
 };

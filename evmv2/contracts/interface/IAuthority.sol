@@ -3,18 +3,12 @@
 pragma solidity ^0.8.0;
 
 interface IAuthority {
-    struct ExecuteParam {
-        bytes32 id;
-        address target;
-        uint256 value;
-        bytes payload;
-    }
 
     function isAuthorized(address user, address target, bytes4 funSig) external view returns (bool);
 
-    function execute(ExecuteParam calldata param) external payable;
+    function getRole(address target, bytes4 funSig) external view returns (bytes32);
 
-    function executeBatch(ExecuteParam[] calldata params) external payable;
+    function execute(address target, uint256 value, bytes calldata payload) external payable;
 
     function addControl(address target, bytes4 funSig, bytes32 role) external;
 }

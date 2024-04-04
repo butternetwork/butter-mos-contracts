@@ -189,6 +189,7 @@ task("mos:setMintableToken", "MapCrossChainService settings mintable token")
 
 task("mos:setPause", "set pause for mos")
     .addOptionalParam("pause", "Set pause, default true", true, types.boolean)
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             await tronSetup(hre.artifacts, hre.network.name, taskArgs.address, taskArgs.type);
@@ -203,13 +204,78 @@ task("mos:setPause", "set pause for mos")
 
             console.log("mos address", mos.address);
 
-            if (taskArgs.pause === true) {
-                await (await mos.connect(deployer).setPause()).wait();
-                console.log(`mos set pause ${taskArgs.pause} successfully `);
+            if (taskArgs.auth) {
+                let deployment = await readFromFile(hre.network.name);
+                if (!deployment[hre.network.name]["authority"]) {
+                    throw "authority not deployed";
+                }
+                let Authority = await ethers.getContractFactory("Authority");
+                let authority = Authority.attach(deployment[hre.network.name]["authority"]);
+
+                let data;
+                if (taskArgs.pause === true) {
+                    data = mos.interface.encodeFunctionData("setPause", []);
+                } else {
+                    data = mos.interface.encodeFunctionData("setUnpause", []);
+                }
+                let executeData = authority.interface.encodeFunctionData("execute", [mos.address, 0, data]);
+                console.log("execute input", executeData);
+
+                await (await authority.execute(mos.address, 0, data)).wait();
             } else {
-                await (await mos.connect(deployer).setUnpause()).wait();
-                console.log(`mos set pause to ${taskArgs.pause} `);
+                if (taskArgs.pause === true) {
+                    await (await mos.connect(deployer).setPause()).wait();
+                } else {
+                    await (await mos.connect(deployer).setUnpause()).wait();
+                }
             }
+            console.log(`mos set pause ${taskArgs.pause} successfully `);
+        }
+    });
+
+task("mos:changeOwner", "changeOwner for mos")
+    .addParam("owner", "owner address")
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
+    .setAction(async (taskArgs, hre) => {
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await tronSetup(hre.artifacts, hre.network.name, taskArgs.address, taskArgs.type);
+        } else {
+            const accounts = await ethers.getSigners();
+            const deployer = accounts[0];
+            const chainId = await hre.network.config.chainId;
+            let mos = await getMos(chainId, hre.network.name);
+            if (mos == undefined) {
+                throw "mos not deployed ...";
+            }
+            console.log("mos address", mos.address);
+
+            let owner = await mos.connect(deployer).getAdmin();
+            console.log("mos pre owner", owner);
+
+            if (taskArgs.auth) {
+                let deployment = await readFromFile(hre.network.name);
+                if (!deployment[hre.network.name]["authority"]) {
+                    throw "authority not deployed";
+                }
+                let Authority = await ethers.getContractFactory("Authority");
+                let authority = Authority.attach(deployment[hre.network.name]["authority"]);
+
+                let data = mos.interface.encodeFunctionData("changeAdmin", [taskArgs.owner]);
+                let executeData = authority.interface.encodeFunctionData("execute", [mos.address, 0, data]);
+                console.log("target:", mos.address);
+                console.log("value:", 0);
+                console.log("payload:", data);
+                console.log("execute input:", executeData);
+
+                await (await authority.execute(mos.address, 0, data)).wait();
+            } else {
+                await (await mos.connect(deployer).changeAdmin(taskArgs.owner)).wait();
+            }
+
+            owner = await mos.connect(deployer).getAdmin();
+            console.log("mos owner", owner);
+
+            console.log(`mos set owner ${taskArgs.owner} successfully `);
         }
     });
 
@@ -266,6 +332,8 @@ task("mos:list", "List mos  infos")
             if (address == "wtoken") {
                 address = wtoken;
             }
+            address = await getToken(hre.network.config.chainId, address);
+
             console.log("\ntoken address:", address);
             let mintable = await mos.isMintable(address);
             console.log(`token mintalbe:\t ${mintable}`);

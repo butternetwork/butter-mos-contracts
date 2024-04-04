@@ -15,13 +15,14 @@ task("relay:deploy", "mos relay deploy")
 
 task("relay:upgrade", "upgrade mos evm contract in proxy")
     .addOptionalParam("impl", "The mos impl address", "0x0000000000000000000000000000000000000000", types.string)
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const { deploy } = hre.deployments;
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
         const chainId = await hre.network.config.chainId;
         console.log("deployer address:", deployer.address);
-        await mosUpgrade(deploy, chainId, deployer.address, hre.network.name, taskArgs.impl);
+        await mosUpgrade(deploy, chainId, deployer.address, hre.network.name, taskArgs.impl, taskArgs.auth);
     });
 
 //settype
@@ -48,7 +49,7 @@ task("relay:setup", "set associated contracts for mos")
             await (await mos.connect(deployer).setTokenRegister(taskArgs.address)).wait();
             console.log("set token register:", taskArgs.address);
         } else {
-            throw "unsuport set type";
+            throw "unsupported set type";
         }
     });
 

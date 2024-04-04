@@ -1,5 +1,7 @@
 let { create, readFromFile, writeToFile } = require("../../utils/helper.js");
 let { needVerify } = require("../utils/util.js");
+const {stringToHex} = require("../utils/util");
+const {getMos} = require("../../utils/helper");
 
 task("auth:deploy", "mos relay deploy")
     .addParam("admin", "default admin address")
@@ -45,19 +47,46 @@ task("auth:addControl", "add control")
         }
         let Authority = await ethers.getContractFactory("Authority");
         let authority = Authority.attach(deployment[hre.network.name]["authority"]);
-
         console.log("authority address", authority.address);
 
-        await (await authority.addToControl(taskArgs.target, taskArgs.func, taskArgs.role)).wait();
+        let role = taskArgs.role;
+        if (taskArgs.role.substr(0, 2) != "0x") {
+            if (taskArgs.role === "admin") {
+                role = "0x0000000000000000000000000000000000000000000000000000000000000000";
+            } else {
+                role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(taskArgs.role));
+            }
+        }
+        console.log("role:", role);
+
+        let target = taskArgs.target;
+        let funSig = taskArgs.func;
+        if (taskArgs.target === "mos") {
+            let mos = await getMos(hre.network.config.chainId, hre.network.name);
+            if (mos === undefined) {
+                throw "mos not deployed ...";
+            }
+            console.log("mos address:", mos.address);
+            target = mos.address;
+            funSig = mos.interface.getSighash(taskArgs.func);
+        } else if (taskArgs.target === "auth") {
+            target = authority.address;
+            funSig = authority.interface.getSighash(taskArgs.func);
+        }
+
+        console.log("target:", target);
+        console.log("func sig:", funSig);
+
+        await (await authority.addControl(target, funSig, role)).wait();
 
         console.log(
             `add target address ${taskArgs.target} function ${taskArgs.func} controlled by role ${taskArgs.role} successfully`
         );
     });
 
-task("auth:grantRole", "grantRole")
-    .addParam("account", "account to grantRole")
-    .addParam("role", "control role")
+task("auth:getRole", "get target role")
+    .addParam("target", "target address")
+    .addParam("funsig", "fun sig")
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
@@ -71,7 +100,78 @@ task("auth:grantRole", "grantRole")
 
         console.log("authority address", authority.address);
 
-        await (await authority.grantRole(taskArgs.role, taskArgs.account)).wait();
+        let target = taskArgs.target;
+        if (taskArgs.target === "mos") {
+            let mos = await getMos(hre.network.config.chainId, hre.network.name);
+            if (mos === undefined) {
+                throw "mos not deployed ...";
+            }
+            console.log("mos address:", mos.address);
+            target = mos.address;
+        }
+
+        let role = await authority.getRole(target, taskArgs.funsig);
+        console.log(`target ${taskArgs.target} ${taskArgs.funsig} role: ${role}`);
+    });
+
+task("auth:authorized", "get target role")
+    .addParam("target", "target address")
+    .addParam("account", "user address")
+    .addParam("funsig", "fun sig")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+        let deployment = await readFromFile(hre.network.name);
+        if (!deployment[hre.network.name]["authority"]) {
+            throw "authority not deployed";
+        }
+        let Authority = await ethers.getContractFactory("Authority");
+        let authority = Authority.attach(deployment[hre.network.name]["authority"]);
+
+        console.log("authority address", authority.address);
+
+        let target = taskArgs.target;
+        if (taskArgs.target === "mos") {
+            let mos = await getMos(hre.network.config.chainId, hre.network.name);
+            if (mos === undefined) {
+                throw "mos not deployed ...";
+            }
+            console.log("mos address:", mos.address);
+            target = mos.address;
+        }
+
+        let rst = await authority.isAuthorized(taskArgs.account, target, taskArgs.funsig);
+        console.log(`${taskArgs.account} ${taskArgs.target} ${taskArgs.funsig} result: ${rst}`);
+    });
+
+task("auth:grantRole", "grantRole")
+    .addParam("account", "account to grantRole")
+    .addParam("role", "control role, admin/minter/manager")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+        let deployment = await readFromFile(hre.network.name);
+        if (!deployment[hre.network.name]["authority"]) {
+            throw "authority not deployed";
+        }
+        let Authority = await ethers.getContractFactory("Authority");
+        let authority = Authority.attach(deployment[hre.network.name]["authority"]);
+
+        console.log("authority address", authority.address);
+
+        let role = taskArgs.role;
+        if (taskArgs.role.substr(0, 2) != "0x") {
+            if (taskArgs.role === "admin") {
+                role = "0x0000000000000000000000000000000000000000000000000000000000000000";
+            } else {
+                role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(taskArgs.role));
+            }
+        }
+        console.log("role:", role);
+
+        await (await authority.grantRole(role, taskArgs.account)).wait();
 
         console.log(`grant role ${taskArgs.role} to ${taskArgs.account} successfully`);
     });
@@ -92,7 +192,51 @@ task("auth:revokeRole", "revokeRole")
 
         console.log("authority address", authority.address);
 
-        await (await authority.revokeRole(taskArgs.role, taskArgs.account)).wait();
+        let role = taskArgs.role;
+        if (taskArgs.role.substr(0, 2) != "0x") {
+            if (taskArgs.role === "admin") {
+                role = "0x0000000000000000000000000000000000000000000000000000000000000000";
+            } else {
+                role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(taskArgs.role));
+            }
+        }
+        console.log("role:", role);
+
+        await (await authority.revokeRole(role, taskArgs.account)).wait();
 
         console.log(`revoke ${taskArgs.account} role ${taskArgs.role} successfully`);
+    });
+
+task("auth:getMember", "get role member")
+    .addParam("role", "control role")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+        let deployment = await readFromFile(hre.network.name);
+        if (!deployment[hre.network.name]["authority"]) {
+            throw "authority not deployed";
+        }
+        let Authority = await ethers.getContractFactory("Authority");
+        let authority = Authority.attach(deployment[hre.network.name]["authority"]);
+
+        console.log("authority address", authority.address);
+
+        let role = taskArgs.role;
+        if (taskArgs.role.substr(0, 2) != "0x") {
+            if (taskArgs.role === "admin") {
+                role = "0x0000000000000000000000000000000000000000000000000000000000000000";
+            } else {
+                role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(taskArgs.role));
+            }
+        }
+        console.log("role:", role);
+
+        let count = await authority.getRoleMemberCount(role);
+        console.log(`role ${taskArgs.role} has ${count} member(s)`);
+
+        for (let i = 0; i < count; i++) {
+            let member = await authority.getRoleMember(role, i);
+            console.log(`    ${i}: ${member}`);
+        }
     });
