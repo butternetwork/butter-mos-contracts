@@ -49,7 +49,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     // reserved
     IEvent.swapOutEvent[] private verifiedLogs;
 
-    mapping(bytes32 => bool) public  storedOrderId;     // log hash
+    mapping(bytes32 => bool) public storedOrderId; // log hash
 
     event SetButterRouterAddress(address indexed _newRouter);
 
@@ -214,18 +214,19 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         storedOrderId[hash] = true;
         emit mapSwapInVerified(logArray);
     }
+
     // execute stored swap in logs
     function swapInVerified(bytes calldata logArray) external nonReentrant whenNotPaused {
         bytes32 hash = keccak256(logArray);
         require(storedOrderId[hash], "not verified");
-        _swapIn(logArray);
+        _swapInVerified(logArray);
     }
 
     function swapIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
         require(_chainId == relayChainId, "invalid chain id");
         (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
         require(success, message);
-        _swapIn(logArray);
+        _swapInVerified(logArray);
         emit mapSwapExecute(_chainId, selfChainId, msg.sender);
     }
 
@@ -251,20 +252,20 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 
-    function _swapIn(bytes memory logArray) private {
+    function _swapInVerified(bytes memory logArray) private {
         IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
         for (uint256 i = 0; i < logs.length; i++) {
-            IEvent.txLog memory log = logs[i];  
+            IEvent.txLog memory log = logs[i];
             bytes32 topic = abi.decode(log.topics[0], (bytes32));
             if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
                 (, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
                 // there might be more than one events to multi-chains
                 // only process the event for this chain
                 if (selfChainId == outEvent.toChain) {
-                   _swapIn(outEvent);
+                    _swapIn(outEvent);
                 }
             }
-       }
+        }
     }
 
     function _swapIn(IEvent.swapOutEvent memory _outEvent) internal checkOrder(_outEvent.orderId) {
