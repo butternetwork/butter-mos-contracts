@@ -33,5 +33,11 @@
 	},
 	"Blast": {
 		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	},
+	"Ainn": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	},
+	"Base": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
 	}
 }

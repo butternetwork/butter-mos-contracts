@@ -132,6 +132,17 @@ module.exports = {
       chainId : 81457,
       accounts: accounts,
     },
+    Base: {
+      url: `https://mainnet.base.org`,
+      chainId: 8453,
+      accounts: accounts,
+    },
+    Ainn: {
+      url: `https://mainnet-rpc.anvm.io`,
+      chainId : 2649,
+      gasPrice: 50000000,
+      accounts: accounts,
+    },
   },
   solidity: {
     compilers: [
@@ -162,7 +173,17 @@ module.exports = {
           },
         },
       },
-    ],
+      {
+        version: '0.8.20',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
+          },
+          "evmVersion": "london"
+        }
+      }
+    ]
   },
   spdxLicenseIdentifier: {
     overwrite: true,
@@ -177,7 +198,8 @@ module.exports = {
       Eth:  process.env.API_KEY_ETH,
       Bsc:  process.env.API_KEY_BSC,
       polygon: process.env.API_KEY_MATIC,
-      Blast: process.env.API_KEY_BLAST
+      Blast: process.env.API_KEY_BLAST,
+      Base: process.env.API_KEY_BASE
     },
     customChains: [
       {
@@ -218,6 +240,14 @@ module.exports = {
         urls: {
           apiURL: "https://api.blastscan.io/api",
           browserURL: "https://blastscan.io/",
+        },
+      },
+      {
+        network: "Base",
+        chainId: 8453,
+        urls: {
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org/",
         },
       },
     ],

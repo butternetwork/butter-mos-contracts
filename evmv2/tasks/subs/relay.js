@@ -121,13 +121,13 @@ task("relay:mapToken", "Map the altchain token to the token on relay chain")
         console.log("token address:", token);
 
         let chaintoken = await getToken(taskArgs.chain, taskArgs.chaintoken);
-        console.log("chaintoken:", chaintoken);
+        console.log("chain token:", chaintoken);
 
         if (chaintoken.substr(0, 2) != "0x") {
             let hex = await stringToHex(chaintoken);
             chaintoken = "0x" + hex;
         }
-        console.log("chaintoken hex:", chaintoken.toString());
+        console.log("chain token hex:", chaintoken.toString());
 
         await (await register.connect(deployer).mapToken(token, taskArgs.chain, chaintoken, taskArgs.decimals)).wait();
 
@@ -240,10 +240,14 @@ const chainlist = [
     1001,
     8217, // klaytn
     1030, // conflux
+    81457, // blast
+    8453,  // base
+    4200, // merlin
+    2649, // ainn
+    1501, // bevm
     "1360100178526209",
     "1360100178526210", // near
-    1501, // bevm
-    4200, // merlin
+
 ];
 task("relay:list", "List relay infos")
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)

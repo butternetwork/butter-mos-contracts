@@ -167,14 +167,17 @@ task("mos:setMintableToken", "MapCrossChainService settings mintable token")
             console.log("deployer address:", deployer.address);
 
             let mos = await getMos(chainId, hre.network.name);
-
             if (!mos) {
                 throw "mos not deployed ...";
             }
-
             console.log("mos address:", mos.address);
 
-            let tokens = taskArgs.token.split(",");
+            let tokens = [];
+            let tokenList = taskArgs.token.split(",");
+            for (let i = 0; i < tokenList.length; i++) {
+                let token = await getToken(hre.network.config.chainId, tokenList[i]);
+                tokens.push(token);
+            }
             if (taskArgs.mintable) {
                 await (await mos.connect(deployer).addMintableToken(tokens)).wait();
 
@@ -291,6 +294,11 @@ const chainlist = [
     1001,
     8217, // klaytn
     1030, // conflux
+    81457, // blast
+    8453,  // base
+    4200, // merlin
+    2649, // ainn
+    1501, // bevm
     "1360100178526209",
     "1360100178526210", // near
 ];
