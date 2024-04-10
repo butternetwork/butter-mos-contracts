@@ -295,7 +295,7 @@ const chainlist = [
     8217, // klaytn
     1030, // conflux
     81457, // blast
-    8453,  // base
+    8453, // base
     4200, // merlin
     2649, // ainn
     1501, // bevm

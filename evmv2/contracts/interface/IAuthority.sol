@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 interface IAuthority {
-
     function isAuthorized(address user, address target, bytes4 funSig) external view returns (bool);
 
     function getRole(address target, bytes4 funSig) external view returns (bytes32);

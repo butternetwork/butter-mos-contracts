@@ -241,13 +241,12 @@ const chainlist = [
     8217, // klaytn
     1030, // conflux
     81457, // blast
-    8453,  // base
+    8453, // base
     4200, // merlin
     2649, // ainn
     1501, // bevm
     "1360100178526209",
     "1360100178526210", // near
-
 ];
 task("relay:list", "List relay infos")
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)

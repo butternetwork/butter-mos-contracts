@@ -119,7 +119,8 @@ task("token:deploy", "deploy mapping token")
     .addOptionalParam(
         "factory",
         "deploy factory address, default is 0x6258e4d2950757A749a4d4683A7342261ce12471",
-        "0x6258e4d2950757A749a4d4683A7342261ce12471", types.string
+        "0x6258e4d2950757A749a4d4683A7342261ce12471",
+        types.string
     )
     .setAction(async (taskArgs, hre) => {
         const { deployments, ethers } = hre;
@@ -242,7 +243,6 @@ task("token:revoke", "grantRole")
         await (await token.revokeRole(role, addr)).wait();
     });
 
-
 task("token:setMintCap", "setMinterCap")
     .addParam("token", "token addr")
     .addOptionalParam("addr", "minter address", "mos", types.string)
@@ -273,7 +273,7 @@ task("token:setMintCap", "setMinterCap")
         await (await token.setMinterCap(addr, ethers.utils.parseEther(taskArgs.cap))).wait();
         console.log("after : ", await token.getMinterCap(addr));
         let info = await token.minterCap(addr);
-        console.log(`cap: ${info.cap}, total: ${info.total}`)
+        console.log(`cap: ${info.cap}, total: ${info.total}`);
     });
 
 task("mintToken", "mint token")

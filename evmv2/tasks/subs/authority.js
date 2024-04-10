@@ -1,23 +1,23 @@
 let { create, readFromFile, writeToFile } = require("../../utils/helper.js");
 let { needVerify } = require("../utils/util.js");
-const {stringToHex} = require("../utils/util");
-const {getMos} = require("../../utils/helper");
+const { stringToHex } = require("../utils/util");
+const { getMos } = require("../../utils/helper");
 
-function getRole (role) {
+function getRole(role) {
     if (role.substr(0, 2) === "0x") {
         return role;
     }
-        if (role === "admin") {
-            return "0x0000000000000000000000000000000000000000000000000000000000000000";
-        }
-            let roleName = role;
-            if (role == "manager") {
-                roleName = "MANAGER_ROLE";
-            } else if (role == "manager") {
-                roleName = "MINTER_ROLE";
-            }
-            return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(roleName));
-};
+    if (role === "admin") {
+        return "0x0000000000000000000000000000000000000000000000000000000000000000";
+    }
+    let roleName = role;
+    if (role == "manager") {
+        roleName = "MANAGER_ROLE";
+    } else if (role == "manager") {
+        roleName = "MINTER_ROLE";
+    }
+    return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(roleName));
+}
 
 async function getAuth(network) {
     let deployment = await readFromFile(hre.network.name);

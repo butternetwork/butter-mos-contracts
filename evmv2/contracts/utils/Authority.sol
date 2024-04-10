@@ -65,5 +65,4 @@ contract Authority is AccessControlEnumerable, ReentrancyGuard, IAuthority {
             outBytes4 := mload(add(data, 32))
         }
     }
-
 }

@@ -170,7 +170,14 @@ exports.needVerify = function (chainId) {
 };
 
 function needVerify(chainId) {
-    if (chainId === 1 || chainId === 56 || chainId === 137 || chainId === 199 || chainId === 81457 || chainId === 8453) {
+    if (
+        chainId === 1 ||
+        chainId === 56 ||
+        chainId === 137 ||
+        chainId === 199 ||
+        chainId === 81457 ||
+        chainId === 8453
+    ) {
         return true;
     } else {
         return false;

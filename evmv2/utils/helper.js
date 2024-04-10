@@ -34,8 +34,7 @@ async function create(salt, bytecode, param) {
     return [addr, redeploy];
 }
 
-
-function getRole (role) {
+function getRole(role) {
     if (role.substr(0, 2) === "0x") {
         return role;
     }
@@ -43,13 +42,13 @@ function getRole (role) {
         return "0x0000000000000000000000000000000000000000000000000000000000000000";
     }
     let roleName = role;
-    if (role == "manager") {
+    if (role === "manager") {
         roleName = "MANAGER_ROLE";
-    } else if (role == "manager") {
+    } else if (role === "manager") {
         roleName = "MINTER_ROLE";
     }
     return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(roleName));
-};
+}
 
 async function getMos(chainId, network) {
     let deploy = await readFromFile(network);
@@ -146,5 +145,5 @@ module.exports = {
     getMos,
     create,
     getToken,
-    getRole
+    getRole,
 };
