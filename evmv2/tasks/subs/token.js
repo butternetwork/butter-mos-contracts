@@ -1,4 +1,4 @@
-const { getMos, getToken } = require("../../utils/helper");
+const { getMos, getToken, getRole } = require("../../utils/helper");
 
 function stringToHex(str) {
     return str
@@ -8,6 +8,11 @@ function stringToHex(str) {
         })
         .join("");
 }
+
+let IDeployFactory_abi = [
+    "function deploy(bytes32 salt, bytes memory creationCode, uint256 value) external",
+    "function getAddress(bytes32 salt) external view returns (address)",
+];
 
 task("token:deposit", "Cross-chain deposit token")
     .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
@@ -105,7 +110,187 @@ task("token:transferOut", "Cross-chain transfer token")
         console.log(`transfer token ${taskArgs.token} ${taskArgs.value} to ${address} successful`);
     });
 
-task("token:deploy", "Deploy a token with role control")
+task("token:deploy", "deploy mapping token")
+    .addParam("name", "token name")
+    .addParam("symbol", "token symbol")
+    .addOptionalParam("salt", "deploy salt", "", types.string)
+    .addOptionalParam("decimals", "decimals, default is 18", 18, types.int)
+    .addOptionalParam("admin", "admin address, default is deployer", "", types.string)
+    .addOptionalParam(
+        "factory",
+        "deploy factory address, default is 0x6258e4d2950757A749a4d4683A7342261ce12471",
+        "0x6258e4d2950757A749a4d4683A7342261ce12471", types.string
+    )
+    .setAction(async (taskArgs, hre) => {
+        const { deployments, ethers } = hre;
+        const { deploy } = deployments;
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
+        let admin = taskArgs.admin;
+        if (taskArgs.admin === "") {
+            admin = deployer;
+        }
+        console.log("token name:", taskArgs.name);
+        console.log("token symbol:", taskArgs.symbol);
+        console.log("token decimals:", taskArgs.decimals);
+        console.log("token admin:", admin);
+
+        if (taskArgs.salt === "") {
+            await deploy("MappingToken", {
+                from: deployer,
+                args: [taskArgs.name, taskArgs.symbol, taskArgs.decimals, admin],
+                log: true,
+                contract: "MappingToken",
+            });
+
+            let token = await deployments.get("MappingToken");
+
+            console.log("token ==", token.address);
+        } else {
+            let factory = await ethers.getContractAt(IDeployFactory_abi, taskArgs.factory);
+            let salt_hash = await ethers.utils.keccak256(await ethers.utils.toUtf8Bytes(taskArgs.salt));
+            console.log("deploy factory address:", factory.address);
+            console.log("deploy salt:", taskArgs.salt);
+            let addr = await factory.getAddress(salt_hash);
+            console.log("deployed to :", addr);
+
+            let param = ethers.utils.defaultAbiCoder.encode(
+                ["string", "string", "uint8", "address"],
+                [taskArgs.name, taskArgs.symbol, taskArgs.decimals, admin]
+            );
+
+            let code = await ethers.provider.getCode(addr);
+            if (code !== "0x") {
+                console.log("token already deployed", addr);
+                return;
+            }
+            let token = await ethers.getContractFactory("MappingToken");
+            let create_code = ethers.utils.solidityPack(["bytes", "bytes"], [token.bytecode, param]);
+            let create = await (await factory.deploy(salt_hash, create_code, 0)).wait();
+            if (create.status == 1) {
+                console.log("deployed to :", addr);
+            } else {
+                console.log("deploy fail");
+                throw "deploy fail";
+            }
+        }
+    });
+
+task("token:grant", "grantRole")
+    .addParam("token", "role")
+    .addParam("role", "role")
+    .addOptionalParam("addr", "role address", "mos", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const { deployments, ethers } = hre;
+        const { deploy } = deployments;
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer:", deployer.address);
+
+        let Token = await ethers.getContractFactory("MappingToken");
+
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        let token = Token.attach(tokenAddr);
+        let role = getRole(taskArgs.role);
+
+        let addr = taskArgs.addr;
+        if (taskArgs.addr === "mos") {
+            let mos = await getMos(hre.network.config.chainId, hre.network.name);
+            if (!mos) {
+                throw "mos not deployed ...";
+            }
+            addr = mos.address;
+        }
+
+        console.log("token:", token.address);
+        console.log("role:", role);
+        console.log("addr:", addr);
+
+        await (await token.grantRole(role, addr)).wait();
+    });
+
+task("token:revoke", "grantRole")
+    .addParam("token", "role")
+    .addParam("role", "role")
+    .addOptionalParam("addr", "role address", "mos", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const { deployments, ethers } = hre;
+        const { deploy } = deployments;
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer:", deployer.address);
+
+        console.log("deployer:", deployer);
+        let Token = await ethers.getContractFactory("MappingToken");
+        let tokenAddr = getToken(hre.network.config.chainId, taskArgs.token);
+        let token = Token.attach(tokenAddr);
+        let role = getRole(taskArgs.role);
+        let addr = taskArgs.addr;
+        if (taskArgs.addr === "mos") {
+            let mos = await getMos(chainId, hre.network.name);
+            if (!mos) {
+                throw "mos not deployed ...";
+            }
+            addr = mos.address;
+        }
+
+        console.log("token:", token.address);
+        console.log("role:", role);
+        console.log("addr:", addr);
+
+        await (await token.revokeRole(role, addr)).wait();
+    });
+
+
+task("token:setMintCap", "setMinterCap")
+    .addParam("token", "token addr")
+    .addOptionalParam("addr", "minter address", "mos", types.string)
+    .addParam("cap", "cap")
+    .setAction(async (taskArgs, hre) => {
+        const { deployments, ethers } = hre;
+        const { deploy } = deployments;
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer:", deployer.address);
+
+        let Token = await ethers.getContractFactory("MappingToken");
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        let token = Token.attach(tokenAddr);
+        let addr = taskArgs.addr;
+        if (taskArgs.addr === "mos") {
+            let mos = await getMos(hre.network.config.chainId, hre.network.name);
+            if (!mos) {
+                throw "mos not deployed ...";
+            }
+            addr = mos.address;
+        }
+
+        console.log("token:", token.address);
+        console.log("minter:", addr);
+
+        console.log("before: ", await token.getMinterCap(addr));
+        await (await token.setMinterCap(addr, ethers.utils.parseEther(taskArgs.cap))).wait();
+        console.log("after : ", await token.getMinterCap(addr));
+        let info = await token.minterCap(addr);
+        console.log(`cap: ${info.cap}, total: ${info.total}`)
+    });
+
+task("mintToken", "mint token")
+    .addParam("token", "token address")
+    .addParam("to", "mint address ")
+    .addParam("amount", "mint amount")
+    .setAction(async (taskArgs, HardhatRuntimeEnvironment) => {
+        const { deployments, getNamedAccounts, ethers } = HardhatRuntimeEnvironment;
+        const { deploy } = deployments;
+        const { deployer } = await getNamedAccounts();
+
+        console.log("deployer:", deployer);
+        let Token = await ethers.getContractFactory("MappingToken");
+        let token = Token.attach(taskArgs.token);
+        await (await token.mint(taskArgs.to, taskArgs.amount)).wait();
+    });
+task("token:mintableDeploy", "Deploy a token with role control")
     .addParam("name", "token name")
     .addParam("symbol", "token symbol")
     .addOptionalParam("decimals", "default 18", 18, types.int)
@@ -137,7 +322,7 @@ task("token:deploy", "Deploy a token with role control")
         }
     });
 
-task("token:grant", "Grant a mintable token mint role")
+task("token:grant2", "Grant a mintable token mint role")
     .addParam("token", "token address")
     .addOptionalParam("minter", "minter address, default mos", "mos", types.string)
     .setAction(async (taskArgs, hre) => {
@@ -170,7 +355,7 @@ task("token:grant", "Grant a mintable token mint role")
         console.log("Grant token ", token.address, " to address", minter);
     });
 
-task("token:mint", "mint token")
+task("token:mint2", "mint token")
     .addParam("token", "token address")
     .addParam("amount", "mint amount")
     .setAction(async (taskArgs, hre) => {
