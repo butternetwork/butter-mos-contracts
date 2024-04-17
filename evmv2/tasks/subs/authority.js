@@ -13,8 +13,10 @@ function getRole(role) {
     let roleName = role;
     if (role == "manager") {
         roleName = "MANAGER_ROLE";
-    } else if (role == "manager") {
+    } else if (role == "minter") {
         roleName = "MINTER_ROLE";
+    } else if (role == "controller") {
+        roleName = "CONTROLLER_ROLE";
     }
     return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(roleName));
 }

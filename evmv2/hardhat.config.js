@@ -89,13 +89,13 @@ module.exports = {
       accounts: accounts,
     },
     Tron: {
-      url: `https://api.trongrid.io`,
+      url: `https://api.trongrid.io/jsonrpc`,
       chainId: 728126428,
       accounts: accounts,
     },
 
     TronTest: {
-      url: `https://nile.trongrid.io`,
+      url: `https://nile.trongrid.io/jsonrpc`,
       chainId: 3448148188,
       accounts: accounts,
     },

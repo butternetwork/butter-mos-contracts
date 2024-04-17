@@ -1,4 +1,4 @@
-let { create, readFromFile, writeToFile, getMos, getToken } = require("../../utils/helper.js");
+let { readFromFile, writeToFile, getChain, getMos, getToken } = require("../../utils/helper.js");
 let { mosDeploy, mosUpgrade, mosVerify } = require("../utils/util.js");
 let {
     tronMosDeploy,
@@ -7,17 +7,20 @@ let {
     tronSetRelay,
     tronRegisterToken,
     tronSetMintableToken,
-    tronList,
-    tronDeployRootToken,
+    tronUpdateChain,
+    tronList
 } = require("../utils/tron.js");
+const {getFeeList, getChainList} = require("../../utils/helper");
 
 task("mos:deploy", "mos service deploy")
     .addParam("wrapped", "native wrapped token address")
     .addParam("lightnode", "lightNode contract address")
     .setAction(async (taskArgs, hre) => {
+        let chain = await getChain(hre.network.config.chainId);
+        console.log(chain);
+
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-            console.log(hre.network.name);
-            await tronMosDeploy(hre.artifacts, hre.network.name, taskArgs.wrapped, taskArgs.lightnode);
+            await tronMosDeploy(hre.artifacts, hre.network.name, chain.wToken, chain.lightNode);
         } else {
             const { deploy } = hre.deployments;
             const accounts = await ethers.getSigners();
@@ -94,15 +97,12 @@ task("mos:setRelay", "Initialize MapCrossChainServiceRelay address for MapCrossC
             console.log("deployer address:", deployer.address);
 
             let mos = await getMos(chainId, hre.network.name);
-
             if (mos === undefined) {
                 throw "mos not deployed ...";
             }
-
             console.log("mos address:", mos.address);
 
             let address = taskArgs.address;
-
             if (taskArgs.address.substr(0, 2) != "0x") {
                 address = "0x" + stringToHex(taskArgs.address);
             }
@@ -151,6 +151,107 @@ task("mos:registerToken", "MapCrossChainService settings allow cross-chain token
             }
 
             console.log("mos registerToken success");
+        }
+    });
+
+task("mos:updateChain", "update token fee to target chain")
+    .addParam("token", "token name")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        console.log(`token ${taskArgs.token}  address: ${tokenAddr}`);
+
+        let chain = await getChain(hre.network.config.chainId);
+        let feeList = await getFeeList(taskArgs.token);
+        let targetList = feeList[chain.chain].target;
+
+        let addList = [];
+        let removeList = [];
+        let chainList = await getChainList();
+        for (let i = 0; i < chainList.length; i++) {
+            let j = 0;
+            for (j = 0; j < targetList.length; j++) {
+                if (chainList[i].chain === targetList[j]) {
+                    break;
+                }
+            }
+            if (j < targetList.length) {
+                continue;
+            }
+            removeList.push(chainList[i].chainId);
+        }
+        for (let i = 0; i < targetList.length; i++) {
+            let targetChain = await getChain(targetList[i]);
+            addList.push(targetChain.chainId);
+        }
+        console.log("remove list", removeList);
+        console.log("add list", addList);
+
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await tronUpdateChain(hre.artifacts, hre.network.name, tokenAddr, addList, removeList);
+        } else {
+            let mos = await getMos(hre.network.config.chainId, hre.network.name);
+            if (mos === undefined) {
+                throw "mos not deployed ...";
+            }
+            console.log("mos address:", mos.address);
+
+            for (let i = 0; i < removeList.length; i++) {
+                let bridigeable = await mos.isBridgeable(tokenAddr, removeList[i]);
+                if (bridigeable) {
+                    // await (await mos.connect(deployer).registerToken(token, chain.chainId, true)).wait();
+                    console.log(`mos remove token ${taskArgs.token} to chain ${chain.chain} true success`);
+                }
+            }
+            for (let i = 0; i < targetList.length; i++) {
+                let targetChain = await getChain(targetList[i]);
+
+                let bridigeable = await mos.isBridgeable(tokenAddr, targetChain.chainId);
+                if (!bridigeable) {
+                    // await (await mos.connect(deployer).registerToken(token, chain.chainId, true)).wait();
+                    console.log(`mos register token ${taskArgs.token} to chain ${chain.chain} true success`);
+                }
+            }
+        }
+
+        console.log(`mos update update token ${taskArgs.token} bridge success`);
+    });
+
+task("mos:updateMintable", "set mintable token")
+    .addParam("token", "token address")
+    .setAction(async (taskArgs, hre) => {
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await tronSetMintableToken(hre.artifacts, hre.network.name, taskArgs.token, taskArgs.mintable);
+        } else {
+            const accounts = await ethers.getSigners();
+            const deployer = accounts[0];
+            const chainId = await deployer.getChainId();
+            console.log("deployer address:", deployer.address);
+
+            let mos = await getMos(chainId, hre.network.name);
+            if (!mos) {
+                throw "mos not deployed ...";
+            }
+            console.log("mos address:", mos.address);
+
+            let tokens = [];
+            let tokenList = taskArgs.token.split(",");
+            for (let i = 0; i < tokenList.length; i++) {
+                let token = await getToken(hre.network.config.chainId, tokenList[i]);
+                tokens.push(token);
+            }
+            if (taskArgs.mintable) {
+                await (await mos.connect(deployer).addMintableToken(tokens)).wait();
+
+                console.log(`mos set token ${taskArgs.token} mintable ${taskArgs.mintable} success`);
+            } else {
+                await (await mos.connect(deployer).removeMintableToken(tokens)).wait();
+
+                console.log(`mos set token ${taskArgs.token} mintable ${taskArgs.mintable}  success`);
+            }
         }
     });
 
