@@ -19,7 +19,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pragma solidity ^0.4.18;
+pragma solidity ^0.8.0;
 
 contract Wrapped {
     string public name = "Wrapped MAP";
@@ -34,29 +34,29 @@ contract Wrapped {
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
 
-    function() public payable {
-        deposit();
-    }
+    receive() external payable {deposit();}
 
     function deposit() public payable {
         balanceOf[msg.sender] += msg.value;
-        Deposit(msg.sender, msg.value);
+        emit Deposit(msg.sender, msg.value);
     }
 
     function withdraw(uint256 wad) public {
         require(balanceOf[msg.sender] >= wad);
         balanceOf[msg.sender] -= wad;
-        msg.sender.transfer(wad);
-        Withdrawal(msg.sender, wad);
+        (bool success, ) = msg.sender.call{value: wad}("");
+        require(success, "withdraw ETH failed");
+        // msg.sender.transfer(wad);
+        emit Withdrawal(msg.sender, wad);
     }
 
     function totalSupply() public view returns (uint256) {
-        return this.balance;
+        return address(this).balance;
     }
 
     function approve(address guy, uint256 wad) public returns (bool) {
         allowance[msg.sender][guy] = wad;
-        Approval(msg.sender, guy, wad);
+        emit Approval(msg.sender, guy, wad);
         return true;
     }
 
@@ -67,7 +67,7 @@ contract Wrapped {
     function transferFrom(address src, address dst, uint256 wad) public returns (bool) {
         require(balanceOf[src] >= wad);
 
-        if (src != msg.sender && allowance[src][msg.sender] != uint256(-1)) {
+        if (src != msg.sender && allowance[src][msg.sender] != type(uint256).max) {
             require(allowance[src][msg.sender] >= wad);
             allowance[src][msg.sender] -= wad;
         }
@@ -75,7 +75,7 @@ contract Wrapped {
         balanceOf[src] -= wad;
         balanceOf[dst] += wad;
 
-        Transfer(src, dst, wad);
+        emit Transfer(src, dst, wad);
 
         return true;
     }

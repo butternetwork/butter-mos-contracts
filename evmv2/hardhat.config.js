@@ -5,9 +5,11 @@ require("hardhat-abi-exporter");
 require("@nomiclabs/hardhat-ethers");
 require("dotenv/config");
 require("@nomiclabs/hardhat-etherscan");
-//require("@nomicfoundation/hardhat-verify");
 require("@nomiclabs/hardhat-waffle");
 require("solidity-coverage");
+require("@matterlabs/hardhat-zksync-deploy");
+require("@matterlabs/hardhat-zksync-solc");
+require("@matterlabs/hardhat-zksync-verify");
 require("./tasks");
 
 const { PRIVATE_KEY, INFURA_KEY } = process.env;
@@ -143,6 +145,18 @@ module.exports = {
       gasPrice: 50000000,
       accounts: accounts,
     },
+    zkSync: {
+      url: `https://mainnet.era.zksync.io`,
+      chainId: 324,
+      zksync: true,
+      ethNetwork: "Eth",
+      accounts: accounts,
+    },
+  },
+  zksolc: {
+    version: "1.3.10",
+    compilerSource: "binary",
+    settings: {},
   },
   solidity: {
     compilers: [
@@ -157,15 +171,6 @@ module.exports = {
       },
       {
         version: "0.8.9",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
-        },
-      },
-      {
-        version: "0.4.22",
         settings: {
           optimizer: {
             enabled: true,
