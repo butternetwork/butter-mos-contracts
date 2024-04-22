@@ -207,7 +207,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     // verify swap in logs and store hash
     function swapInVerify(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
         require(_chainId == relayChainId, "invalid chain id");
-        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(_receiptProof);
         require(success, message);
         bytes32 hash = keccak256(logArray);
         require(!storedOrderId[hash], "already verified");
@@ -216,17 +216,17 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     }
 
     // execute stored swap in logs
-    function swapInVerified(bytes calldata logArray) external nonReentrant whenNotPaused {
+    function swapInVerified(bytes calldata logArray,uint256 logIndex) external nonReentrant whenNotPaused {
         bytes32 hash = keccak256(logArray);
         require(storedOrderId[hash], "not verified");
-        _swapInVerified(logArray);
+        _swapInVerified(logArray,logIndex);
     }
 
-    function swapIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
+    function swapIn(uint256 _chainId,uint256 logIndex, bytes memory _receiptProof) external nonReentrant whenNotPaused {
         require(_chainId == relayChainId, "invalid chain id");
-        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofData(_receiptProof);
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(_receiptProof);
         require(success, message);
-        _swapInVerified(logArray);
+        _swapInVerified(logArray,logIndex);
         emit mapSwapExecute(_chainId, selfChainId, msg.sender);
     }
 
@@ -252,18 +252,15 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 
-    function _swapInVerified(bytes memory logArray) private {
-        IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
-        for (uint256 i = 0; i < logs.length; i++) {
-            IEvent.txLog memory log = logs[i];
-            bytes32 topic = abi.decode(log.topics[0], (bytes32));
-            if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
-                (, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
-                // there might be more than one events to multi-chains
-                // only process the event for this chain
-                if (selfChainId == outEvent.toChain) {
-                    _swapIn(outEvent);
-                }
+    function _swapInVerified(bytes memory logArray,uint256 logIndex) private {
+        IEvent.txLog memory log = EvmDecoder.decodeTxLog(logArray,logIndex);
+        bytes32 topic = abi.decode(log.topics[0], (bytes32));
+        if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
+            (, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
+            // there might be more than one events to multi-chains
+            // only process the event for this chain
+            if (selfChainId == outEvent.toChain) {
+                _swapIn(outEvent);
             }
         }
     }

@@ -22,7 +22,7 @@ describe("swapIn", function () {
             params: [
                 {
                     forking: {
-                        jsonRpcUrl: "https://ro-rpc.merlinchain.io/",
+                        jsonRpcUrl: "https://rpc.merlinchain.io/",
                         blockNumber: 7980660,
                     },
                 },
@@ -61,12 +61,12 @@ describe("swapIn", function () {
 
         let hash = "0xeb698f7d853435ac10282cab87dd36abcc041f02c694faecdf753a4cc8d22ad0";
         expect(await mos.storedOrderId(hash)).to.be.false;
-        await expect(mos.connect(user).swapInVerified(logs)).to.be.revertedWith("not verified");
+        await expect(mos.connect(user).swapInVerified(logs,10)).to.be.revertedWith("not verified");
         await (await mos.connect(user).swapInVerify(22776, proof)).wait();
         expect(await mos.storedOrderId(hash)).to.be.true;
         let wbtc = await ethers.getContractAt(ERC20, "0xB880fd278198bd590252621d4CD071b1842E9Bcd", user);
         let before = await wbtc.balanceOf("0x200AEe9ba7040d778922A763CE8A50948d61AFF5");
-        await (await mos.connect(user).swapInVerified(logs)).wait();
+        await (await mos.connect(user).swapInVerified(logs,10)).wait();
         let after = await wbtc.balanceOf("0x200AEe9ba7040d778922A763CE8A50948d61AFF5");
         console.log(before);
         console.log(after);
