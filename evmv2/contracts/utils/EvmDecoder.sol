@@ -19,17 +19,25 @@ library EvmDecoder {
         RLPReader.RLPItem[] memory ls = logsHash.toRlpItem().toList();
         _txLogs = new IEvent.txLog[](ls.length);
         for (uint256 i = 0; i < ls.length; i++) {
-            RLPReader.RLPItem[] memory item = ls[i].toList();
-
-            require(item.length >= 3, "log length to low");
-
-            RLPReader.RLPItem[] memory firstItemList = item[1].toList();
-            bytes[] memory topic = new bytes[](firstItemList.length);
-            for (uint256 j = 0; j < firstItemList.length; j++) {
-                topic[j] = firstItemList[j].toBytes();
-            }
-            _txLogs[i] = IEvent.txLog({addr: item[0].toAddress(), topics: topic, data: item[2].toBytes()});
+            _txLogs[i] = _decodeTxLog(ls[i]);
         }
+    }
+
+    function decodeTxLog(bytes memory logsHash,uint256 logIndex) internal pure returns (IEvent.txLog memory _txLog) {
+        RLPReader.RLPItem[] memory ls = logsHash.toRlpItem().toList();
+        require(ls.length > logIndex,"logIndex out bond");
+        _txLog = _decodeTxLog(ls[logIndex]);
+    }
+
+    function _decodeTxLog(RLPReader.RLPItem memory item) private pure returns (IEvent.txLog memory _txLog) {
+        RLPReader.RLPItem[] memory items = item.toList();
+        require(items.length >= 3, "log length to low");
+        RLPReader.RLPItem[] memory firstItemList = items[1].toList();
+        bytes[] memory topic = new bytes[](firstItemList.length);
+        for (uint256 j = 0; j < firstItemList.length; j++) {
+            topic[j] = firstItemList[j].toBytes();
+        }
+        _txLog = IEvent.txLog({addr: items[0].toAddress(), topics: topic, data: items[2].toBytes()});
     }
 
     function decodeSwapOutLog(

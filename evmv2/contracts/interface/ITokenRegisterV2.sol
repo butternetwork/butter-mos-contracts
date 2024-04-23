@@ -19,5 +19,5 @@ interface ITokenRegisterV2 {
 
     function getVaultToken(address _token) external view returns (address);
 
-    function getTokenFee(address _token, uint256 _amount, uint256 _toChain) external view returns (uint256);
+    function getTokenFee(address _token, uint256 _amount, uint256 _toChain,uint256 _fromChain) external view returns (uint256);
 }

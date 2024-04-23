@@ -107,6 +107,7 @@ task("relay:mapToken", "Map the altchain token to the token on relay chain")
     .addParam("chain", "cross-chain id")
     .addParam("chaintoken", "cross-chain token")
     .addOptionalParam("decimals", "token decimals, default 18", 18, types.int)
+    .addOptionalParam("bridge", "support from mapo to chain", true, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
@@ -134,7 +135,7 @@ task("relay:mapToken", "Map the altchain token to the token on relay chain")
         }
         console.log("chain token hex:", chaintoken.toString());
 
-        await (await register.connect(deployer).mapToken(token, chain.chainId, chaintoken, taskArgs.decimals)).wait();
+        await (await register.connect(deployer).mapToken(token, chain.chainId, chaintoken, taskArgs.decimals,taskArgs.bridge)).wait();
 
         console.log(
             `Token register manager maps chain ${taskArgs.chain} token ${chaintoken} to relay chain token ${taskArgs.token}  success `
@@ -165,6 +166,35 @@ task("relay:setTokenFee", "Set token fee to target chain")
             await register
                 .connect(deployer)
                 .setTokenFee(token, taskArgs.chain, taskArgs.min, taskArgs.max, taskArgs.rate)
+        ).wait();
+
+        console.log(`Token register manager set token ${taskArgs.token} to chain ${taskArgs.chain} fee success`);
+    });
+    
+task("relay:setFromChainTokenFee", "Set token fee to from chain")
+    .addParam("token", "relay chain token address")
+    .addParam("chain", "from chain id")
+    .addParam("min", "One-time cross-chain charging minimum handling fee")
+    .addParam("max", "One-time cross-chain charging maximum handling fee")
+    .addParam("rate", "The percentage value of the fee charged, unit is 0.000001")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
+        console.log("deployer address:", deployer.address);
+
+        let token = await getToken(hre.network.config.chainId, taskArgs.token);
+        console.log("token address:", token);
+
+        let proxy = await hre.deployments.get("TokenRegisterProxy");
+        console.log("Token manager address:", proxy.address);
+
+        let register = await ethers.getContractAt("TokenRegisterV2", proxy.address);
+
+        await (
+            await register
+                .connect(deployer)
+                .setFromChainTokenFee(token, taskArgs.chain, taskArgs.min, taskArgs.max, taskArgs.rate)
         ).wait();
 
         console.log(`Token register manager set token ${taskArgs.token} to chain ${taskArgs.chain} fee success`);
