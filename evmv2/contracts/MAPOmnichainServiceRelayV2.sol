@@ -308,7 +308,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         address vaultToken = tokenRegister.getVaultToken(token);
         require(vaultToken != address(0), "vault token not registered");
 
-        uint256 fee = tokenRegister.getTokenFee(token, _mapAmount, _toChain);
+        uint256 fee = tokenRegister.getTokenFee(token, _mapAmount, _toChain,_fromChain);
 
         uint256 mapOutAmount = 0;
         uint256 outAmount = 0;

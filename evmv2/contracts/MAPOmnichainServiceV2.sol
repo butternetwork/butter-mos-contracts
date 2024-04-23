@@ -216,17 +216,25 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     }
 
     // execute stored swap in logs
-    function swapInVerified(bytes calldata logArray,uint256 logIndex) external nonReentrant whenNotPaused {
+    function swapInVerifiedWithIndex(bytes calldata logArray,uint256 logIndex) external nonReentrant whenNotPaused {
         bytes32 hash = keccak256(logArray);
         require(storedOrderId[hash], "not verified");
-        _swapInVerified(logArray,logIndex);
+        _swapInVerifiedWithIndex(logArray,logIndex);
     }
 
-    function swapIn(uint256 _chainId,uint256 logIndex, bytes memory _receiptProof) external nonReentrant whenNotPaused {
+    function swapIn(uint256 _chainId,bytes memory _receiptProof) external nonReentrant whenNotPaused {
         require(_chainId == relayChainId, "invalid chain id");
         (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(_receiptProof);
         require(success, message);
-        _swapInVerified(logArray,logIndex);
+        _swapInVerified(logArray);
+        emit mapSwapExecute(_chainId, selfChainId, msg.sender);
+    }
+
+    function swapInWithIndex(uint256 _chainId,uint256 logIndex, bytes memory _receiptProof) external nonReentrant whenNotPaused {
+        require(_chainId == relayChainId, "invalid chain id");
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(_receiptProof);
+        require(success, message);
+        _swapInVerifiedWithIndex(logArray,logIndex);
         emit mapSwapExecute(_chainId, selfChainId, msg.sender);
     }
 
@@ -252,8 +260,20 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
     }
 
-    function _swapInVerified(bytes memory logArray,uint256 logIndex) private {
+    function _swapInVerified(bytes memory logArray) private {
+        IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
+        for (uint256 i = 0; i < logs.length; i++) {
+            IEvent.txLog memory log = logs[i];
+            _swapIn(log);
+        }
+    }
+
+    function _swapInVerifiedWithIndex(bytes memory logArray,uint256 logIndex) private {
         IEvent.txLog memory log = EvmDecoder.decodeTxLog(logArray,logIndex);
+        _swapIn(log);
+    }
+
+    function _swapIn(IEvent.txLog memory log) internal {
         bytes32 topic = abi.decode(log.topics[0], (bytes32));
         if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC && relayContract == log.addr) {
             (, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);

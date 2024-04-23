@@ -39,6 +39,8 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
     mapping(uint256 => mapping(bytes => address)) public tokenMappingList;
 
     mapping(address => Token) public tokenList;
+    //from chainId => map token => fee
+    mapping(uint256 => mapping (address => FeeRate)) public fromChainTokenFee;
 
     modifier checkAddress(address _address) {
         require(_address != address(0), "address is zero");
@@ -52,6 +54,7 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
 
     event RegisterToken(address _token, address _vaultToken, bool _mintable);
     event SetTokenFee(address _token, uint256 _toChain, uint256 _lowest, uint256 _highest, uint256 _rate);
+    event SetFromChainTokenFee(address _token, uint256 _toChain, uint256 _lowest, uint256 _highest, uint256 _rate);
 
     function initialize(address _owner) public initializer checkAddress(_owner) {
         _changeAdmin(_owner);
@@ -76,14 +79,33 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         address _token,
         uint256 _fromChain,
         bytes memory _fromToken,
-        uint8 _decimals
+        uint8 _decimals,
+        bool _enableBridge
     ) external onlyOwner checkAddress(_token) {
         require(!Utils.checkBytes(_fromToken, bytes("")), "invalid from token");
         Token storage token = tokenList[_token];
         require(token.vaultToken != address(0), "invalid map token");
         token.tokenDecimals[_fromChain] = _decimals;
-        token.mappingTokens[_fromChain] = _fromToken;
+        if(_enableBridge)token.mappingTokens[_fromChain] = _fromToken;
+        else token.mappingTokens[_fromChain] = bytes("");
         tokenMappingList[_fromChain][_fromToken] = _token;
+    }
+
+    function setFromChainTokenFee(
+        address _token,
+        uint256 _fromChain,
+        uint256 _lowest,
+        uint256 _highest,
+        uint256 _rate
+    ) external onlyOwner checkAddress(_token) {
+        Token storage token = tokenList[_token];
+        require(token.vaultToken != address(0), "invalid map token");
+        require(_highest >= _lowest, "invalid highest and lowest");
+        require(_rate <= MAX_RATE_UNI, "invalid proportion value");
+
+        fromChainTokenFee[_fromChain][_token] = FeeRate(_lowest, _highest, _rate);
+
+        emit SetFromChainTokenFee(_token, _fromChain, _lowest, _highest, _rate);
     }
 
     function setTokenFee(
@@ -173,9 +195,21 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         return tokenList[_token].vaultToken;
     }
 
-    function getTokenFee(address _token, uint256 _amount, uint256 _toChain) external view override returns (uint256) {
+    function getTokenFee(address _token, uint256 _amount, uint256 _toChain,uint256 _fromChain) external view override returns (uint256) {
         FeeRate memory feeRate = tokenList[_token].fees[_toChain];
 
+        uint256 fee = _amount.mul(feeRate.rate).div(MAX_RATE_UNI);
+        if (fee > feeRate.highest) {
+            return feeRate.highest;
+        } else if (fee < feeRate.lowest) {
+            return feeRate.lowest;
+        }
+        uint256 fromChainFee = getFromChainFee(_token,_amount,_fromChain);
+        return fee > fromChainFee ? fee : fromChainFee;
+    }
+
+    function getFromChainFee(address _token,uint256 _amount, uint256 _fromChain) internal view returns (uint256) {
+        FeeRate memory feeRate = fromChainTokenFee[_fromChain][_token];
         uint256 fee = _amount.mul(feeRate.rate).div(MAX_RATE_UNI);
         if (fee > feeRate.highest) {
             return feeRate.highest;
@@ -256,15 +290,22 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
     {
         address relayToken = this.getRelayChainToken(_targetChain, _targetToken);
         uint256 relayChainAmount = this.getRelayChainAmount(relayToken, _targetChain, _targetAmount);
-        uint256 amountBeforeFee = _getAmountBeforeFee(relayToken, relayChainAmount, _targetChain);
+        uint256 amountBeforeFee = _getAmountBeforeFee(relayToken, relayChainAmount, _targetChain,_srcChain);
         _srcFeeAmount = this.getToChainAmount(relayToken, amountBeforeFee.sub(relayChainAmount), _srcChain);
         _srcChainAmount = this.getToChainAmount(relayToken, amountBeforeFee, _srcChain);
         _srcChainToken = this.getToChainToken(relayToken, _srcChain);
         _vaultBalance = getVaultBalance(relayToken, _targetAmount);
     }
 
-    function _getAmountBeforeFee(address _token, uint256 _amount, uint256 _toChain) internal view returns (uint256) {
+    function _getAmountBeforeFee(address _token, uint256 _amount, uint256 _toChain,uint256 _fromChain) internal view returns (uint256) {
         FeeRate memory feeRate = tokenList[_token].fees[_toChain];
+        uint256 outAmount = _getBeforeAmount(feeRate,_amount);
+        FeeRate memory fromChainFeeRate = fromChainTokenFee[_fromChain][_token];
+        uint256 fAmount = _getBeforeAmount(fromChainFeeRate,_amount);
+        return outAmount > fAmount ? outAmount : fAmount;
+    }
+
+    function _getBeforeAmount(FeeRate memory feeRate,uint256 _amount) internal pure returns (uint256){
         uint256 outAmount = _amount.mul(MAX_RATE_UNI).div(MAX_RATE_UNI.sub(feeRate.rate));
         if (outAmount > _amount.add(feeRate.highest)) {
             outAmount = _amount.add(feeRate.highest);
@@ -303,7 +344,7 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
 
         _relayChainAmount = this.getRelayChainAmount(_relayToken, _fromChain, _fromAmount);
 
-        _feeAmount = this.getTokenFee(_relayToken, _relayChainAmount, _toChain);
+        _feeAmount = this.getTokenFee(_relayToken, _relayChainAmount, _toChain,_fromChain);
     }
 
     /** UUPS *********************************************************/
