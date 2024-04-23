@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.7;
+pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -55,6 +55,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
 
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
     event SetLightClient(address _lightNode);
+    event SetWrappedToken(address wToken);
     event AddMintableToken(address[] _token);
     event RemoveMintableToken(address[] _token);
     event SetRelayContract(uint256 _chainId, address _relay);
@@ -69,7 +70,9 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         address _owner
     ) public initializer checkAddress(_wToken) checkAddress(_lightNode) checkAddress(_owner) {
         wToken = _wToken;
+        emit SetWrappedToken(_wToken);
         lightNode = ILightNode(_lightNode);
+        emit SetLightClient(_lightNode);
         _changeAdmin(_owner);
     }
 
@@ -107,6 +110,11 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     function setLightClient(address _lightNode) external onlyOwner checkAddress(_lightNode) {
         lightNode = ILightNode(_lightNode);
         emit SetLightClient(_lightNode);
+    }
+
+    function setWrappedToken(address _wToken) external onlyOwner {
+        wToken = _wToken;
+        emit SetWrappedToken(_wToken);
     }
 
     function addMintableToken(address[] memory _token) external onlyOwner {
