@@ -1,4 +1,4 @@
-let { getMos, create, readFromFile, writeToFile, getToken } = require("../../utils/helper.js");
+let { getMos, create, readFromFile, writeToFile, zksyncDeploy, getToken } = require("../../utils/helper.js");
 
 const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
 
@@ -10,35 +10,43 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
     } else {
         implContract = "MAPOmnichainServiceV2";
     }
-    let Impl = await ethers.getContractFactory(implContract);
 
-    await deploy(implContract, {
-        from: deployer,
-        args: [],
-        log: true,
-        contract: implContract,
-    });
-
-    let impl = await ethers.getContract(implContract);
-
-    console.log(`${implContract} address: ${impl.address}`);
-
-    let Proxy = await ethers.getContractFactory("MAPOmnichainServiceProxyV2");
-    let proxy_salt = process.env.SERVICE_PROXY_SALT;
-    let data = Impl.interface.encodeFunctionData("initialize", [wtoken, lightnode, deployer]);
-    let param = ethers.utils.defaultAbiCoder.encode(["address", "bytes"], [impl.address, data]);
-
-    let createResult = await create(proxy_salt, Proxy.bytecode, param);
-
-    if (!createResult[1]) {
-        return;
+    let implAddr;
+    if (chainId === 324 || chainId === 280) {
+        implAddr = await zksyncDeploy(implContract, [], hre);
+    } else {
+        await deploy(implContract, {
+            from: deployer,
+            args: [],
+            log: true,
+            contract: implContract,
+        });
+        let impl = await ethers.getContract(implContract);
+        implAddr = impl.address;
     }
-    let mos_proxy = createResult[0];
-    console.log(`Deploy ${implContract} proxy address ${mos_proxy} successful`);
+    console.log(`${implContract} address: ${implAddr}`);
+
+    let proxyAddr;
+    let Impl = await ethers.getContractFactory(implContract);
+    let data = Impl.interface.encodeFunctionData("initialize", [wtoken, lightnode, deployer]);
+    if (chainId === 324 || chainId === 280) {
+        proxyAddr = await zksyncDeploy("MAPOmnichainServiceProxyV2", [implAddr, data], hre);
+    } else {
+        let Proxy = await ethers.getContractFactory("MAPOmnichainServiceProxyV2");
+        let proxy_salt = process.env.SERVICE_PROXY_SALT;
+        let param = ethers.utils.defaultAbiCoder.encode(["address", "bytes"], [implAddr, data]);
+        let createResult = await create(proxy_salt, Proxy.bytecode, param);
+        if (!createResult[1]) {
+            return;
+        }
+        let proxyAddr = createResult[0];
+    }
+
+    console.log(`Deploy ${implContract} proxy address ${proxyAddr} successful`);
 
     let deployment = await readFromFile(hre.network.name);
     //deploy[hre.network.name]["mosImpl"] = mos_impl
-    deployment[hre.network.name]["mosProxy"] = mos_proxy;
+    deployment[hre.network.name]["mosProxy"] = proxyAddr;
 
     await writeToFile(deployment);
 
@@ -46,13 +54,13 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
         sleep(10000);
 
         await run("verify:verify", {
-            address: mos_proxy,
-            constructorArguments: [impl.address, data],
+            address: proxyAddr,
+            constructorArguments: [implAddr, data],
             contract: "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2",
         });
 
         await run("verify:verify", {
-            address: impl.address,
+            address: implAddr,
             constructorArguments: [],
             contract: "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2",
         });
@@ -94,7 +102,6 @@ exports.mosVerify = async function (deploy, chainId, deployer, wtoken, lightnode
 
 exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_addr, auth) {
     let mos = await getMos(chainId, network);
-
     if (mos === undefined) {
         throw "mos proxy not deployed ...";
     }
@@ -108,33 +115,39 @@ exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_ad
         implContract = "MAPOmnichainServiceV2";
     }
 
+
     //deployed new impl
+    let implAddr = impl_addr;
     if (impl_addr === ethers.constants.AddressZero) {
-        await deploy(implContract, {
-            from: deployer,
-            args: [],
-            log: true,
-            contract: implContract,
-        });
+        if (chainId === 324 || chainId === 280) {
+            implAddr = await zksyncDeploy(implContract, [], hre);
+        } else {
+            await deploy(implContract, {
+                from: deployer,
+                args: [],
+                log: true,
+                contract: implContract,
+            });
 
-        let impl = await ethers.getContract(implContract);
+            let impl = await ethers.getContract(implContract);
 
-        impl_addr = impl.address;
+            implAddr = impl.address;
+        }
 
-        console.log("new mos impl to address:", impl_addr);
+        console.log("new mos impl to address:", implAddr);
 
         if (needVerify(chainId)) {
             //verify impl
             sleep(10000);
             await run("verify:verify", {
-                address: impl_addr,
+                address: implAddr,
                 constructorArguments: [],
                 contract: "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2",
             });
         }
     }
 
-    console.log(`${implContract} implementation address: ${impl_addr}`);
+    console.log(`${implContract} implementation address: ${implAddr}`);
 
     if (auth) {
         let deployment = await readFromFile(hre.network.name);
@@ -144,16 +157,16 @@ exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_ad
         let Authority = await ethers.getContractFactory("Authority");
         let authority = Authority.attach(deployment[hre.network.name]["authority"]);
 
-        let data = mos.interface.encodeFunctionData("upgradeTo", [impl_addr]);
+        let data = mos.interface.encodeFunctionData("upgradeTo", [implAddr]);
         let executeData = authority.interface.encodeFunctionData("execute", [mos.address, 0, data]);
         console.log("execute input", executeData);
 
         await (await authority.execute(mos.address, 0, data)).wait();
     } else {
-        await mos.upgradeTo(impl_addr);
+        await mos.upgradeTo(implAddr);
     }
 
-    console.log("upgrade mos impl to address:", impl_addr);
+    console.log("upgrade mos impl to address:", implAddr);
 };
 
 exports.stringToHex = async function (str) {
@@ -176,7 +189,8 @@ function needVerify(chainId) {
         chainId === 137 ||
         chainId === 199 ||
         chainId === 81457 ||
-        chainId === 8453
+        chainId === 8453 ||
+        chainId === 324
     ) {
         return true;
     } else {

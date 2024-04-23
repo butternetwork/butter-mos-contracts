@@ -84,6 +84,13 @@
         "lightNode": "TCgts2dcdEszFdHnp3D9iKqxGqNrpTYSjQ"
     },
     {
+        "chain": "zkSync",
+        "mos": "0xBEf06a32166C4B819fF04cCfa887733B8bb67eB5",
+        "chainId": "324",
+        "wToken": "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91",
+        "lightNode": "0xA9bDC7D5738d88A6F082b2580A4a425697Da9E5D"
+    },
+    {
         "chain": "Bevm",
         "mos": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
         "chainId": "1501",
@@ -91,4 +98,3 @@
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     }
 ]
-

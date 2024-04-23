@@ -1,5 +1,5 @@
 const { getMos, getToken } = require("../../utils/helper");
-// const {task} = require("hardhat/src/internal/core/config/config-env");
+const {task} = require("hardhat/config");
 
 task("vault:deploy", "Deploy the vault token")
     .addParam("token", "The token address on relay chain")
@@ -52,62 +52,53 @@ task("vault:addManager", "Add vaultToken manager")
         console.log(`MAPVaultToken ${taskArgs.vault} add manager ${manager} success`);
     });
 
-task("vault:deposit", "vaultDeposit")
-    .addParam("fromchain", "fromchainId")
-    .addParam("amount", "deposit amount")
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
-
-        console.log("deployer address:", deployer.address);
-
-        let vault = await hre.deployments.get("VaultTokenV2");
-
-        console.log("vault address:", vault.address);
-
-        let vaultContract = await ethers.getContractAt("VaultTokenV2", vault.address);
-
-        await (
-            await vaultContract.connect(deployer).deposit(taskArgs.fromchain, taskArgs.amount, deployer.address)
-        ).wait();
-
-        console.log(`deploy successful`);
-    });
-
 task("vault:withdraw", "withdraw token")
-    .addParam("mos", "The mos address")
     .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
     .addOptionalParam("address", "The receiver address", "", types.string)
-    .addParam("value", "withdraw value")
+    .addOptionalParam("value", "withdraw value, 0 for all", "0", types.string)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
-
         console.log("deployer address:", deployer.address);
 
-        let mos = await ethers.getContractAt("MAPOmnichainServiceRelayV2", taskArgs.mos);
+        let mos = await getMos(hre.network.config.chainId, hre.network.name);
+        if (!mos) {
+            throw "mos not deployed ...";
+        }
+        console.log("mos address:", mos.address);
 
         let address = taskArgs.address;
         if (taskArgs.address === "") {
             address = deployer.address;
         }
 
-        let token = taskArgs.token;
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
         if (taskArgs.token === "0x0000000000000000000000000000000000000000") {
-            token = await mos.wToken();
+            tokenAddr = await mos.wToken();
         }
+
         let managerAddress = await mos.tokenRegister();
         let manager = await ethers.getContractAt("TokenRegisterV2", managerAddress);
 
-        let vaultAddress = await manager.getVaultToken(token);
+        let vaultAddress = await manager.getVaultToken(tokenAddr);
 
-        console.log(`token address: ${token}, vault token address: ${vaultAddress}`);
+        let vaultToken = await ethers.getContractAt("VaultTokenV2", vaultAddress);
+        let decimals = await vaultToken.decimals();
+        let value;
+        if (taskArgs.value === "0") {
+            value = await vaultToken.balanceOf(address);
+        } else {
+            value = ethers.utils.parseUnits(taskArgs.value, decimals);
+        }
 
-        // let vaultToken = await ethers.getContractAt("IERC20", vaultAddress);
+        console.log(`token address: ${tokenAddr}`);
+        console.log(`vault token address: ${vaultAddress}`);
+        console.log(`vault token value: ${value}`);
+        console.log(`receiver: ${address}`);
 
-        await (await mos.connect(deployer).withdraw(vaultAddress, taskArgs.value)).wait();
+        await (await mos.connect(deployer).withdraw(vaultAddress, value)).wait();
 
-        console.log(`withdraw token ${token} from vault ${vaultAddress} ${taskArgs.value} to  ${address} successful`);
+        console.log(`withdraw token ${taskArgs.token} from vault ${vaultAddress} ${taskArgs.value} to  ${address} successful`);
     });
 
 task("vault:transfer", "Add vaultToken manager")

@@ -25,10 +25,7 @@ task("token:deposit", "Cross-chain deposit token")
 
         console.log("deposit address:", deployer.address);
 
-        const chainId = hre.network.chainId;
-
-        let mos = await getMos(chainId, hre.network.name);
-
+        let mos = await getMos(hre.network.chainId, hre.network.name);
         if (!mos) {
             throw "mos not deployed ...";
         }
@@ -44,14 +41,18 @@ task("token:deposit", "Cross-chain deposit token")
         let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
 
         if (tokenAddr === "0x0000000000000000000000000000000000000000") {
-            await (await mos.connect(deployer).depositNative(address, { value: taskArgs.value })).wait();
+            let value = ethers.utils.parseUnits(taskArgs.value, 18);
+            await (await mos.connect(deployer).depositNative(address, { value: value })).wait();
         } else {
             let token = await ethers.getContractAt("MintableToken", tokenAddr);
+            let decimals = await token.decimals();
+            let value = ethers.utils.parseUnits(taskArgs.value, decimals);
+
             console.log("approve token... ");
-            await (await token.connect(deployer).approve(mos.address, taskArgs.value)).wait();
+            await (await token.connect(deployer).approve(mos.address, value)).wait();
 
             console.log("deposit token... ");
-            await (await mos.connect(deployer).depositToken(tokenAddr, address, taskArgs.value)).wait();
+            await (await mos.connect(deployer).depositToken(tokenAddr, address, value)).wait();
         }
 
         console.log(`deposit token ${taskArgs.token} ${taskArgs.value} to ${address} successful`);

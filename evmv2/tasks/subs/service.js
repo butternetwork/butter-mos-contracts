@@ -25,9 +25,8 @@ task("mos:deploy", "mos service deploy")
             const { deploy } = hre.deployments;
             const accounts = await ethers.getSigners();
             const deployer = accounts[0];
-            const chainId = await hre.network.config.chainId;
             console.log("deployer address:", deployer.address);
-            await mosDeploy(deploy, chainId, deployer.address, taskArgs.wrapped, taskArgs.lightnode);
+            await mosDeploy(deploy, hre.network.config.chainId, deployer.address, taskArgs.wrapped, taskArgs.lightnode);
         }
     });
 
@@ -57,9 +56,8 @@ task("mos:upgrade", "upgrade mos evm contract in proxy")
             const { deploy } = hre.deployments;
             const accounts = await ethers.getSigners();
             const deployer = accounts[0];
-            const chainId = await hre.network.config.chainId;
             console.log("deployer address:", deployer.address);
-            await mosUpgrade(deploy, chainId, deployer.address, hre.network.name, taskArgs.impl);
+            await mosUpgrade(deploy, hre.network.config.chainId, deployer.address, hre.network.name, taskArgs.impl);
         }
     });
 
@@ -114,6 +112,31 @@ task("mos:setRelay", "Initialize MapCrossChainServiceRelay address for MapCrossC
             await (await mos.connect(deployer).setRelayContract(taskArgs.chain, address)).wait();
 
             console.log(`mos set  relay ${address} with chain id ${taskArgs.chain} successfully `);
+        }
+    });
+
+task("mos:setWrapped", "Initialize MapCrossChainServiceRelay address for MapCrossChainService")
+    .addParam("token", "wrapped token")
+    .setAction(async (taskArgs, hre) => {
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await tronSetRelay(hre.artifacts, hre.network.name, taskArgs.address, taskArgs.chain);
+        } else {
+            const accounts = await ethers.getSigners();
+            const deployer = accounts[0];
+            console.log("deployer address:", deployer.address);
+
+            let mos = await getMos(hre.network.config.chainId, hre.network.name);
+            if (mos === undefined) {
+                throw "mos not deployed ...";
+            }
+            console.log("mos address:", mos.address);
+
+            let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+            console.log("token address:", tokenAddr);
+
+            await (await mos.connect(deployer).setWrappedToken(tokenAddr)).wait();
+
+            console.log(`mos set wrapped token ${tokenAddr} successfully `);
         }
     });
 
@@ -200,19 +223,19 @@ task("mos:updateChain", "update token fee to target chain")
             console.log("mos address:", mos.address);
 
             for (let i = 0; i < removeList.length; i++) {
-                let bridigeable = await mos.isBridgeable(tokenAddr, removeList[i]);
-                if (bridigeable) {
-                    // await (await mos.connect(deployer).registerToken(token, chain.chainId, true)).wait();
-                    console.log(`mos remove token ${taskArgs.token} to chain ${chain.chain} true success`);
+                let bridgeable = await mos.isBridgeable(tokenAddr, removeList[i]);
+                if (bridgeable) {
+                    await mos.connect(deployer).registerToken(tokenAddr, removeList[i], false);
+                    console.log(`mos remove token ${taskArgs.token} to chain ${removeList[i]} success`);
                 }
             }
             for (let i = 0; i < targetList.length; i++) {
                 let targetChain = await getChain(targetList[i]);
 
-                let bridigeable = await mos.isBridgeable(tokenAddr, targetChain.chainId);
-                if (!bridigeable) {
-                    // await (await mos.connect(deployer).registerToken(token, chain.chainId, true)).wait();
-                    console.log(`mos register token ${taskArgs.token} to chain ${chain.chain} true success`);
+                let bridgeable = await mos.isBridgeable(tokenAddr, targetChain.chainId);
+                if (!bridgeable) {
+                    await mos.connect(deployer).registerToken(tokenAddr, targetChain.chainId, true);
+                    console.log(`mos register token ${taskArgs.token} to chain ${targetChain.chain} true success`);
                 }
             }
         }
@@ -383,26 +406,6 @@ task("mos:changeOwner", "changeOwner for mos")
         }
     });
 
-const chainlist = [
-    1,
-    5,
-    56,
-    97, // bsc
-    137,
-    80001, // matic
-    212,
-    22776, // mapo
-    1001,
-    8217, // klaytn
-    1030, // conflux
-    81457, // blast
-    8453, // base
-    4200, // merlin
-    2649, // ainn
-    1501, // bevm
-    "1360100178526209",
-    "1360100178526210", // near
-];
 
 task("mos:list", "List mos  infos")
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
@@ -448,10 +451,11 @@ task("mos:list", "List mos  infos")
             console.log(`token mintalbe:\t ${mintable}`);
 
             console.log("register chains:");
-            for (let i = 0; i < chainlist.length; i++) {
-                let bridgeable = await mos.isBridgeable(address, chainlist[i]);
+            let chains = await getChainList();
+            for (let i = 0; i < chains.length; i++) {
+                let bridgeable = await mos.isBridgeable(address, chains[i].chainId);
                 if (bridgeable) {
-                    console.log(`${chainlist[i]}`);
+                    console.log(`${chains[i].chain} (${chains[i].chainId})`);
                 }
             }
         }

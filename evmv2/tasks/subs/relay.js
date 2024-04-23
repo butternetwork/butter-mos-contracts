@@ -284,43 +284,6 @@ task("relay:updateTokenList", "update token fee to target chain")
         */
         console.log(`Token register manager set token ${taskArgs.token} to chain ${taskArgs.chain} fee success`);
     });
-task("relay:updateFee", "update token fee to target chain")
-    .addParam("token", "relay chain token name")
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
-        console.log("deployer address:", deployer.address);
-
-        let proxy = await hre.deployments.get("TokenRegisterProxy");
-        console.log("Token manager address:", proxy.address);
-        let register = await ethers.getContractAt("TokenRegisterV2", proxy.address);
-
-        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
-        let token = await ethers.getContractAt("MintableToken", tokenAddr)
-        let decimals = await token.decimals();
-        console.log(`token ${taskArgs.token}  address: ${token.address}, decimals ${decimals}`);
-
-        let feeList = await getFeeList(taskArgs.token);
-        let chainList = Object.keys(feeList);
-
-        for (let i = 0; i < chainList.length; i++) {
-            let chain = await getChain(chainList[i])
-            let info = await register.getToChainTokenInfo(tokenAddr, chain.chainId);
-            console.log(`${chain.chainId} => fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]}) `);
-
-            let fee = feeList[chain.chain];
-            let min = ethers.utils.parseUnits(fee.min, decimals);
-            let max = ethers.utils.parseUnits(fee.max, decimals);
-            let rate = ethers.utils.parseUnits(fee.rate, 6);
-            if (min.eq(info[2][0]) && max.eq(info[2][1]) && rate.eq(info[2][2])) {
-                continue;
-            }
-            console.log(`\tfee min(${min}), max(${max}), rate(${rate})`);
-            await register.connect(deployer).setTokenFee(tokenAddr, chain.chainId, min, max, rate);
-        }
-
-        console.log(`Token register manager update token ${taskArgs.token} fee success`);
-    });
 
 task("relay:updateToken", "update token fee to target chain")
     .addParam("token", "relay chain token name")
@@ -344,20 +307,40 @@ task("relay:updateToken", "update token fee to target chain")
         for (let i = 0; i < chainList.length; i++) {
             let chain = await getChain(chainList[i])
             let info = await register.getToChainTokenInfo(tokenAddr, chain.chainId);
-            console.log(`${chain.chainId} => fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]}) `);
+            // get mapped token
+            let targetToken = await getToken(chain.chainId, taskArgs.token);
+            if (chain.chainId == 728126428 || chain.chainId == 3448148188) {
+                let tronAddr = await getTronAddress(targetToken);
+                targetToken = tronAddr[1];
+            } else if (targetToken.substr(0, 2) != "0x") {
+                let hex = await stringToHex(targetToken);
+                targetToken = "0x" + hex;
+            }
 
             let fee = feeList[chain.chain];
+            let targetDecimals = fee.decimals;
             let min = ethers.utils.parseUnits(fee.min, decimals);
             let max = ethers.utils.parseUnits(fee.max, decimals);
             let rate = ethers.utils.parseUnits(fee.rate, 6);
-            if (min.eq(info[2][0]) && max.eq(info[2][1]) && rate.eq(info[2][2])) {
-                continue;
+
+            if (targetToken.toLowerCase() != info[0] || targetDecimals != info[1]) {
+                // map token
+                console.log(`${chain.chainId} => token(${info[0]}), decimals(${info[1]}) `);
+                console.log(`\tchain token(${targetToken}), decimals(${targetDecimals})`);
+
+                await register.connect(deployer).mapToken(tokenAddr, chain.chainId, targetToken, targetDecimals);
+
+                console.log(`register chain ${chain.chain} token ${taskArgs.token} success`);
             }
-            console.log(`\tfee min(${min}), max(${max}), rate(${rate})`);
-            await register.connect(deployer).setTokenFee(tokenAddr, chain.chainId, min, max, rate);
+
+            if (!min.eq(info[2][0]) || !max.eq(info[2][1]) || !rate.eq(info[2][2])) {
+                console.log(`${chain.chainId} => fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]}) `);
+                console.log(`\tfee min(${min}), max(${max}), rate(${rate})`);
+                await register.connect(deployer).setTokenFee(tokenAddr, chain.chainId, min, max, rate);
+            }
         }
 
-        console.log(`Token register manager update token ${taskArgs.token} fee success`);
+        console.log(`Token register manager update token ${taskArgs.token} success`);
     });
 
 const chainlist = [

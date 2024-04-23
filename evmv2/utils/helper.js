@@ -10,7 +10,7 @@ let IDeployFactory_abi = [
     "function getAddress(bytes32 salt) external view returns (address)",
 ];
 
-async function createZk(contractName, args, hre) {
+async function zksyncDeploy(contractName, args, hre) {
     const wallet = new Wallet(process.env.PRIVATE_KEY);
     const deployer = new Deployer(hre, wallet);
     const c_artifact = await deployer.loadArtifact(contractName);
@@ -218,6 +218,7 @@ module.exports = {
     readFromFile,
     getMos,
     create,
+    zksyncDeploy,
     getChain,
     getToken,
     getRole,

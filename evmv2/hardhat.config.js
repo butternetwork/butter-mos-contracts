@@ -154,30 +154,12 @@ module.exports = {
     },
   },
   zksolc: {
-    version: "1.3.10",
+    version: "1.4.0",
     compilerSource: "binary",
     settings: {},
   },
   solidity: {
     compilers: [
-      {
-        version: "0.8.7",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
-        },
-      },
-      {
-        version: "0.8.9",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
-        },
-      },
       {
         version: '0.8.20',
         settings: {
@@ -204,7 +186,8 @@ module.exports = {
       Bsc:  process.env.API_KEY_BSC,
       polygon: process.env.API_KEY_MATIC,
       Blast: process.env.API_KEY_BLAST,
-      Base: process.env.API_KEY_BASE
+      Base: process.env.API_KEY_BASE,
+      zkSync: process.env.API_KEY_ZKSYNC
     },
     customChains: [
       {
@@ -253,6 +236,14 @@ module.exports = {
         urls: {
           apiURL: "https://api.basescan.org/api",
           browserURL: "https://basescan.org/",
+        },
+      },
+      {
+        network: "zkSync",
+        chainId: 324,
+        urls: {
+          apiURL: "https://api-era.zksync.network/api",
+          browserURL: "https://era.zksync.network/",
         },
       },
     ],
