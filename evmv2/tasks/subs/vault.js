@@ -1,5 +1,5 @@
 const { getMos, getToken } = require("../../utils/helper");
-const {task} = require("hardhat/config");
+const { task } = require("hardhat/config");
 
 task("vault:deploy", "Deploy the vault token")
     .addParam("token", "The token address on relay chain")
@@ -98,7 +98,9 @@ task("vault:withdraw", "withdraw token")
 
         await (await mos.connect(deployer).withdraw(vaultAddress, value)).wait();
 
-        console.log(`withdraw token ${taskArgs.token} from vault ${vaultAddress} ${taskArgs.value} to  ${address} successful`);
+        console.log(
+            `withdraw token ${taskArgs.token} from vault ${vaultAddress} ${taskArgs.value} to  ${address} successful`
+        );
     });
 
 task("vault:transfer", "Add vaultToken manager")

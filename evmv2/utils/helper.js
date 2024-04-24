@@ -94,7 +94,6 @@ async function readFromFile(network) {
     return deploy;
 }
 
-
 async function getFeeList(token) {
     let p = path.join(__dirname, "../constants/fee.json");
     let tokenFees;
@@ -114,7 +113,7 @@ async function getFeeList(token) {
 async function getChain(network) {
     let chains = await getChainList();
 
-    for(let i = 0; i < chains.length; i++) {
+    for (let i = 0; i < chains.length; i++) {
         if (chains[i].chain === network || chains[i].chainId == network) {
             return chains[i];
         }
@@ -224,5 +223,5 @@ module.exports = {
     getRole,
     getTokenList,
     getChainList,
-    getFeeList
+    getFeeList,
 };

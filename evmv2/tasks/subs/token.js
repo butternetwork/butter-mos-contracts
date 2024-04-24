@@ -1,5 +1,5 @@
-const { getMos, getToken, getRole, getChain} = require("../../utils/helper");
-const {tronTokenTransferOut} = require("../utils/tron");
+const { getMos, getToken, getRole, getChain } = require("../../utils/helper");
+const { tronTokenTransferOut } = require("../utils/tron");
 
 function stringToHex(str) {
     return str
@@ -25,7 +25,7 @@ task("token:deposit", "Cross-chain deposit token")
 
         console.log("deposit address:", deployer.address);
 
-        let mos = await getMos(hre.network.chainId, hre.network.name);
+        let mos = await getMos(hre.network.config.chainId, hre.network.name);
         if (!mos) {
             throw "mos not deployed ...";
         }
@@ -87,11 +87,18 @@ task("token:transferOut", "Cross-chain transfer token")
         console.log(`token ${taskArgs.token} address: ${tokenAddr}`);
 
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-            await tronTokenTransferOut(hre.artifacts, hre.network.name, tokenAddr, targetChainId, receiver, taskArgs.value);
+            await tronTokenTransferOut(
+                hre.artifacts,
+                hre.network.name,
+                tokenAddr,
+                targetChainId,
+                receiver,
+                taskArgs.value
+            );
             return;
         }
 
-        let mos = await getMos(hre.network.chainId, hre.network.name);
+        let mos = await getMos(hre.network.config.chainId, hre.network.name);
         if (!mos) {
             throw "mos not deployed ...";
         }
@@ -365,3 +372,4 @@ task("token:transfer", "transfer token")
 
         console.log(`Transfer '${taskArgs.token}' Token ${taskArgs.amount} to ${taskArgs.receiver} `);
     });
+

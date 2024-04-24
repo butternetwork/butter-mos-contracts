@@ -8,9 +8,9 @@ let {
     tronRegisterToken,
     tronSetMintableToken,
     tronUpdateChain,
-    tronList
+    tronList,
 } = require("../utils/tron.js");
-const {getFeeList, getChainList} = require("../../utils/helper");
+const { getFeeList, getChainList } = require("../../utils/helper");
 
 task("mos:deploy", "mos service deploy")
     .addParam("wrapped", "native wrapped token address")
@@ -405,7 +405,6 @@ task("mos:changeOwner", "changeOwner for mos")
             console.log(`mos set owner ${taskArgs.owner} successfully `);
         }
     });
-
 
 task("mos:list", "List mos  infos")
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)

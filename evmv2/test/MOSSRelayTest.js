@@ -140,15 +140,15 @@ describe("MAPOmnichainServiceRelayV2 start test", function () {
         await tokenRegister.registerToken(standardToken.address, mapVault.address, true);
         await tokenRegister.registerToken(wrapped.address, mapVaultW.address, false);
 
-        await tokenRegister.mapToken(usdt.address, 97, mosRelayData.ethUsdtToken, 18,true);
-        await tokenRegister.mapToken(standardToken.address, 97, mosRelayData.ethStanardToken, 18,true);
-        await tokenRegister.mapToken(usdt.address, 212, usdt.address, 18,true);
-        await tokenRegister.mapToken(standardToken.address, 212, standardToken.address, 18,true);
-        await tokenRegister.mapToken(usdt.address, 1313161555, mosRelayData.nearUsdtToken, 24,true);
-        await tokenRegister.mapToken(standardToken.address, 1313161555, mosRelayData.nearStandToken, 24,true);
-        await tokenRegister.mapToken(wrapped.address, 1313161555, mosRelayData.nearWethToken, 24,true);
-        await tokenRegister.mapToken(wrapped.address, 212, wrapped.address, 18,true);
-        await tokenRegister.mapToken(wrapped.address, 97, "0xae13d989dac2f0debff460ac112a837c89baa7cd", 18,true);
+        await tokenRegister.mapToken(usdt.address, 97, mosRelayData.ethUsdtToken, 18, true);
+        await tokenRegister.mapToken(standardToken.address, 97, mosRelayData.ethStanardToken, 18, true);
+        await tokenRegister.mapToken(usdt.address, 212, usdt.address, 18, true);
+        await tokenRegister.mapToken(standardToken.address, 212, standardToken.address, 18, true);
+        await tokenRegister.mapToken(usdt.address, 1313161555, mosRelayData.nearUsdtToken, 24, true);
+        await tokenRegister.mapToken(standardToken.address, 1313161555, mosRelayData.nearStandToken, 24, true);
+        await tokenRegister.mapToken(wrapped.address, 1313161555, mosRelayData.nearWethToken, 24, true);
+        await tokenRegister.mapToken(wrapped.address, 212, wrapped.address, 18, true);
+        await tokenRegister.mapToken(wrapped.address, 97, "0xae13d989dac2f0debff460ac112a837c89baa7cd", 18, true);
         await tokenRegister.setTokenFee(usdt.address, 97, "1000000000000000", "2000000000000000000", "500000");
     });
 

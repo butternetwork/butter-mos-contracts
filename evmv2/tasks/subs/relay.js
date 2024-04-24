@@ -1,6 +1,17 @@
-let { create, readFromFile, writeToFile, getMos, getToken, getChain, getTokenList, getChainList, getFeeList } = require("../../utils/helper.js");
+let {
+    create,
+    readFromFile,
+    writeToFile,
+    getMos,
+    getToken,
+    getChain,
+    getTokenList,
+    getChainList,
+    getFeeList,
+} = require("../../utils/helper.js");
 let { mosDeploy, mosUpgrade, stringToHex } = require("../utils/util.js");
-const {getTronAddress} = require("../utils/tron");
+const { getTronAddress, tronTokenTransferOut} = require("../utils/tron");
+const BigNumber = require("bignumber.js");
 
 task("relay:deploy", "mos relay deploy")
     .addParam("wrapped", "native wrapped token address")
@@ -95,9 +106,7 @@ task("relay:registerToken", "Register cross-chain token on relay chain")
         let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
         console.log("token address:", tokenAddr);
 
-        await (
-            await register.connect(deployer).registerToken(tokenAddr, taskArgs.vault, taskArgs.mintable)
-        ).wait();
+        await (await register.connect(deployer).registerToken(tokenAddr, taskArgs.vault, taskArgs.mintable)).wait();
 
         console.log(`register token ${taskArgs.token} success`);
     });
@@ -135,7 +144,11 @@ task("relay:mapToken", "Map the altchain token to the token on relay chain")
         }
         console.log("chain token hex:", chaintoken.toString());
 
-        await (await register.connect(deployer).mapToken(token, chain.chainId, chaintoken, taskArgs.decimals,taskArgs.bridge)).wait();
+        await (
+            await register
+                .connect(deployer)
+                .mapToken(token, chain.chainId, chaintoken, taskArgs.decimals, taskArgs.bridge)
+        ).wait();
 
         console.log(
             `Token register manager maps chain ${taskArgs.chain} token ${chaintoken} to relay chain token ${taskArgs.token}  success `
@@ -170,7 +183,7 @@ task("relay:setTokenFee", "Set token fee to target chain")
 
         console.log(`Token register manager set token ${taskArgs.token} to chain ${taskArgs.chain} fee success`);
     });
-    
+
 task("relay:setFromChainTokenFee", "Set token fee to from chain")
     .addParam("token", "relay chain token address")
     .addParam("chain", "from chain id")
@@ -263,18 +276,16 @@ task("relay:setDistributeRate", "Set the fee to enter the vault address")
         console.log(`mos set distribute ${taskArgs.type} rate ${taskArgs.rate} to ${taskArgs.address} success`);
     });
 
+task("relay:updateTokenList", "update token fee to target chain").setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
 
-task("relay:updateTokenList", "update token fee to target chain")
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
-        console.log("deployer address:", deployer.address);
+    let chainId = hre.network.config.chainId;
+    let tokens = await getTokenList(chainId);
+    console.log(tokens);
 
-        let chainId = hre.network.config.chainId;
-        let tokens = await getTokenList(chainId);
-        console.log(tokens);
-
-        /*
+    /*
                 for (let i = 0; i < tokens.length; i++) {
                     let token = await getToken(hre.network.config.chainId, taskArgs.token);
                     console.log("token address:", token);
@@ -282,8 +293,8 @@ task("relay:updateTokenList", "update token fee to target chain")
                     await register.connect(deployer).setTokenFee(token, taskArgs.chain, taskArgs.min, taskArgs.max, taskArgs.rate)
                 }
         */
-        console.log(`Token register manager set token ${taskArgs.token} to chain ${taskArgs.chain} fee success`);
-    });
+    console.log(`Token register manager set token ${taskArgs.token} to chain ${taskArgs.chain} fee success`);
+});
 
 task("relay:updateToken", "update token fee to target chain")
     .addParam("token", "relay chain token name")
@@ -297,7 +308,7 @@ task("relay:updateToken", "update token fee to target chain")
         let register = await ethers.getContractAt("TokenRegisterV2", proxy.address);
 
         let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
-        let token = await ethers.getContractAt("MintableToken", tokenAddr)
+        let token = await ethers.getContractAt("MintableToken", tokenAddr);
         let decimals = await token.decimals();
         console.log(`token ${taskArgs.token}  address: ${token.address}, decimals ${decimals}`);
 
@@ -305,8 +316,8 @@ task("relay:updateToken", "update token fee to target chain")
         let chainList = Object.keys(feeList);
 
         for (let i = 0; i < chainList.length; i++) {
-            let chain = await getChain(chainList[i])
-            let info = await register.getToChainTokenInfo(tokenAddr, chain.chainId);
+            let chain = await getChain(chainList[i]);
+            let info = await register.getTargetTokenInfo(tokenAddr, chain.chainId);
             // get mapped token
             let targetToken = await getToken(chain.chainId, taskArgs.token);
             if (chain.chainId == 728126428 || chain.chainId == 3448148188) {
@@ -317,52 +328,50 @@ task("relay:updateToken", "update token fee to target chain")
                 targetToken = "0x" + hex;
             }
 
-            let fee = feeList[chain.chain];
-            let targetDecimals = fee.decimals;
-            let min = ethers.utils.parseUnits(fee.min, decimals);
-            let max = ethers.utils.parseUnits(fee.max, decimals);
-            let rate = ethers.utils.parseUnits(fee.rate, 6);
+            let chainFee = feeList[chain.chain];
+            let targetDecimals = chainFee.decimals;
+            let min = ethers.utils.parseUnits(chainFee.fee.min, decimals);
+            let max = ethers.utils.parseUnits(chainFee.fee.max, decimals);
+            let rate = ethers.utils.parseUnits(chainFee.fee.rate, 6);
 
             if (targetToken.toLowerCase() != info[0] || targetDecimals != info[1]) {
                 // map token
-                console.log(`${chain.chainId} => token(${info[0]}), decimals(${info[1]}) `);
+                console.log(`${chain.chainId} => onchain token(${info[0]}), decimals(${info[1]}) `);
                 console.log(`\tchain token(${targetToken}), decimals(${targetDecimals})`);
 
-                await register.connect(deployer).mapToken(tokenAddr, chain.chainId, targetToken, targetDecimals);
+                await register.connect(deployer).mapToken(tokenAddr, chain.chainId, targetToken, targetDecimals, true);
 
                 console.log(`register chain ${chain.chain} token ${taskArgs.token} success`);
             }
 
             if (!min.eq(info[2][0]) || !max.eq(info[2][1]) || !rate.eq(info[2][2])) {
-                console.log(`${chain.chainId} => fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]}) `);
-                console.log(`\tfee min(${min}), max(${max}), rate(${rate})`);
+                console.log(`${chain.chainId} => on-chain fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]}) `);
+                console.log(`\tconfig fee min(${min}), max(${max}), rate(${rate})`);
                 await register.connect(deployer).setTokenFee(tokenAddr, chain.chainId, min, max, rate);
             }
+
+            let transferOutFee = chainFee.outFee;
+            if (transferOutFee === undefined) {
+                min = ethers.utils.parseUnits("0", decimals);
+                max = ethers.utils.parseUnits("0", decimals);
+                rate = ethers.utils.parseUnits("0", decimals);
+            } else {
+                min = ethers.utils.parseUnits(transferOutFee.min, decimals);
+                max = ethers.utils.parseUnits(transferOutFee.max, decimals);
+                rate = ethers.utils.parseUnits(transferOutFee.rate, 6);
+            }
+
+            if (!min.eq(info[3][0]) || !max.eq(info[3][1]) || !rate.eq(info[3][2])) {
+                console.log(`${chain.chainId} => on-chain outFee min(${info[3][0]}), max(${info[3][1]}), rate(${info[3][2]}) `);
+                console.log(`\tconfig outFee min(${min}), max(${max}), rate(${rate})`);
+                await register.connect(deployer).setTransferOutFee(tokenAddr, chain.chainId, min, max, rate);
+            }
+
         }
 
         console.log(`Token register manager update token ${taskArgs.token} success`);
     });
 
-const chainlist = [
-    1,
-    5,
-    56,
-    97, // bsc
-    137,
-    80001, // matic
-    212,
-    22776, // mapo
-    1001,
-    8217, // klaytn
-    1030, // conflux
-    81457, // blast
-    8453, // base
-    4200, // merlin
-    2649, // ainn
-    1501, // bevm
-    "1360100178526209",
-    "1360100178526210", // near
-];
 task("relay:list", "List relay infos")
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
     .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
@@ -401,15 +410,15 @@ task("relay:list", "List relay infos")
 
         let manager = await ethers.getContractAt("TokenRegisterV2", tokenmanager);
 
+        let chainList = await getChainList();
         console.log("\nRegister chains:");
         let chains = [selfChainId];
-        for (let i = 0; i < chainlist.length; i++) {
-            let contract = await mos.mosContracts(chainlist[i]);
-
+        for (let i = 0; i < chainList.length; i++) {
+            let contract = await mos.mosContracts(chainList[i].chainId);
             if (contract != "0x") {
-                let chaintype = await mos.chainTypes(chainlist[i]);
-                console.log(`type(${chaintype}) ${chainlist[i]}\t => ${contract} `);
-                chains.push(chainlist[i]);
+                let chaintype = await mos.chainTypes(chainList[i].chainId);
+                console.log(`type(${chaintype}) ${chainList[i].chainId}\t => ${contract} `);
+                chains.push(chainList[i].chainId);
             }
         }
 
@@ -441,3 +450,49 @@ task("relay:list", "List relay infos")
             console.log(`\t vault(${balance}), fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]})`);
         }
     });
+
+
+task("relay:getTransferOut", "Cross-chain transfer token")
+    .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
+    .addParam("from", "source chain")
+    .addParam("to", "target chain")
+    .addParam("value", "transfer out value")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
+        let mos = await getMos(hre.network.config.chainId, hre.network.name);
+        if (!mos) {
+            throw "mos not deployed ...";
+        }
+        console.log("mos address:", mos.address);
+
+        let source = await getChain(taskArgs.from);
+        let sourceChainId = source.chainId;
+        console.log("source chain:", sourceChainId);
+
+        let target = await getChain(taskArgs.to);
+        let targetChainId = target.chainId;
+        console.log("target chain:", targetChainId);
+
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        if (tokenAddr === "0x0000000000000000000000000000000000000000") {
+            tokenAddr = await mos.wToken();
+        }
+        console.log(`token ${taskArgs.token} address: ${tokenAddr}`);
+
+        let token = await ethers.getContractAt("MintableToken", tokenAddr);
+        let decimals = await token.decimals();
+        let value = ethers.utils.parseUnits(taskArgs.value, decimals);
+
+        let tokenRegister = await mos.tokenRegister();
+        let manager = await ethers.getContractAt("TokenRegisterV2", tokenRegister);
+        console.log("Token manager:\t", manager.address);
+
+        let amount = await manager.getTokenFee(tokenAddr, value, targetChainId);
+        console.log("token fee:", ethers.utils.formatUnits(amount, decimals));
+
+        amount = await manager.getTransferFee(tokenAddr, value, sourceChainId, targetChainId);
+        console.log("transfer fee:", ethers.utils.formatUnits(amount, decimals));
+    });
+

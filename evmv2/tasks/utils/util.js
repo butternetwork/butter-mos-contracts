@@ -115,7 +115,6 @@ exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_ad
         implContract = "MAPOmnichainServiceV2";
     }
 
-
     //deployed new impl
     let implAddr = impl_addr;
     if (impl_addr === ethers.constants.AddressZero) {

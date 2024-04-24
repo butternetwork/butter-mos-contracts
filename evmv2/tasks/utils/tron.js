@@ -1,6 +1,6 @@
 let { readFromFile, writeToFile, getToken } = require("../../utils/helper.js");
 const TronWeb = require("tronweb");
-const {getFeeList, getChain, getChainList} = require("../../utils/helper");
+const { getFeeList, getChain, getChainList } = require("../../utils/helper");
 const net = require("net");
 require("dotenv").config();
 
@@ -148,8 +148,7 @@ exports.tronUpdateChain = async function (artifacts, network, token, addList, re
     }
 
     console.log(`mos update update token ${token} bridge success`);
-}
-
+};
 
 exports.tronSetMintableToken = async function (artifacts, network, token, mintable) {
     let tronWeb = await getTronWeb(network);
@@ -167,7 +166,6 @@ exports.tronSetMintableToken = async function (artifacts, network, token, mintab
         console.log(`mos set token ${token} mintable ${mintable}  success`);
     }
 };
-
 
 exports.tronTokenTransferOut = async function (artifacts, network, tokenAddr, chain, receiver, amount) {
     let tronWeb = await getTronWeb(network);
@@ -195,7 +193,7 @@ exports.tronTokenTransferOut = async function (artifacts, network, tokenAddr, ch
     console.log(swapRst);
 
     console.log(`${tokenAddr} transfer out to chain ${chain} value ${value}.`);
-}
+};
 
 exports.tronDeployRootToken = async function (artifacts, network, name, symbol, decimals) {
     console.log("network: ", network);
@@ -271,12 +269,12 @@ exports.tronList = async function (artifacts, network, mos_addr, token) {
     }
 };
 
-exports.getTronAddress = async function(address) {
+exports.getTronAddress = async function (address) {
     let tronWeb = await getTronWeb("Tron");
     let addr = tronWeb.address.fromHex(address);
     let addrHex = tronWeb.address.toHex(addr).replace(/^(41)/, "0x");
     return [addr, addrHex];
-}
+};
 
 exports.getTron = async function (network) {
     if (network === "Tron" || network === "TronTest") {
