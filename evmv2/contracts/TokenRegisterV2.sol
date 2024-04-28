@@ -195,7 +195,6 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         return tokenList[_token].vaultToken;
     }
 
-
     function getTokenFee(address _token, uint256 _amount, uint256 _toChain) external view override returns (uint256) {
         FeeRate memory feeRate = tokenList[_token].fees[_toChain];
         return _getFee(feeRate, _amount);
@@ -227,7 +226,11 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
     function getTargetTokenInfo(
         address _token,
         uint256 _chain
-    ) external view returns (bytes memory targetToken, uint8 decimals, FeeRate memory feeRate, FeeRate memory outFeeRate) {
+    )
+        external
+        view
+        returns (bytes memory targetToken, uint8 decimals, FeeRate memory feeRate, FeeRate memory outFeeRate)
+    {
         if (_chain == selfChainId) {
             targetToken = Utils.toBytes(_token);
             decimals = tokenList[_token].decimals;

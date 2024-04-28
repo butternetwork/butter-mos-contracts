@@ -117,18 +117,18 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         emit SetWrappedToken(_wToken);
     }
 
-    function addMintableToken(address[] memory _token) external onlyOwner {
-        for (uint256 i = 0; i < _token.length; i++) {
-            mintableTokens[_token[i]] = true;
+    function addMintableToken(address[] memory _tokens) external onlyOwner {
+        for (uint256 i = 0; i < _tokens.length; i++) {
+            mintableTokens[_tokens[i]] = true;
         }
-        emit AddMintableToken(_token);
+        emit AddMintableToken(_tokens);
     }
 
-    function removeMintableToken(address[] memory _token) external onlyOwner {
-        for (uint256 i = 0; i < _token.length; i++) {
-            mintableTokens[_token[i]] = false;
+    function removeMintableToken(address[] memory _tokens) external onlyOwner {
+        for (uint256 i = 0; i < _tokens.length; i++) {
+            mintableTokens[_tokens[i]] = false;
         }
-        emit RemoveMintableToken(_token);
+        emit RemoveMintableToken(_tokens);
     }
 
     function setRelayContract(uint256 _chainId, address _relay) external onlyOwner checkAddress(_relay) {
@@ -144,6 +144,15 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         emit RegisterToken(_token, _toChain, _enable);
     }
 
+    function registerTokenChains(address _token, uint256[] memory _toChains, bool _enable) external onlyOwner {
+        require(_token.isContract(), "token is not contract");
+        for (uint256 i = 0; i < _toChains.length; i++) {
+            uint256 toChain = _toChains[i];
+            tokenMappingList[toChain][_token] = _enable;
+            emit RegisterToken(_token, toChain, _enable);
+        }
+    }
+
     // ------------------------------------------
 
     function swapOutToken(
@@ -155,11 +164,10 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         bytes calldata _swapData
     ) external virtual override nonReentrant whenNotPaused checkBridgeable(_token, _toChain) returns (bytes32 orderId) {
         require(_amount > 0, "Sending value is zero");
-        require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
+        // require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
+        SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), _amount);
         if (isMintable(_token)) {
-            IMintableToken(_token).burnFrom(msg.sender, _amount);
-        } else {
-            SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), _amount);
+            IMintableToken(_token).burn(_amount);
         }
         orderId = _swapOut(_token, _to, _initiatorAddress, _amount, _toChain, _swapData);
     }
@@ -193,11 +201,9 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         address from = msg.sender;
         require(_amount > 0, "Sending value is zero");
         //require(IERC20(token).balanceOf(_from) >= _amount, "balance too low");
-
+        SafeERC20.safeTransferFrom(IERC20(_token), from, address(this), _amount);
         if (isMintable(_token)) {
-            IMintableToken(_token).burnFrom(from, _amount);
-        } else {
-            SafeERC20.safeTransferFrom(IERC20(_token), from, address(this), _amount);
+            IMintableToken(_token).burn(_amount);
         }
         _deposit(_token, from, _to, _amount);
     }
@@ -212,37 +218,27 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         _deposit(wToken, from, _to, amount);
     }
 
-    // verify swap in logs and store hash
-    function swapInVerify(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
+    function swapIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
         require(_chainId == relayChainId, "invalid chain id");
-        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(_receiptProof);
-        require(success, message);
-        bytes32 hash = keccak256(logArray);
-        require(!storedOrderId[hash], "already verified");
-        storedOrderId[hash] = true;
-        emit mapSwapInVerified(logArray);
-    }
-
-    // execute stored swap in logs
-    function swapInVerifiedWithIndex(bytes calldata logArray,uint256 logIndex) external nonReentrant whenNotPaused {
-        bytes32 hash = keccak256(logArray);
-        require(storedOrderId[hash], "not verified");
-        _swapInVerifiedWithIndex(logArray,logIndex);
-    }
-
-    function swapIn(uint256 _chainId,bytes memory _receiptProof) external nonReentrant whenNotPaused {
-        require(_chainId == relayChainId, "invalid chain id");
-        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(_receiptProof);
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(
+            _receiptProof
+        );
         require(success, message);
         _swapInVerified(logArray);
         emit mapSwapExecute(_chainId, selfChainId, msg.sender);
     }
 
-    function swapInWithIndex(uint256 _chainId,uint256 logIndex, bytes memory _receiptProof) external nonReentrant whenNotPaused {
+    function swapInWithIndex(
+        uint256 _chainId,
+        uint256 logIndex,
+        bytes memory _receiptProof
+    ) external nonReentrant whenNotPaused {
         require(_chainId == relayChainId, "invalid chain id");
-        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(_receiptProof);
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(
+            _receiptProof
+        );
         require(success, message);
-        _swapInVerifiedWithIndex(logArray,logIndex);
+        _swapInVerifiedWithIndex(logArray, logIndex);
         emit mapSwapExecute(_chainId, selfChainId, msg.sender);
     }
 
@@ -276,8 +272,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         }
     }
 
-    function _swapInVerifiedWithIndex(bytes memory logArray,uint256 logIndex) private {
-        IEvent.txLog memory log = EvmDecoder.decodeTxLog(logArray,logIndex);
+    function _swapInVerifiedWithIndex(bytes memory logArray, uint256 logIndex) private {
+        IEvent.txLog memory log = EvmDecoder.decodeTxLog(logArray, logIndex);
         _swapIn(log);
     }
 
@@ -306,7 +302,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
 
         // if swap params is not empty, then we need to do swap on current chain
         if (_outEvent.swapData.length > 0 && address(toAddress).isContract()) {
-            SafeERC20.safeTransfer(IERC20(tokenIn), toAddress, actualAmountIn);
+            _transfer(tokenIn, toAddress, actualAmountIn);
             try
                 IButterReceiver(toAddress).onReceived(
                     _outEvent.orderId,
@@ -327,7 +323,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
                 IWrappedToken(wToken).withdraw(actualAmountIn);
                 Address.sendValue(payable(toAddress), actualAmountIn);
             } else {
-                SafeERC20.safeTransfer(IERC20(tokenIn), toAddress, actualAmountIn);
+                _transfer(tokenIn, toAddress, actualAmountIn);
             }
         }
         emit mapSwapIn(
@@ -339,6 +335,19 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
             toAddress,
             actualAmountIn
         );
+    }
+
+    function _transfer(address _token, address _to, uint256 _amount) internal {
+        if (_token == address(0)) {
+            Address.sendValue(payable(_to), _amount);
+        } else {
+            if (selfChainId == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
+                // Tron USDT
+                _token.call(abi.encodeWithSelector(0xa9059cbb, _to, _amount));
+            } else {
+                SafeERC20.safeTransfer(IERC20(_token), _to, _amount);
+            }
+        }
     }
 
     function _swapOut(

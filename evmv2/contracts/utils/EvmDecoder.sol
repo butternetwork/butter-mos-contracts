@@ -23,9 +23,9 @@ library EvmDecoder {
         }
     }
 
-    function decodeTxLog(bytes memory logsHash,uint256 logIndex) internal pure returns (IEvent.txLog memory _txLog) {
+    function decodeTxLog(bytes memory logsHash, uint256 logIndex) internal pure returns (IEvent.txLog memory _txLog) {
         RLPReader.RLPItem[] memory ls = logsHash.toRlpItem().toList();
-        require(ls.length > logIndex,"logIndex out bond");
+        require(ls.length > logIndex, "logIndex out bond");
         _txLog = _decodeTxLog(ls[logIndex]);
     }
 

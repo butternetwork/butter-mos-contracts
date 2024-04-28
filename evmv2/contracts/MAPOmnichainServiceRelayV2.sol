@@ -397,6 +397,9 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             }
             bytes memory toChainToken = tokenRegister.getToChainToken(token, _outEvent.toChain);
             require(!Utils.checkBytes(toChainToken, bytes("")), "out token not registered");
+
+            _notifyLightClient(_outEvent.toChain, bytes(""));
+
             emit mapSwapOut(
                 _outEvent.fromChain,
                 _outEvent.toChain,
