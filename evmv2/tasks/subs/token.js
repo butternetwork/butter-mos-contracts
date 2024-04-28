@@ -372,4 +372,3 @@ task("token:transfer", "transfer token")
 
         console.log(`Transfer '${taskArgs.token}' Token ${taskArgs.amount} to ${taskArgs.receiver} `);
     });
-

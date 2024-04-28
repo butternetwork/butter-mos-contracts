@@ -10,7 +10,7 @@ let {
     getFeeList,
 } = require("../../utils/helper.js");
 let { mosDeploy, mosUpgrade, stringToHex } = require("../utils/util.js");
-const { getTronAddress, tronTokenTransferOut} = require("../utils/tron");
+const { getTronAddress, tronTokenTransferOut } = require("../utils/tron");
 const BigNumber = require("bignumber.js");
 
 task("relay:deploy", "mos relay deploy")
@@ -328,6 +328,8 @@ task("relay:updateToken", "update token fee to target chain")
                 targetToken = "0x" + hex;
             }
 
+            console.log("target token", targetToken);
+
             let chainFee = feeList[chain.chain];
             let targetDecimals = chainFee.decimals;
             let min = ethers.utils.parseUnits(chainFee.fee.min, decimals);
@@ -339,15 +341,17 @@ task("relay:updateToken", "update token fee to target chain")
                 console.log(`${chain.chainId} => onchain token(${info[0]}), decimals(${info[1]}) `);
                 console.log(`\tchain token(${targetToken}), decimals(${targetDecimals})`);
 
-                await register.connect(deployer).mapToken(tokenAddr, chain.chainId, targetToken, targetDecimals, true);
+                await register.connect(deployer).mapToken(tokenAddr, chain.chainId, targetToken, targetDecimals, true, {gasLimit: 100000});
 
                 console.log(`register chain ${chain.chain} token ${taskArgs.token} success`);
             }
 
             if (!min.eq(info[2][0]) || !max.eq(info[2][1]) || !rate.eq(info[2][2])) {
-                console.log(`${chain.chainId} => on-chain fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]}) `);
+                console.log(
+                    `${chain.chainId} => on-chain fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]}) `
+                );
                 console.log(`\tconfig fee min(${min}), max(${max}), rate(${rate})`);
-                await register.connect(deployer).setTokenFee(tokenAddr, chain.chainId, min, max, rate);
+                await register.connect(deployer).setTokenFee(tokenAddr, chain.chainId, min, max, rate, {gasLimit: 100000});
             }
 
             let transferOutFee = chainFee.outFee;
@@ -362,11 +366,12 @@ task("relay:updateToken", "update token fee to target chain")
             }
 
             if (!min.eq(info[3][0]) || !max.eq(info[3][1]) || !rate.eq(info[3][2])) {
-                console.log(`${chain.chainId} => on-chain outFee min(${info[3][0]}), max(${info[3][1]}), rate(${info[3][2]}) `);
+                console.log(
+                    `${chain.chainId} => on-chain outFee min(${info[3][0]}), max(${info[3][1]}), rate(${info[3][2]}) `
+                );
                 console.log(`\tconfig outFee min(${min}), max(${max}), rate(${rate})`);
-                await register.connect(deployer).setTransferOutFee(tokenAddr, chain.chainId, min, max, rate);
+                await register.connect(deployer).setTransferOutFee(tokenAddr, chain.chainId, min, max, rate, {gasLimit: 100000});
             }
-
         }
 
         console.log(`Token register manager update token ${taskArgs.token} success`);
@@ -451,7 +456,6 @@ task("relay:list", "List relay infos")
         }
     });
 
-
 task("relay:getTransferOut", "Cross-chain transfer token")
     .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
     .addParam("from", "source chain")
@@ -495,4 +499,3 @@ task("relay:getTransferOut", "Cross-chain transfer token")
         amount = await manager.getTransferFee(tokenAddr, value, sourceChainId, targetChainId);
         console.log("transfer fee:", ethers.utils.formatUnits(amount, decimals));
     });
-

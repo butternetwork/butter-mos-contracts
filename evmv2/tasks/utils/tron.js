@@ -70,7 +70,7 @@ exports.tronMosUpgrade = async function (artifacts, network, impl) {
 
     let implAddr = tronWeb.address.toHex(impl).replace(/^(41)/, "0x");
     if (implAddr === ethers.constants.AddressZero) {
-        implAddr = await deploy_contract(artifacts, "MAPOmnichainServiceTron", [], tronWeb);
+        implAddr = await deploy_contract(artifacts, "MAPOmnichainServiceV2", [], tronWeb);
     }
     console.log("old impl", await mos.getImplementation().call());
     await mos.upgradeTo(implAddr).send();

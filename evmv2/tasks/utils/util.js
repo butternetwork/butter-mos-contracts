@@ -39,7 +39,7 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
         if (!createResult[1]) {
             return;
         }
-        let proxyAddr = createResult[0];
+        proxyAddr = createResult[0];
     }
 
     console.log(`Deploy ${implContract} proxy address ${proxyAddr} successful`);

@@ -91,6 +91,13 @@
         "lightNode": "0xA9bDC7D5738d88A6F082b2580A4a425697Da9E5D"
     },
     {
+        "chain": "B2",
+        "mos": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "223",
+        "wToken": "0x4200000000000000000000000000000000000006",
+        "lightNode": "0x6951B909A71cd4189aA21aEfD38dFc3dCee90001"
+    },
+    {
         "chain": "Bevm",
         "mos": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
         "chainId": "1501",

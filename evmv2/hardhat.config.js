@@ -152,6 +152,12 @@ module.exports = {
       ethNetwork: "Eth",
       accounts: accounts,
     },
+    B2: {
+      url: `https://rpc.bsquared.network`,
+      chainId : 223,
+      gasPrice: 10000,
+      accounts: accounts,
+    },
   },
   zksolc: {
     version: "1.4.0",

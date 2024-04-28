@@ -243,6 +243,86 @@ task("mos:updateChain", "update token fee to target chain")
         console.log(`mos update update token ${taskArgs.token} bridge success`);
     });
 
+task("mos:updateTokenChain", "update token fee to target chain")
+    .addParam("token", "token name")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        console.log(`token ${taskArgs.token}  address: ${tokenAddr}`);
+
+        let chain = await getChain(hre.network.config.chainId);
+        let feeList = await getFeeList(taskArgs.token);
+        let targetList = feeList[chain.chain].target;
+
+        let addList = [];
+        let removeList = [];
+        let chainList = await getChainList();
+        for (let i = 0; i < chainList.length; i++) {
+            let j = 0;
+            for (j = 0; j < targetList.length; j++) {
+                if (chainList[i].chain === targetList[j]) {
+                    break;
+                }
+            }
+            if (j < targetList.length) {
+                continue;
+            }
+            removeList.push(chainList[i].chainId);
+        }
+        for (let i = 0; i < targetList.length; i++) {
+            let targetChain = await getChain(targetList[i]);
+            addList.push(targetChain.chainId);
+        }
+        console.log("remove list", removeList);
+        console.log("add list", addList);
+
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await tronUpdateChain(hre.artifacts, hre.network.name, tokenAddr, addList, removeList);
+        } else {
+            let mos = await getMos(hre.network.config.chainId, hre.network.name);
+            if (mos === undefined) {
+                throw "mos not deployed ...";
+            }
+            console.log("mos address:", mos.address);
+
+            let enableList = [];
+            let disableList = [];
+
+            for (let i = 0; i < removeList.length; i++) {
+                let bridgeable = await mos.isBridgeable(tokenAddr, removeList[i]);
+                if (bridgeable) {
+                    disableList.push(removeList[i]);
+                    //await mos.connect(deployer).registerTokenChains(tokenAddr, removeList[i], false);
+                    console.log(`mos remove token ${taskArgs.token} to chain ${removeList[i]} success`);
+                }
+            }
+            for (let i = 0; i < targetList.length; i++) {
+                let targetChain = await getChain(targetList[i]);
+
+                let bridgeable = await mos.isBridgeable(tokenAddr, targetChain.chainId);
+                if (!bridgeable) {
+                    enableList.push(targetChain.chainId);
+                    //await mos.connect(deployer).registerToken(tokenAddr, targetChain.chainId, true);
+                    // console.log(`mos register token ${taskArgs.token} to chain ${targetChain.chain} true success`);
+                }
+            }
+
+            if (disableList.length > 0) {
+                console.log(`mos remove token ${taskArgs.token} to chain ${disableList} ...`);
+                await mos.connect(deployer).registerTokenChains(tokenAddr, disableList, false);
+            }
+            if (enableList.length > 0) {
+                console.log(`mos register token ${taskArgs.token} to chain ${enableList} ...`);
+                await mos.connect(deployer).registerTokenChains(tokenAddr, enableList, true);
+            }
+        }
+
+        console.log(`mos update update token ${taskArgs.token} bridge success`);
+    });
+
 task("mos:updateMintable", "set mintable token")
     .addParam("token", "token address")
     .setAction(async (taskArgs, hre) => {
