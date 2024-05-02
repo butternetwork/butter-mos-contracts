@@ -46,5 +46,20 @@
 	},
 	"B2": {
 		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	},
+	"Optimism": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	},
+	"Arbitrum": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	},
+	"Linea": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	},
+	"Mantle": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	},
+	"Scroll": {
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
 	}
 }

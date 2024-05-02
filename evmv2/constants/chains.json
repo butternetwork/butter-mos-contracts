@@ -103,5 +103,40 @@
         "chainId": "1501",
         "wToken": "0x09Ff8E49D0EA411A3422ed95E8f5497D4241F532",
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "chain": "Optimism",
+        "mos": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "10",
+        "wToken": "0x4200000000000000000000000000000000000006",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "chain": "Arbitrum",
+        "mos": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "42161",
+        "wToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "chain": "Linea",
+        "mos": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "59144",
+        "wToken": "0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "chain": "Scroll",
+        "mos": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "534352",
+        "wToken": "0x5300000000000000000000000000000000000004",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "chain": "Mantle",
+        "mos": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "5000",
+        "wToken": "0xdEAddEaDdeadDEadDEADDEAddEADDEAddead1111",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     }
 ]

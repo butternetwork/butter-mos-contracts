@@ -7,11 +7,9 @@ exports.verify = async function (addr, args, code, chainId, wait) {
             sleep(20000);
         }
         console.log(`verify ${code} ...`);
-        await run("verify:verify", {
-            address: addr,
-            constructorArguments: args,
-            contract: code,
-        });
+        console.log("addr:", addr);
+        console.log("args:", args);
+        await run("verify:verify", {address: addr, constructorArguments: args, contract: code});
     }
 };
 

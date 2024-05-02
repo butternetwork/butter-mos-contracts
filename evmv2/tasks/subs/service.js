@@ -13,37 +13,60 @@ let {
 const { getFeeList, getChainList } = require("../../utils/helper");
 
 task("mos:deploy", "mos service deploy")
-    .addParam("wrapped", "native wrapped token address")
-    .addParam("lightnode", "lightNode contract address")
+    .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
+    .addOptionalParam("lightnode", "lightNode contract address", "", types.string)
     .setAction(async (taskArgs, hre) => {
         let chain = await getChain(hre.network.config.chainId);
-        console.log(chain);
+        let wrappedAddr = taskArgs.wrapped;
+        let nodeAddr = taskArgs.lightnode;
+        if (wrappedAddr === "") {
+            wrappedAddr = chain.wToken;
+        }
+        if (nodeAddr === taskArgs.lightnode) {
+            nodeAddr = chain.lightNode;
+        }
+        console.log(`chain : ${hre.network.name}`);
+        console.log(`wToken : ${wrappedAddr}`);
+        console.log(`lightnode : ${nodeAddr}`);
 
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-            await tronMosDeploy(hre.artifacts, hre.network.name, chain.wToken, chain.lightNode);
+            await tronMosDeploy(hre.artifacts, hre.network.name, wrappedAddr, nodeAddr);
         } else {
             const { deploy } = hre.deployments;
             const accounts = await ethers.getSigners();
             const deployer = accounts[0];
             console.log("deployer address:", deployer.address);
-            await mosDeploy(deploy, hre.network.config.chainId, deployer.address, taskArgs.wrapped, taskArgs.lightnode);
+            await mosDeploy(deploy, hre.network.config.chainId, deployer.address, wrappedAddr, nodeAddr);
         }
     });
 
 task("mos:verify", "mos service verify")
-    .addParam("wrapped", "native wrapped token address")
-    .addParam("lightnode", "lightNode contract address")
+    .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
+    .addOptionalParam("lightnode", "lightNode contract address", "", types.string)
     .setAction(async (taskArgs, hre) => {
+        let chain = await getChain(hre.network.config.chainId);
+        let wrappedAddr = taskArgs.wrapped;
+        let nodeAddr = taskArgs.lightnode;
+        if (wrappedAddr === "") {
+            wrappedAddr = chain.wToken;
+        }
+        if (nodeAddr === taskArgs.lightnode) {
+            nodeAddr = chain.lightNode;
+        }
+        console.log(`chain : ${hre.network.name}`);
+        console.log(`wToken : ${wrappedAddr}`);
+        console.log(`lightnode : ${nodeAddr}`);
+
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             console.log(hre.network.name);
-            await tronMosDeploy(hre.artifacts, hre.network.name, taskArgs.wrapped, taskArgs.lightnode);
+            await tronMosDeploy(hre.artifacts, hre.network.name, wrappedAddr, nodeAddr);
         } else {
             const { deploy } = hre.deployments;
             const accounts = await ethers.getSigners();
             const deployer = accounts[0];
             const chainId = await hre.network.config.chainId;
             console.log("deployer address:", deployer.address);
-            await mosVerify(deploy, chainId, deployer.address, taskArgs.wrapped, taskArgs.lightnode);
+            await mosVerify(deploy, chainId, deployer.address, wrappedAddr, nodeAddr);
         }
     });
 

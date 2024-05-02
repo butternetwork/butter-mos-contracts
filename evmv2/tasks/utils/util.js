@@ -1,4 +1,5 @@
 let { getMos, create, readFromFile, writeToFile, zksyncDeploy, getToken } = require("../../utils/helper.js");
+let { verify } = require("./verify.js");
 
 const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay));
 
@@ -23,6 +24,8 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
         });
         let impl = await ethers.getContract(implContract);
         implAddr = impl.address;
+
+        await verify(implAddr, [], "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2", chainId, true);
     }
     console.log(`${implContract} address: ${implAddr}`);
 
@@ -50,21 +53,7 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
 
     await writeToFile(deployment);
 
-    if (needVerify(chainId)) {
-        sleep(10000);
-
-        await run("verify:verify", {
-            address: proxyAddr,
-            constructorArguments: [implAddr, data],
-            contract: "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2",
-        });
-
-        await run("verify:verify", {
-            address: implAddr,
-            constructorArguments: [],
-            contract: "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2",
-        });
-    }
+    await verify(proxyAddr, [implAddr, data], "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2", chainId, true);
 };
 
 exports.mosVerify = async function (deploy, chainId, deployer, wtoken, lightnode) {
@@ -79,25 +68,18 @@ exports.mosVerify = async function (deploy, chainId, deployer, wtoken, lightnode
     let impl = await ethers.getContract(implContract);
     console.log(`${implContract} address: ${impl.address}`);
 
-    let data = Impl.interface.encodeFunctionData("initialize", [wtoken, lightnode, deployer]);
+
+
+    let data = impl.interface.encodeFunctionData("initialize", [wtoken, lightnode, deployer]);
 
     let deployment = await readFromFile(hre.network.name);
     let mos_proxy = deployment[hre.network.name]["mosProxy"];
-    console.log(`Deploy ${implContract} proxy address ${mos_proxy} successful`);
+    console.log(`proxy address: ${mos_proxy}`);
 
-    if (needVerify(chainId)) {
-        await run("verify:verify", {
-            address: mos_proxy,
-            constructorArguments: [impl.address, data],
-            contract: "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2",
-        });
+    await verify(mos_proxy, [impl.address, data], "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2", chainId, false);
 
-        await run("verify:verify", {
-            address: impl.address,
-            constructorArguments: [],
-            contract: "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2",
-        });
-    }
+    await verify(impl.address, [], "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2", chainId, false);
+
 };
 
 exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_addr, auth) {
@@ -135,15 +117,7 @@ exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_ad
 
         console.log("new mos impl to address:", implAddr);
 
-        if (needVerify(chainId)) {
-            //verify impl
-            sleep(10000);
-            await run("verify:verify", {
-                address: implAddr,
-                constructorArguments: [],
-                contract: "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2",
-            });
-        }
+        await verify(implAddr, [], "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2", chainId, true);
     }
 
     console.log(`${implContract} implementation address: ${implAddr}`);
