@@ -158,6 +158,31 @@ module.exports = {
       gasPrice: 10000,
       accounts: accounts,
     },
+    Optimism: {
+      url: `https://mainnet.optimism.io`,
+      chainId : 10,
+      accounts: accounts,
+    },
+    Arbitrum: {
+      url: `https://arb1.arbitrum.io/rpc`,
+      chainId : 42161,
+      accounts: accounts,
+    },
+    Linea: {
+      url: `https://rpc.linea.build`,
+      chainId : 59144,
+      accounts: accounts,
+    },
+    Scroll: {
+      url: `https://rpc.scroll.io`,
+      chainId : 534352,
+      accounts: accounts,
+    },
+    Mantle: {
+      url: `https://rpc.mantle.xyz`,
+      chainId : 5000,
+      accounts: accounts,
+    },
   },
   zksolc: {
     version: "1.4.0",
@@ -193,7 +218,12 @@ module.exports = {
       polygon: process.env.API_KEY_MATIC,
       Blast: process.env.API_KEY_BLAST,
       Base: process.env.API_KEY_BASE,
-      zkSync: process.env.API_KEY_ZKSYNC
+      zkSync: process.env.API_KEY_ZKSYNC,
+      Optimism: process.env.API_KEY_OP,
+      Arbitrum: process.env.API_KEY_ARBITRUM,
+      Linea: process.env.API_KEY_LINEA,
+      Scroll: process.env.API_KEY_SCROLL,
+      Mantle: process.env.API_KEY_MANTLE
     },
     customChains: [
       {
@@ -252,6 +282,46 @@ module.exports = {
           browserURL: "https://era.zksync.network/",
         },
       },
+      {
+        network: "Optimism",
+        chainId: 10,
+        urls: {
+          apiURL: "https://api-optimistic.etherscan.io/api",
+          browserURL: "https://optimistic.etherscan.io/",
+        },
+      },
+      {
+        network: "Arbitrum",
+        chainId: 42161,
+        urls: {
+          apiURL: "https://api.arbiscan.io/api",
+          browserURL: "https://arbiscan.io/",
+        },
+      },
+      {
+        network: "Linea",
+        chainId: 59144,
+        urls: {
+          apiURL: "https://api.lineascan.build/api",
+          browserURL: "https://lineascan.build",
+        },
+      },
+      {
+        network: "Scroll",
+        chainId: 534352,
+        urls: {
+          apiURL: "https://api.scrollscan.com/api",
+          browserURL: "https://scrollscan.com/",
+        },
+      },
+      {
+        network: "Mantle",
+        chainId: 5000,
+        urls: {
+          apiURL: "https://api.mantlescan.xyz/api",
+          browserURL: "https://mantlescan.xyz/",
+        },
+      }
     ],
   },
 };

@@ -42,7 +42,7 @@ task("token:deposit", "Cross-chain deposit token")
 
         if (tokenAddr === "0x0000000000000000000000000000000000000000") {
             let value = ethers.utils.parseUnits(taskArgs.value, 18);
-            await (await mos.connect(deployer).depositNative(address, { value: value })).wait();
+            await (await mos.connect(deployer).depositNative(address, { value: value, gasLimit: 150000 })).wait();
         } else {
             let token = await ethers.getContractAt("MintableToken", tokenAddr);
             let decimals = await token.decimals();
@@ -52,7 +52,7 @@ task("token:deposit", "Cross-chain deposit token")
             await (await token.connect(deployer).approve(mos.address, value)).wait();
 
             console.log("deposit token... ");
-            await (await mos.connect(deployer).depositToken(tokenAddr, address, value)).wait();
+            await (await mos.connect(deployer).depositToken(tokenAddr, address, value, {gasLimit: 150000})).wait();
         }
 
         console.log(`deposit token ${taskArgs.token} ${taskArgs.value} to ${address} successful`);

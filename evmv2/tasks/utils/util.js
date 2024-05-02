@@ -176,32 +176,3 @@ exports.stringToHex = async function (str) {
         })
         .join("");
 };
-
-exports.needVerify = function (chainId) {
-    return needVerify(chainId);
-};
-
-function needVerify(chainId) {
-    if (
-        chainId === 1 ||
-        chainId === 56 ||
-        chainId === 137 ||
-        chainId === 199 ||
-        chainId === 81457 ||
-        chainId === 8453 ||
-        chainId === 324
-    ) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-exports.verify = async function (addr, args, code) {
-    // await verify("0x3067c49494d25BF468d5eef7d8937a2fa0d5cC0E",[],"contracts/tron/child/ChildERC20.sol:ChildERC20")
-    await hre.run("verify:verify", {
-        address: addr,
-        constructorArguments: args,
-        contract: code,
-    });
-};
