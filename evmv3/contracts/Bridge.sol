@@ -79,7 +79,8 @@ contract BridgeAndRelay is BridgeAbstract {
             param.amount,
             param.token,
             param.gasLimit,
-            param.relayGasLimit
+            param.relayGasLimit,
+            true
         );
         _checkLimit(param.amount, param.toChain, token);
         checkBridgeable(token, param.toChain);
@@ -119,7 +120,14 @@ contract BridgeAndRelay is BridgeAbstract {
     }
 
     function deposit(DepositParam calldata param) external payable nonReentrant whenNotPaused {
-        (address token, , uint256 messageFee) = _tokenIn(relayChainId, param.amount, param.token, param.gasLimit, 0);
+        (address token, , uint256 messageFee) = _tokenIn(
+            relayChainId,
+            param.amount,
+            param.token,
+            param.gasLimit,
+            0,
+            false
+        );
         checkBridgeable(token, relayChainId);
         bytes memory payload = abi.encode(abi.encodePacked(param.token), param.amount, param.from, param.to);
         payload = abi.encode(OutType.DEPOSIT, payload);

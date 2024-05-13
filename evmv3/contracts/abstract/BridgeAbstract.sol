@@ -82,7 +82,7 @@ abstract contract BridgeAbstract is
     event CollectNativeFee(address _token, uint256 _toChain, uint256 amount);
     event InterTransferAndCall(address proxy, address token, uint256 amount);
     event SwapIn(address token, uint256 amount, address to, uint256 fromChain, bytes from);
-    event ChargeNativeFee(address _token, uint256 _gasLimit, uint256 selfChainId, uint256 _tochain);
+    event ChargeNativeFee(address _token, uint256 _amount, uint256 fee, uint256 selfChainId, uint256 _tochain);
     event SwapOut(
         bytes32 orderId,
         uint256 tochain,
@@ -249,7 +249,7 @@ abstract contract BridgeAbstract is
         return true;
     }
 
-    function getNativeFeePrice(address _token, uint256 _tochain) external view returns (uint256) {
+    function getNativeFeePrice(address _token, uint256 _amount, uint256 _tochain) external view returns (uint256) {
         return nativeFees[_token][_tochain];
     }
 
@@ -258,12 +258,13 @@ abstract contract BridgeAbstract is
         uint256 amount,
         address token_,
         uint256 gasLimit,
-        uint256 relayGasLimit
+        uint256 relayGasLimit,
+        bool isSwap
     ) internal returns (address token, uint256 nativeFee, uint256 messageFee) {
         require(amount > 0, "Sending value is zero");
         token = token_;
         messageFee = _getMessageFee(gasLimit, relayGasLimit, toChain);
-        nativeFee = _ChargeNativeFee(token_, gasLimit, toChain);
+        if (isSwap) nativeFee = _ChargeNativeFee(token_, amount, toChain);
         if (Helper._isNative(token)) {
             require((amount + messageFee + nativeFee) == msg.value, "value and fee mismatching");
             Helper._safeDeposit(wToken, amount);
@@ -321,12 +322,11 @@ abstract contract BridgeAbstract is
         uint256 tochain
     ) internal virtual returns (uint256) {}
 
-    function _ChargeNativeFee(address _token, uint256 _gasLimit, uint256 _tochain) internal virtual returns (uint256) {
-        uint256 price = nativeFees[_token][_tochain];
-        uint256 fee = _gasLimit * price;
+    function _ChargeNativeFee(address _token, uint256 _amount, uint256 _tochain) internal virtual returns (uint256) {
+        uint256 fee = nativeFees[_token][_tochain];
         if (fee != 0 && nativeFeeReceiver != address(0)) {
             Helper._transfer(selfChainId, address(0), nativeFeeReceiver, fee);
-            emit ChargeNativeFee(_token, _gasLimit, selfChainId, _tochain);
+            emit ChargeNativeFee(_token, _amount, fee, selfChainId, _tochain);
             return fee;
         }
         return 0;

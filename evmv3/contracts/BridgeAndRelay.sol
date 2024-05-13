@@ -96,7 +96,8 @@ contract BridgeAndRelay is BridgeAbstract {
             param.amount,
             param.token,
             param.gasLimit,
-            param.relayGasLimit
+            param.relayGasLimit,
+            true
         );
         _checkLimit(param.amount, param.toChain, token);
         bytes32 orderId;
