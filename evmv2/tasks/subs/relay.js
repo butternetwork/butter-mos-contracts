@@ -276,25 +276,6 @@ task("relay:setDistributeRate", "Set the fee to enter the vault address")
         console.log(`mos set distribute ${taskArgs.type} rate ${taskArgs.rate} to ${taskArgs.address} success`);
     });
 
-task("relay:updateTokenList", "update token fee to target chain").setAction(async (taskArgs, hre) => {
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-    console.log("deployer address:", deployer.address);
-
-    let chainId = hre.network.config.chainId;
-    let tokens = await getTokenList(chainId);
-    console.log(tokens);
-
-    /*
-                for (let i = 0; i < tokens.length; i++) {
-                    let token = await getToken(hre.network.config.chainId, taskArgs.token);
-                    console.log("token address:", token);
-
-                    await register.connect(deployer).setTokenFee(token, taskArgs.chain, taskArgs.min, taskArgs.max, taskArgs.rate)
-                }
-        */
-    console.log(`Token register manager set token ${taskArgs.token} to chain ${taskArgs.chain} fee success`);
-});
 
 task("relay:updateToken", "update token fee to target chain")
     .addParam("token", "relay chain token name")
@@ -310,7 +291,7 @@ task("relay:updateToken", "update token fee to target chain")
         let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
         let token = await ethers.getContractAt("MintableToken", tokenAddr);
         let decimals = await token.decimals();
-        console.log(`token ${taskArgs.token}  address: ${token.address}, decimals ${decimals}`);
+        console.log(`token ${taskArgs.token} address: ${token.address}, decimals ${decimals}`);
 
         let feeList = await getFeeList(taskArgs.token);
         let chainList = Object.keys(feeList);
@@ -328,7 +309,7 @@ task("relay:updateToken", "update token fee to target chain")
                 targetToken = "0x" + hex;
             }
 
-            console.log("target token", targetToken);
+            console.log(`chain ${chain.chain} target token ${targetToken}`);
 
             let chainFee = feeList[chain.chain];
             let targetDecimals = chainFee.decimals;
@@ -341,7 +322,7 @@ task("relay:updateToken", "update token fee to target chain")
                 console.log(`${chain.chainId} => onchain token(${info[0]}), decimals(${info[1]}) `);
                 console.log(`\tchain token(${targetToken}), decimals(${targetDecimals})`);
 
-                await register.connect(deployer).mapToken(tokenAddr, chain.chainId, targetToken, targetDecimals, true, {gasLimit: 100000});
+                await register.connect(deployer).mapToken(tokenAddr, chain.chainId, targetToken, targetDecimals, true, {gasLimit: 150000});
 
                 console.log(`register chain ${chain.chain} token ${taskArgs.token} success`);
             }
@@ -351,7 +332,9 @@ task("relay:updateToken", "update token fee to target chain")
                     `${chain.chainId} => on-chain fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]}) `
                 );
                 console.log(`\tconfig fee min(${min}), max(${max}), rate(${rate})`);
-                await register.connect(deployer).setTokenFee(tokenAddr, chain.chainId, min, max, rate, {gasLimit: 100000});
+                await register.connect(deployer).setTokenFee(tokenAddr, chain.chainId, min, max, rate, {gasLimit: 150000});
+
+                console.log(`set chain ${chain.chain} token ${taskArgs.token} fee success`);
             }
 
             let transferOutFee = chainFee.outFee;
@@ -370,7 +353,7 @@ task("relay:updateToken", "update token fee to target chain")
                     `${chain.chainId} => on-chain outFee min(${info[3][0]}), max(${info[3][1]}), rate(${info[3][2]}) `
                 );
                 console.log(`\tconfig outFee min(${min}), max(${max}), rate(${rate})`);
-                await register.connect(deployer).setTransferOutFee(tokenAddr, chain.chainId, min, max, rate, {gasLimit: 100000});
+                await register.connect(deployer).setTransferOutFee(tokenAddr, chain.chainId, min, max, rate, {gasLimit: 150000});
             }
         }
 
@@ -406,14 +389,18 @@ task("relay:list", "List relay infos")
 
         console.log("selfChainId:\t", selfChainId.toString());
         console.log("light client manager:", lightClientManager);
-        console.log("Token manager:\t", tokenmanager);
+        console.log("Owner:\t", await mos.getAdmin());
+        console.log("Impl:\t", await mos.getImplementation());
         console.log("wToken address:\t", wtoken);
+        console.log("Token manager:\t", tokenmanager);
+
 
         console.log(`distribute vault rate: rate(${vaultFee[1]})`);
         console.log(`distribute relay rate: rate(${relayFee[1]}), receiver(${relayFee[0]})`);
         console.log(`distribute protocol rate: rate(${protocolFee[1]}), receiver(${protocolFee[0]})`);
 
         let manager = await ethers.getContractAt("TokenRegisterV2", tokenmanager);
+        console.log("Token manager owner:\t", await manager.getAdmin());
 
         let chainList = await getChainList();
         console.log("\nRegister chains:");
@@ -498,4 +485,23 @@ task("relay:getTransferOut", "Cross-chain transfer token")
 
         amount = await manager.getTransferFee(tokenAddr, value, sourceChainId, targetChainId);
         console.log("transfer fee:", ethers.utils.formatUnits(amount, decimals));
+    });
+
+task("relay:getSig", "update token fee to target chain")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+
+        let chainId = hre.network.config.chainId;
+
+        let mos = await getMos(hre.network.config.chainId, hre.network.name);
+
+        console.log("upgradeTo:", mos.interface.getSighash("upgradeTo"));
+        console.log("changeAdmin:", mos.interface.getSighash("changeAdmin"));
+        console.log("setLightClientManager:", mos.interface.getSighash("setLightClientManager"));
+        console.log("setTokenRegister:", mos.interface.getSighash("setTokenRegister"));
+        console.log("registerChain:", mos.interface.getSighash("registerChain"));
+        console.log("upgradeTo:", mos.interface.getSighash("upgradeTo"));
+
     });

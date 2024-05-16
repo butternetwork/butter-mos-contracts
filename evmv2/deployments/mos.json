@@ -4,13 +4,16 @@
 		"authority": "0xAaaAa8a316ab372Af9BC4cDD2ae040b03f9D4d88"
 	},
 	"Bsc": {
-		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+		"authority": "0xAaaAa8a316ab372Af9BC4cDD2ae040b03f9D4d88"
 	},
 	"Matic": {
-		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+		"authority": "0xAaaAa8a316ab372Af9BC4cDD2ae040b03f9D4d88"
 	},
 	"Eth": {
-		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+		"authority": "0xAaaAa8a316ab372Af9BC4cDD2ae040b03f9D4d88"
 	},
 	"Klay": {
 		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
@@ -39,7 +42,8 @@
 		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
 	},
 	"Base": {
-		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+		"authority": "0xAaaAa8a316ab372Af9BC4cDD2ae040b03f9D4d88"
 	},
 	"zkSync": {
 		"mosProxy": "0xBEf06a32166C4B819fF04cCfa887733B8bb67eB5"
@@ -61,5 +65,8 @@
 	},
 	"Scroll": {
 		"mosProxy": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380"
+	},
+	"zkLink": {
+		"mosProxy": "0xB666A84a94E5459cC47874aD9774935ba0DdF614"
 	}
 }

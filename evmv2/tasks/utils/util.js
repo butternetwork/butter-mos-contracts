@@ -13,7 +13,7 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
     }
 
     let implAddr;
-    if (chainId === 324 || chainId === 280) {
+    if (hre.network.zksync === true){
         implAddr = await zksyncDeploy(implContract, [], hre);
     } else {
         await deploy(implContract, {
@@ -32,7 +32,7 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
     let proxyAddr;
     let Impl = await ethers.getContractFactory(implContract);
     let data = Impl.interface.encodeFunctionData("initialize", [wtoken, lightnode, deployer]);
-    if (chainId === 324 || chainId === 280) {
+    if (hre.network.zksync === true) {
         proxyAddr = await zksyncDeploy("MAPOmnichainServiceProxyV2", [implAddr, data], hre);
     } else {
         let Proxy = await ethers.getContractFactory("MAPOmnichainServiceProxyV2");
@@ -100,7 +100,7 @@ exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_ad
     //deployed new impl
     let implAddr = impl_addr;
     if (impl_addr === ethers.constants.AddressZero) {
-        if (chainId === 324 || chainId === 280) {
+        if (hre.network.zksync === true) {
             implAddr = await zksyncDeploy(implContract, [], hre);
         } else {
             await deploy(implContract, {

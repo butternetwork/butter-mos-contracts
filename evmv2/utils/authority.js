@@ -1,6 +1,6 @@
 const { ethers } = require("hardhat");
 
-let Authority_addr = "";
+let Authority_addr = "0xAaaAa8a316ab372Af9BC4cDD2ae040b03f9D4d88";
 let Authority_abi = [
     "function isAuthorized(address user, address target, bytes4 funSig) external view returns (bool)",
     "function getRole(address target, bytes4 funSig) external view returns (bytes32)",

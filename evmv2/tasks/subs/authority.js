@@ -1,5 +1,5 @@
 let { create, readFromFile, writeToFile } = require("../../utils/helper.js");
-let { needVerify } = require("../utils/util.js");
+let { verify } = require("../utils/verify.js");
 const { stringToHex } = require("../utils/util");
 const { getMos } = require("../../utils/helper");
 
@@ -52,14 +52,8 @@ task("auth:deploy", "mos relay deploy")
         let deployment = await readFromFile(hre.network.name);
         deployment[hre.network.name]["authority"] = authority;
         await writeToFile(deployment);
-        if (needVerify(chainId)) {
-            sleep(10000);
-            await run("verify:verify", {
-                address: authority,
-                constructorArguments: [taskArgs.admin],
-                contract: "contracts/Authority.sol:Authority",
-            });
-        }
+
+        await verify(authority, [taskArgs.admin], "contracts/utils/Authority.sol:Authority", chainId,true);
     });
 
 task("auth:addControl", "add control")
@@ -192,13 +186,23 @@ task("auth:revokeRole", "revokeRole")
     });
 
 task("auth:getMember", "get role member")
-    .addParam("role", "control role")
+    .addOptionalParam("addr", "The auth addr", "", types.string)
+    .addOptionalParam("role", "The role", "admin", types.string)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
 
-        let authority = await getAuth(hre.network.name);
+        let addr = taskArgs.addr;
+        if (addr === "") {
+            let deployment = await readFromFile(hre.network.name);
+            if (!deployment[hre.network.name]["authority"]) {
+                throw "authority not deployed";
+            }
+            addr = deployment[hre.network.name]["authority"];
+        }
+        let Authority = await ethers.getContractFactory("Authority");
+        let authority = Authority.attach(addr);
         console.log("authority address", authority.address);
 
         let role = getRole(taskArgs.role);

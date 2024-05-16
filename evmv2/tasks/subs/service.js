@@ -200,8 +200,28 @@ task("mos:registerToken", "MapCrossChainService settings allow cross-chain token
         }
     });
 
+async function register (deployer, mos, token, chain, bridgeable, auth) {
+    if (auth) {
+        let deployment = await readFromFile(hre.network.name);
+        if (!deployment[hre.network.name]["authority"]) {
+            throw "authority not deployed";
+        }
+        let Authority = await ethers.getContractFactory("Authority");
+        let authority = Authority.attach(deployment[hre.network.name]["authority"]);
+
+        let data = mos.interface.encodeFunctionData("registerToken", [token, chain, bridgeable]);
+        let executeData = authority.interface.encodeFunctionData("execute", [mos.address, 0, data]);
+        console.log("execute input", executeData);
+        await (await authority.execute(mos.address, 0, data)).wait();
+    } else {
+        await mos.connect(deployer).registerToken(token, chain, bridgeable);
+    }
+}
+
+
 task("mos:updateChain", "update token fee to target chain")
     .addParam("token", "token name")
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
@@ -248,7 +268,8 @@ task("mos:updateChain", "update token fee to target chain")
             for (let i = 0; i < removeList.length; i++) {
                 let bridgeable = await mos.isBridgeable(tokenAddr, removeList[i]);
                 if (bridgeable) {
-                    await mos.connect(deployer).registerToken(tokenAddr, removeList[i], false);
+                    // await mos.connect(deployer).registerToken(tokenAddr, removeList[i], false);
+                    await register(deployer, mos, tokenAddr, removeList[i], false, taskArgs.auth);
                     console.log(`mos remove token ${taskArgs.token} to chain ${removeList[i]} success`);
                 }
             }
@@ -257,7 +278,8 @@ task("mos:updateChain", "update token fee to target chain")
 
                 let bridgeable = await mos.isBridgeable(tokenAddr, targetChain.chainId);
                 if (!bridgeable) {
-                    await mos.connect(deployer).registerToken(tokenAddr, targetChain.chainId, true);
+                    // await mos.connect(deployer).registerToken(tokenAddr, targetChain.chainId, true);
+                    await register(deployer, mos, tokenAddr, targetChain.chainId, true, taskArgs.auth);
                     console.log(`mos register token ${taskArgs.token} to chain ${targetChain.chain} true success`);
                 }
             }
@@ -541,6 +563,8 @@ task("mos:list", "List mos  infos")
             console.log("light node:\t", lightNode);
             console.log("relay chain:\t", relayChainId.toString());
             console.log("relay contract:\t", relayContract);
+            console.log("Owner:\t", await mos.getAdmin());
+            console.log("Impl:\t", await mos.getImplementation());
 
             address = taskArgs.token;
             if (address == "wtoken") {

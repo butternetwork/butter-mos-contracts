@@ -52,6 +52,51 @@ task("vault:addManager", "Add vaultToken manager")
         console.log(`MAPVaultToken ${taskArgs.vault} add manager ${manager} success`);
     });
 
+
+
+task("vault:deposit", "Cross-chain deposit token")
+    .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
+    .addOptionalParam("address", "The receiver address", "", types.string)
+    .addParam("value", "deposit value, unit WEI")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
+        console.log("deposit address:", deployer.address);
+
+        let mos = await getMos(hre.network.config.chainId, hre.network.name);
+        if (!mos) {
+            throw "mos not deployed ...";
+        }
+        console.log("mos address:", mos.address);
+
+        //let mos = await ethers.getContractAt('IButterMosV2', taskArgs.mos);
+
+        let address = taskArgs.address;
+        if (taskArgs.address === "") {
+            address = deployer.address;
+        }
+
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+
+        if (tokenAddr === "0x0000000000000000000000000000000000000000") {
+            let value = ethers.utils.parseUnits(taskArgs.value, 18);
+            await (await mos.connect(deployer).depositNative(address, { value: value, gasLimit: 150000 })).wait();
+        } else {
+            let token = await ethers.getContractAt("MintableToken", tokenAddr);
+            let decimals = await token.decimals();
+            let value = ethers.utils.parseUnits(taskArgs.value, decimals);
+
+            console.log("approve token... ");
+            await (await token.connect(deployer).approve(mos.address, value)).wait();
+
+            console.log("deposit token... ");
+            await (await mos.connect(deployer).depositToken(tokenAddr, address, value, {gasLimit: 150000})).wait();
+        }
+
+        console.log(`deposit token ${taskArgs.token} ${taskArgs.value} to ${address} successful`);
+    });
+
 task("vault:withdraw", "withdraw token")
     .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
     .addOptionalParam("address", "The receiver address", "", types.string)

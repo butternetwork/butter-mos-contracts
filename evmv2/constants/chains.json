@@ -136,7 +136,14 @@
         "chain": "Mantle",
         "mos": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
         "chainId": "5000",
-        "wToken": "0xdEAddEaDdeadDEadDEADDEAddEADDEAddead1111",
+        "wToken": "0x78c1b0C915c4FAA5FffA6CAbf0219DA63d7f4cb8",
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "chain": "zkLink",
+        "mos": "0xB666A84a94E5459cC47874aD9774935ba0DdF614",
+        "chainId": "810180",
+        "wToken": "0x8280a4e7D5B3B658ec4580d3Bc30f5e50454F169",
+        "lightNode": "0x1ceB1E03E9a23f5ACee598c42521EF87f24d6fCB"
     }
 ]

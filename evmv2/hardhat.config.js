@@ -152,6 +152,13 @@ module.exports = {
       ethNetwork: "Eth",
       accounts: accounts,
     },
+    zkLink: {
+      url: `https://rpc.zklink.io`,
+      chainId: 810180,
+      zksync: true,
+      ethNetwork: "Eth",
+      accounts: accounts,
+    },
     B2: {
       url: `https://rpc.bsquared.network`,
       chainId : 223,

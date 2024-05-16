@@ -1,4 +1,4 @@
-const { getMos, getToken, getRole, getChain } = require("../../utils/helper");
+const { getMos, getToken, getRole, getChain, readFromFile} = require("../../utils/helper");
 const { tronTokenTransferOut } = require("../utils/tron");
 
 function stringToHex(str) {
@@ -15,48 +15,6 @@ let IDeployFactory_abi = [
     "function getAddress(bytes32 salt) external view returns (address)",
 ];
 
-task("token:deposit", "Cross-chain deposit token")
-    .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
-    .addOptionalParam("address", "The receiver address", "", types.string)
-    .addParam("value", "deposit value, unit WEI")
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
-
-        console.log("deposit address:", deployer.address);
-
-        let mos = await getMos(hre.network.config.chainId, hre.network.name);
-        if (!mos) {
-            throw "mos not deployed ...";
-        }
-        console.log("mos address:", mos.address);
-
-        //let mos = await ethers.getContractAt('IButterMosV2', taskArgs.mos);
-
-        let address = taskArgs.address;
-        if (taskArgs.address === "") {
-            address = deployer.address;
-        }
-
-        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
-
-        if (tokenAddr === "0x0000000000000000000000000000000000000000") {
-            let value = ethers.utils.parseUnits(taskArgs.value, 18);
-            await (await mos.connect(deployer).depositNative(address, { value: value, gasLimit: 150000 })).wait();
-        } else {
-            let token = await ethers.getContractAt("MintableToken", tokenAddr);
-            let decimals = await token.decimals();
-            let value = ethers.utils.parseUnits(taskArgs.value, decimals);
-
-            console.log("approve token... ");
-            await (await token.connect(deployer).approve(mos.address, value)).wait();
-
-            console.log("deposit token... ");
-            await (await mos.connect(deployer).depositToken(tokenAddr, address, value, {gasLimit: 150000})).wait();
-        }
-
-        console.log(`deposit token ${taskArgs.token} ${taskArgs.value} to ${address} successful`);
-    });
 
 task("token:transferOut", "Cross-chain transfer token")
     .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
@@ -205,9 +163,8 @@ task("token:grant", "grant role")
         console.log("deployer:", deployer.address);
 
         let Token = await ethers.getContractFactory("MappingToken");
-
         let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
-        let token = Token.attach(tokenAddr);
+        let token = await Token.attach(tokenAddr);
         let role = getRole(taskArgs.role);
 
         let addr = taskArgs.addr;
@@ -238,7 +195,7 @@ task("token:revoke", "revoke role")
         console.log("deployer:", deployer.address);
 
         let Token = await ethers.getContractFactory("MappingToken");
-        let tokenAddr = getToken(hre.network.config.chainId, taskArgs.token);
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
         let token = await Token.attach(tokenAddr);
         let role = getRole(taskArgs.role);
         let addr = taskArgs.addr;
@@ -255,6 +212,34 @@ task("token:revoke", "revoke role")
         console.log("addr:", addr);
 
         await (await token.revokeRole(role, addr)).wait();
+    });
+
+
+task("token:getMember", "get role member")
+    .addOptionalParam("token", "The token addr", "", types.string)
+    .addOptionalParam("role", "The role", "admin", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const { deployments, ethers } = hre;
+        const { deploy } = deployments;
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer:", deployer.address);
+
+        let Token = await ethers.getContractFactory("MappingToken");
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        let token = await Token.attach(tokenAddr);
+        let role = getRole(taskArgs.role);
+
+        console.log("token:", token.address);
+        console.log("role:", role);
+
+        let count = await token.getRoleMemberCount(role);
+        console.log(`role ${taskArgs.role} has ${count} member(s)`);
+
+        for (let i = 0; i < count; i++) {
+            let member = await token.getRoleMember(role, i);
+            console.log(`    ${i}: ${member}`);
+        }
     });
 
 task("token:setMintCap", "setMinterCap")
