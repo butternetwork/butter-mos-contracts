@@ -46,6 +46,7 @@ async function createZk(contractName, args, hre) {
 async function createTron(contractName, args, artifacts, network) {
     let c = await artifacts.readArtifact(contractName);
     let tronWeb = await getTronWeb(network);
+    console.log("deploy address is:", tronWeb.defaultAddress);
     let contract_instance = await tronWeb.contract().new({
         abi: c.abi,
         bytecode: c.bytecode,
@@ -56,6 +57,19 @@ async function createTron(contractName, args, artifacts, network) {
     let contract_address = tronWeb.address.fromHex(contract_instance.address);
     console.log(`${contractName} deployed on: ${contract_address} (${contract_instance.address})`);
     return "0x" + contract_instance.address.substring(2);
+}
+
+async function fromHex(hex, network) {
+    let tronWeb = await getTronWeb(network);
+    return tronWeb.address.fromHex(contract_instance.address);
+}
+
+async function getTronContract(contractName, artifacts, network, addr) {
+    let tronWeb = await getTronWeb(network);
+    console.log("operator address is:", tronWeb.defaultAddress);
+    let C = await artifacts.readArtifact(contractName);
+    let c = await tronWeb.contract(C.abi, addr);
+    return c;
 }
 
 async function getTronWeb(network) {
@@ -119,4 +133,6 @@ module.exports = {
     createZk,
     createTron,
     getTronWeb,
+    getTronContract,
+    fromHex,
 };

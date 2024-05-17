@@ -26,6 +26,22 @@ task("vault:deploy", "Deploy the vault token")
         console.log(`VaultTokenV2 ${taskArgs.symbol} address: ${vault.address}`);
     });
 
+task("vault:grantRole", "grant Role")
+    .addParam("vault", "vault address")
+    .addParam("role", "role address")
+    .addParam("account", "account address")
+    .setAction(async (taskArgs, hre) => {
+        let VaultTokenV2 = await ethers.getContractFactory("VaultTokenV2");
+        let vault = VaultTokenV2.attach(taskArgs.vault);
+        let role;
+        if (taskArgs === "manage") {
+            role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("MANAGER_ROLE"));
+        } else {
+            role = ethers.constants.HashZero;
+        }
+        await (await vault.grantRole(role, taskArgs.account)).wait();
+    });
+
 task("vault:transfer", "Add vaultToken manager")
     .addParam("vault", "The vault token address")
     .addParam("from", "the manager address, default is relay")

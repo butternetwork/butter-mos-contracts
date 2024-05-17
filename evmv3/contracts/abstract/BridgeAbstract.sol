@@ -67,9 +67,9 @@ abstract contract BridgeAbstract is
 
     IMOSV3 public mos;
     address public wToken;
-    address private _pendingAdmin;
     ISwapOutLimit public swapLimit;
     address public nativeFeeReceiver;
+    mapping(uint256 => bytes) public bridges;
     mapping(bytes32 => bool) public orderList;
     // token => chainId => native fee
     mapping(address => mapping(uint256 => uint256)) public nativeFees;
@@ -78,6 +78,7 @@ abstract contract BridgeAbstract is
     event SetWrappedToken(address wToken);
     event SetSwapLimit(ISwapOutLimit _swapLimit);
     event SetNativeFeeReceiver(address _receiver);
+    event RegisterChain(uint256 _chainId, bytes _address);
     event SetNativeFee(address _token, uint256 _toChain, uint256 _amount);
     event CollectNativeFee(address _token, uint256 _toChain, uint256 amount);
     event InterTransferAndCall(address proxy, address token, uint256 amount);
@@ -140,6 +141,11 @@ abstract contract BridgeAbstract is
         require(address(_mos).isContract(), "mos is not contract");
         mos = _mos;
         emit SetMapoService(_mos);
+    }
+
+    function registerChain(uint256 _chainId, bytes memory _address) external onlyRole(MANAGE_ROLE) {
+        bridges[_chainId] = _address;
+        emit RegisterChain(_chainId, _address);
     }
 
     function setNativeFee(address _token, uint256 _toChain, uint256 _amount) external onlyRole(MANAGE_ROLE) {
@@ -263,8 +269,8 @@ abstract contract BridgeAbstract is
     ) internal returns (address token, uint256 nativeFee, uint256 messageFee) {
         require(amount > 0, "Sending value is zero");
         token = token_;
-        messageFee = _getMessageFee(gasLimit, relayGasLimit, toChain);
-        if (isSwap) nativeFee = _ChargeNativeFee(token_, amount, toChain);
+        messageFee = getMessageFee(gasLimit, relayGasLimit, toChain);
+        if (isSwap) nativeFee = _chargeNativeFee(token_, amount, toChain);
         if (Helper._isNative(token)) {
             require((amount + messageFee + nativeFee) == msg.value, "value and fee mismatching");
             Helper._safeDeposit(wToken, amount);
@@ -316,13 +322,9 @@ abstract contract BridgeAbstract is
         if (address(swapLimit) != address(0)) swapLimit.checkLimit(amount, tochain, token);
     }
 
-    function _getMessageFee(
-        uint256 gasLimit,
-        uint256 relayGasLimit,
-        uint256 tochain
-    ) internal virtual returns (uint256) {}
+    function getMessageFee(uint256 gasLimit, uint256 relayGasLimit, uint256 tochain) public virtual returns (uint256) {}
 
-    function _ChargeNativeFee(address _token, uint256 _amount, uint256 _tochain) internal virtual returns (uint256) {
+    function _chargeNativeFee(address _token, uint256 _amount, uint256 _tochain) internal virtual returns (uint256) {
         uint256 fee = nativeFees[_token][_tochain];
         if (fee != 0 && nativeFeeReceiver != address(0)) {
             Helper._transfer(selfChainId, address(0), nativeFeeReceiver, fee);

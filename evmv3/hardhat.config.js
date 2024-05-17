@@ -170,7 +170,7 @@ module.exports = {
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     BscTest: {
-      url: "https://endpoints.omniatech.io/v1/bsc/testnet/public",
+      url: "https://bsc-testnet.blockpi.network/v1/rpc/public",
       chainId: 97,
       zksync: false,
       accounts:
@@ -183,9 +183,9 @@ module.exports = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
-    Goerli: {
-      url: "https://rpc.ankr.com/eth_goerli",
-      chainId: 5,
+    arb_Sepolia: {
+      url: "https://public.stackup.sh/api/v1/node/arbitrum-sepolia",
+      chainId: 421614,
       zksync: false,
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
