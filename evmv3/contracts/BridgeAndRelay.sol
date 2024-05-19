@@ -21,20 +21,17 @@ contract BridgeAndRelay is BridgeAbstract {
     }
 
     ITokenRegisterV2 public tokenRegister;
-    mapping(uint256 => bytes) public bridges;
     //id : 0 VToken  1:relayer
     mapping(uint256 => Rate) public distributeRate;
 
     event Relay(bytes32 orderId);
     event SetTokenRegister(address tokenRegister);
-    event RegisterChain(uint256 _chainId, bytes _address);
     event SetDistributeRate(uint256 _id, address _to, uint256 _rate);
     event CollectFee(bytes32 indexed orderId, address indexed token, uint256 value);
     event DepositIn(
         uint256 indexed fromChain,
-        uint256 indexed toChain,
         address indexed token,
-        bytes32 orderId,
+        bytes32 indexed orderId,
         bytes from,
         address to,
         uint256 amount
@@ -43,11 +40,6 @@ contract BridgeAndRelay is BridgeAbstract {
     function setTokenRegister(address _register) external onlyRole(MANAGE_ROLE) checkAddress(_register) {
         tokenRegister = ITokenRegisterV2(_register);
         emit SetTokenRegister(_register);
-    }
-
-    function registerChain(uint256 _chainId, bytes memory _address) external onlyRole(MANAGE_ROLE) {
-        bridges[_chainId] = _address;
-        emit RegisterChain(_chainId, _address);
     }
 
     function setDistributeRate(
@@ -103,9 +95,15 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes32 orderId;
         {
             (uint256 mapOutAmount, uint256 outAmount) = _collectFee(token, param.amount, selfChainId, param.toChain);
-            bytes memory toToken = tokenRegister.getToChainToken(param.token, param.toChain);
+            bytes memory toToken = tokenRegister.getToChainToken(token, param.toChain);
             require(!_checkBytes(toToken, bytes("")), "Out token not registered");
-            bytes memory payload = abi.encode(toToken, outAmount, param.to, param.from, param.swapData);
+            bytes memory payload = abi.encode(
+                toToken,
+                outAmount,
+                param.to,
+                abi.encodePacked(param.from),
+                param.swapData
+            );
             IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
                 relay: false,
                 msgType: IMOSV3.MessageType.MESSAGE,
@@ -138,7 +136,7 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes32 _orderId,
         bytes calldata _message
     ) external override returns (bytes memory newMessage) {
-        require(_checkBytes(_fromAddress, bridges[_fromChain]), "not relay");
+        require(_checkBytes(_fromAddress, bridges[_fromChain]), "invalid from");
         OutType oupType;
         bytes memory payload;
         (oupType, payload) = abi.decode(_message, (OutType, bytes));
@@ -170,7 +168,7 @@ contract BridgeAndRelay is BridgeAbstract {
         address vaultToken = tokenRegister.getVaultToken(_token);
         require(vaultToken != address(0), "vault token not registered");
         IVaultTokenV2(vaultToken).deposit(_fromChain, _amount, _to);
-        emit DepositIn(_fromChain, selfChainId, _token, _orderId, _from, _to, _amount);
+        emit DepositIn(_fromChain, _token, _orderId, _from, _to, _amount);
     }
 
     function _withdraw(address _token, address payable _receiver, uint256 _amount) internal {
@@ -240,15 +238,15 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes memory token;
         uint256 amount;
         bytes memory from;
-        bytes memory to;
-        (token, amount, from, to) = abi.decode(payload, (bytes, uint256, bytes, bytes));
+        address to;
+        (token, amount, from, to) = abi.decode(payload, (bytes, uint256, bytes, address));
         address relayToken = tokenRegister.getRelayChainToken(fromChain, token);
         require(relayToken != address(0), "map token not registered");
         uint256 mapAmount = tokenRegister.getRelayChainAmount(relayToken, fromChain, amount);
         if (tokenRegister.checkMintable(relayToken)) {
             IMintableToken(relayToken).mint(address(this), mapAmount);
         }
-        _deposit(relayToken, from, _fromBytes(to), mapAmount, orderId, fromChain);
+        _deposit(relayToken, from, to, mapAmount, orderId, fromChain);
     }
 
     function _collectFee(
@@ -288,7 +286,7 @@ contract BridgeAndRelay is BridgeAbstract {
         return (mapOutAmount, outAmount);
     }
 
-    function _getMessageFee(uint256 gasLimit, uint256, uint256 tochain) internal view override returns (uint256 fee) {
+    function getMessageFee(uint256 gasLimit, uint256, uint256 tochain) public view override returns (uint256 fee) {
         (fee, ) = mos.getMessageFee(tochain, Helper.ZERO_ADDRESS, gasLimit);
     }
 }

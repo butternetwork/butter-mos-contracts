@@ -9,7 +9,7 @@ import "./interface/IMintableToken.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-contract BridgeAndRelay is BridgeAbstract {
+contract Bridge is BridgeAbstract {
     using AddressUpgradeable for address;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -20,14 +20,13 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 amount;
         uint256 gasLimit;
     }
-    address public relayContract;
     uint256 public relayChainId;
     mapping(address => bool) public mintableTokens;
     mapping(uint256 => mapping(address => bool)) public tokenMappingList;
 
     event AddMintableToken(address[] _token);
     event RemoveMintableToken(address[] _token);
-    event SetRelayContract(uint256 _chainId, address _relay);
+    event SetRelay(uint256 _chainId, address _relay);
     event RegisterToken(address _token, uint256 _toChain, bool _enable);
     event Deposit(
         bytes32 orderId,
@@ -53,10 +52,10 @@ contract BridgeAndRelay is BridgeAbstract {
         emit RemoveMintableToken(_tokens);
     }
 
-    function setRelayContract(uint256 _chainId, address _relay) external onlyRole(MANAGE_ROLE) checkAddress(_relay) {
-        relayContract = _relay;
+    function setRelay(uint256 _chainId, address _relay) external onlyRole(MANAGE_ROLE) checkAddress(_relay) {
         relayChainId = _chainId;
-        emit SetRelayContract(_chainId, _relay);
+        bridges[_chainId] = abi.encodePacked(_relay);
+        emit SetRelay(_chainId, _relay);
     }
 
     function registerTokenChains(
@@ -90,7 +89,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 param.gasLimit,
                 abi.encodePacked(param.token),
                 param.amount,
-                param.from,
+                abi.encodePacked(param.from),
                 param.to,
                 param.swapData
             );
@@ -98,7 +97,7 @@ contract BridgeAndRelay is BridgeAbstract {
             IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
                 relay: param.toChain != relayChainId,
                 msgType: IMOSV3.MessageType.MESSAGE,
-                target: abi.encodePacked(relayContract),
+                target: bridges[relayChainId],
                 payload: payload,
                 gasLimit: param.relayGasLimit,
                 value: 0
@@ -129,12 +128,17 @@ contract BridgeAndRelay is BridgeAbstract {
             false
         );
         checkBridgeable(token, relayChainId);
-        bytes memory payload = abi.encode(abi.encodePacked(param.token), param.amount, param.from, param.to);
+        bytes memory payload = abi.encode(
+            abi.encodePacked(param.token),
+            param.amount,
+            abi.encodePacked(param.from),
+            param.to
+        );
         payload = abi.encode(OutType.DEPOSIT, payload);
         IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
             relay: false,
             msgType: IMOSV3.MessageType.MESSAGE,
-            target: abi.encodePacked(relayContract),
+            target: bridges[relayChainId],
             payload: payload,
             gasLimit: param.gasLimit,
             value: 0
@@ -154,9 +158,8 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes32 _orderId,
         bytes calldata _message
     ) external override nonReentrant checkOrder(_orderId) returns (bytes memory newMessage) {
-        require(_fromChain == relayChainId && _toChain == selfChainId, "invalid chain id");
-        address relay = _fromBytes(_fromAddress);
-        require(relay == relayContract, "not relay");
+        require(_toChain == selfChainId, "invalid to chain");
+        require(_checkBytes(_fromAddress, bridges[_fromChain]), "invalid from");
         SwapInParam memory param;
         param.fromChain = _fromChain;
         param.orderId = _orderId;
@@ -176,11 +179,11 @@ contract BridgeAndRelay is BridgeAbstract {
         return bytes("");
     }
 
-    function _getMessageFee(
+    function getMessageFee(
         uint256 gasLimit,
         uint256 relayGasLimit,
         uint256 tochain
-    ) internal view override returns (uint256 fee) {
+    ) public view override returns (uint256 fee) {
         (fee, ) = mos.getMessageFee(tochain, Helper.ZERO_ADDRESS, gasLimit);
         if (tochain != relayChainId) {
             (uint256 relayFee, ) = mos.getMessageFee(relayChainId, Helper.ZERO_ADDRESS, relayGasLimit);
