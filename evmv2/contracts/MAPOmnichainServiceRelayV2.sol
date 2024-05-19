@@ -166,7 +166,6 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     ) external override whenNotPaused returns (bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         require(
-            (_token != 0xb877E3562a660C7861117c2f1361A26ABaF19bEB) &&
                 (_token != 0x1D22c0aB633F393C84A98cf4F2fAD10bA47BB7B3) &&
                 (_token != 0x7eB8B1fE3EE3287FD5864e50f32322ce3285b39D) &&
                 (_token != 0x61899CE1396FF351e5fdb9c8AD36FeE9411c73c2),

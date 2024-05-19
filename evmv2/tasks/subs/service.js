@@ -72,6 +72,7 @@ task("mos:verify", "mos service verify")
 
 task("mos:upgrade", "upgrade mos evm contract in proxy")
     .addOptionalParam("impl", "The mos impl address", "0x0000000000000000000000000000000000000000", types.string)
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             await tronMosUpgrade(hre.artifacts, hre.network.name, taskArgs.impl);
@@ -80,7 +81,7 @@ task("mos:upgrade", "upgrade mos evm contract in proxy")
             const accounts = await ethers.getSigners();
             const deployer = accounts[0];
             console.log("deployer address:", deployer.address);
-            await mosUpgrade(deploy, hre.network.config.chainId, deployer.address, hre.network.name, taskArgs.impl);
+            await mosUpgrade(deploy, hre.network.config.chainId, deployer.address, hre.network.name, taskArgs.impl, taskArgs.auth);
         }
     });
 

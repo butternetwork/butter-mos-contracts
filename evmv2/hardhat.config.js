@@ -60,7 +60,7 @@ module.exports = {
       accounts: accounts,
     },
     Bsc: {
-      url: `https://rpc.ankr.com/bsc`,
+      url: `https://bsc.drpc.org`,
       chainId: 56,
       accounts: accounts,
     },

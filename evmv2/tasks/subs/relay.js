@@ -11,6 +11,7 @@ let {
 } = require("../../utils/helper.js");
 let { mosDeploy, mosUpgrade, stringToHex } = require("../utils/util.js");
 const { getTronAddress, tronTokenTransferOut } = require("../utils/tron");
+let {execute} = require("../../utils/authority.js")
 const BigNumber = require("bignumber.js");
 
 task("relay:deploy", "mos relay deploy")
@@ -257,6 +258,7 @@ task("relay:setDistributeRate", "Set the fee to enter the vault address")
     .addOptionalParam("type", "0 - vault, 1 - relayer, 2 - protocol, default 0", 0, types.int)
     .addOptionalParam("address", "receiver address", "0x0000000000000000000000000000000000000DEF", types.string)
     .addParam("rate", "The percentage value of the fee charged, unit 0.000001")
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
@@ -264,14 +266,16 @@ task("relay:setDistributeRate", "Set the fee to enter the vault address")
         console.log("deployer address:", deployer.address);
 
         let mos = await getMos(chainId, hre.network.name);
-
         if (mos === undefined) {
             throw "mos not deployed ..";
         }
-
         console.log("mos address:", mos.address);
 
-        await (await mos.connect(deployer).setDistributeRate(taskArgs.type, taskArgs.address, taskArgs.rate)).wait();
+        if (taskArgs.auth) {
+            await execute(mos, "setDistributeRate", [taskArgs.type, taskArgs.address, taskArgs.rate], deployer);
+        } else {
+            await mos.connect(deployer).setDistributeRate(taskArgs.type, taskArgs.address, taskArgs.rate);
+        }
 
         console.log(`mos set distribute ${taskArgs.type} rate ${taskArgs.rate} to ${taskArgs.address} success`);
     });
@@ -362,7 +366,6 @@ task("relay:updateToken", "update token fee to target chain")
 
 task("relay:list", "List relay infos")
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
-    .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
@@ -413,34 +416,6 @@ task("relay:list", "List relay infos")
                 chains.push(chainList[i].chainId);
             }
         }
-
-        address = taskArgs.token;
-        if (address == "wtoken") {
-            address = wtoken;
-        }
-
-        address = await getToken(hre.network.config.chainId, address);
-
-        console.log("\ntoken address:", address);
-        let token = await manager.tokenList(address);
-        console.log(`token mintalbe:\t ${token.mintable}`);
-        console.log(`token decimals:\t ${token.decimals}`);
-        console.log(`vault address: ${token.vaultToken}`);
-
-        let vault = await ethers.getContractAt("VaultTokenV2", token.vaultToken);
-        let totalVault = await vault.totalVault();
-        console.log(`total vault:\t ${totalVault}`);
-        let totalSupply = await vault.totalSupply();
-        console.log(`total vault token: ${totalSupply}`);
-
-        console.log(`chains:`);
-        for (let i = 0; i < chains.length; i++) {
-            let info = await manager.getToChainTokenInfo(address, chains[i]);
-            console.log(`${chains[i]}\t => ${info[0]} (${info[1]}), `);
-
-            let balance = await vault.vaultBalance(chains[i]);
-            console.log(`\t vault(${balance}), fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]})`);
-        }
     });
 
 task("relay:getTransferOut", "Cross-chain transfer token")
@@ -487,21 +462,59 @@ task("relay:getTransferOut", "Cross-chain transfer token")
         console.log("transfer fee:", ethers.utils.formatUnits(amount, decimals));
     });
 
-task("relay:getSig", "update token fee to target chain")
+
+task("relay:tokenInfo", "List token infos")
+    .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
+    .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
     .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
-        console.log("deployer address:", deployer.address);
 
-        let chainId = hre.network.config.chainId;
+        let mos;
+        if (taskArgs.mos === "mos") {
+            mos = await getMos(hre.network.config.chainId, hre.network.name);
+            if (!mos) {
+                throw "mos not deployed ...";
+            }
+        } else {
+            mos = await ethers.getContractAt("MAPOmnichainServiceRelayV2", taskArgs.mos);
+        }
+        console.log("mos address:\t", mos.address);
 
-        let mos = await getMos(hre.network.config.chainId, hre.network.name);
+        let tokenmanager = await mos.tokenRegister();
+        let manager = await ethers.getContractAt("TokenRegisterV2", tokenmanager);
+        console.log("Token manager:\t", manager.address);
 
-        console.log("upgradeTo:", mos.interface.getSighash("upgradeTo"));
-        console.log("changeAdmin:", mos.interface.getSighash("changeAdmin"));
-        console.log("setLightClientManager:", mos.interface.getSighash("setLightClientManager"));
-        console.log("setTokenRegister:", mos.interface.getSighash("setTokenRegister"));
-        console.log("registerChain:", mos.interface.getSighash("registerChain"));
-        console.log("upgradeTo:", mos.interface.getSighash("upgradeTo"));
+        address = taskArgs.token;
+        if (address == "wtoken") {
+            address = await mos.wToken();
+        }
+        address = await getToken(hre.network.config.chainId, address);
 
+        console.log("\ntoken address:", address);
+        let token = await manager.tokenList(address);
+        console.log(`token mintalbe:\t ${token.mintable}`);
+        console.log(`token decimals:\t ${token.decimals}`);
+        console.log(`vault address: ${token.vaultToken}`);
+
+        let vault = await ethers.getContractAt("VaultTokenV2", token.vaultToken);
+        let totalVault = await vault.totalVault();
+        console.log(`total token:\t ${totalVault}`);
+        let totalSupply = await vault.totalSupply();
+        console.log(`total vault supply: ${totalSupply}`);
+
+        let chainList = await getChainList();
+        let chains = [hre.network.config.chainId];
+        for (let i = 0; i < chainList.length; i++) {
+            let contract = await mos.mosContracts(chainList[i].chainId);
+            if (contract != "0x") {
+                chains.push(chainList[i].chainId);
+            }
+        }
+        console.log(`chains:`);
+        for (let i = 0; i < chains.length; i++) {
+            let info = await manager.getToChainTokenInfo(address, chains[i]);
+            console.log(`${chains[i]}\t => ${info[0]} (${info[1]}), `);
+
+            let balance = await vault.vaultBalance(chains[i]);
+            console.log(`\t vault(${balance}), fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]})`);
+        }
     });

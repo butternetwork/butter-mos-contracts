@@ -1,4 +1,4 @@
-const { ethers } = require("hardhat");
+//const { ethers } = require("hardhat");
 
 let Authority_addr = "0xAaaAa8a316ab372Af9BC4cDD2ae040b03f9D4d88";
 let Authority_abi = [
@@ -38,8 +38,8 @@ async function addControl(contract, functionName, role, wallet, authority_addr =
 async function execute(contract, functionName, args, wallet, value = 0, authority_addr = Authority_addr) {
     let authority = await ethers.getContractAt(Authority_abi, authority_addr);
     let target = contract.address;
-    let playload = contract.interface.encodeFunctionData(functionName, args);
-    let data = authority.interface.encodeFunctionData("execute", [target, value, playload]);
+    let payload = contract.interface.encodeFunctionData(functionName, args);
+    let data = authority.interface.encodeFunctionData("execute", [target, value, payload]);
     console.log("execute data: ", data);
     let result = false;
     if (wallet) {
