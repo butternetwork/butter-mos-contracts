@@ -119,6 +119,7 @@ abstract contract BridgeAbstract is
         __ReentrancyGuard_init();
         __AccessControlEnumerable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
+        _grantRole(MANAGE_ROLE, _defaultAdmin);
     }
 
     modifier checkAddress(address _address) {
