@@ -61,7 +61,12 @@ async function createTron(contractName, args, artifacts, network) {
 
 async function fromHex(hex, network) {
     let tronWeb = await getTronWeb(network);
-    return tronWeb.address.fromHex(contract_instance.address);
+    return tronWeb.address.fromHex(hex);
+}
+
+async function toHex(addr, network) {
+    let tronWeb = await getTronWeb(network);
+    return  tronWeb.address.toHex(addr).replace(/^(41)/, "0x");
 }
 
 async function getTronContract(contractName, artifacts, network, addr) {
@@ -70,6 +75,15 @@ async function getTronContract(contractName, artifacts, network, addr) {
     let C = await artifacts.readArtifact(contractName);
     let c = await tronWeb.contract(C.abi, addr);
     return c;
+}
+
+async function getTronDeployer(hex,network){
+    let tronWeb = await getTronWeb(network);
+    if(hex){
+       return  tronWeb.defaultAddress.hex.replace(/^(41)/, "0x");
+    } else {
+       return tronWeb.defaultAddress
+    }
 }
 
 async function getTronWeb(network) {
@@ -135,4 +149,6 @@ module.exports = {
     getTronWeb,
     getTronContract,
     fromHex,
+    getTronDeployer,
+    toHex
 };

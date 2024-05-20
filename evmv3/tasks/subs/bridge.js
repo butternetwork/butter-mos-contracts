@@ -6,6 +6,8 @@ let {
     writeToFile,
     getTronContract,
     fromHex,
+    getTronDeployer,
+    toHex
 } = require("../../utils/create.js");
 
 let { verify } = require("../utils/verify.js");
@@ -19,16 +21,19 @@ task("bridge:deploy", "bridge deploy")
         const deployer = accounts[0];
         let bridge_addr;
         let Bridge = await ethers.getContractFactory("Bridge");
-        let data = await BridgeAndRelay.interface.encodeFunctionData("initialize", [taskArgs.wrapped, deploy.address]);
+        
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-            let impl = await createTron("Bridge", [], hre.artifacts, hre.network.name);
-            bridge_addr = await createTron("ButterProxy", [impl, data], hre.artifacts, hre.network.name);
-            bridge_addr = await fromHex(bridge_addr);
-            let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, bridge_addr);
-            await bridge.setMapoService(taskArgs.mos).send();
+            let networkName = hre.network.name;
+            let impl = await createTron("Bridge", [], hre.artifacts, networkName);
+            let data = await Bridge.interface.encodeFunctionData("initialize", [await toHex(taskArgs.wrapped,networkName), await getTronDeployer(true,networkName)]);
+            bridge_addr = await createTron("ButterProxy", [impl, data], hre.artifacts, networkName);
+            bridge_addr = await fromHex(bridge_addr,networkName);
+            let bridge = await getTronContract("Bridge", hre.artifacts, networkName, bridge_addr);
+            await bridge.setMapoService(await toHex(taskArgs.mos,networkName)).send();
             console.log("wToken", await bridge.wToken().call());
             console.log("mos", await bridge.mos().call());
         } else if (hre.network.name === "zkSync") {
+            let data = await Bridge.interface.encodeFunctionData("initialize", [taskArgs.wrapped, deployer.address]);
             console.log("deployer address is:", deployer.address);
             let impl = await createZk("Bridge", [], hre);
             bridge_addr = await createZk("ButterProxy", [impl, data], hre);
@@ -37,6 +42,7 @@ task("bridge:deploy", "bridge deploy")
             console.log("wToken", await bridge.wToken());
             console.log("mos", await bridge.mos());
         } else {
+            let data = await Bridge.interface.encodeFunctionData("initialize", [taskArgs.wrapped, deployer.address]);
             console.log("deployer address is:", deployer.address);
             await deploy("Bridge", {
                 from: deployer.address,
@@ -44,17 +50,17 @@ task("bridge:deploy", "bridge deploy")
                 log: true,
                 contract: "Bridge",
             });
-            let impl = (await ethers.getContract("Bridge")).address;
+            let impl = (await hre.deployments.get("Bridge")).address;
             let Proxy = await ethers.getContractFactory("ButterProxy");
             let proxy_salt = process.env.BRIDGE_PROXY_SALT;
-            let param = ethers.utils.defaultAbiCoder.encode(["address", "bytes"], [implAddr, data]);
+            let param = ethers.utils.defaultAbiCoder.encode(["address", "bytes"], [impl, data]);
             let createResult = await create(proxy_salt, Proxy.bytecode, param);
             if (!createResult[1]) {
                 return;
             }
             bridge_addr = createResult[0];
             let bridge = Bridge.attach(bridge_addr);
-            await bridge.setMapoService(taskArgs.mos);
+            await(await bridge.setMapoService(taskArgs.mos)).wait();
             console.log("wToken", await bridge.wToken());
             console.log("mos", await bridge.mos());
             await verify(
@@ -84,9 +90,9 @@ task("bridge:upgrade", "upgrade bridge evm contract in proxy").setAction(async (
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
         let impl = await createTron("Bridge", [], hre.artifacts, hre.network.name);
         let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
-        console.log("pre impl", await Bridge.getImplementation().call());
+        console.log("pre impl", await bridge.getImplementation().call());
         await bridge.upgradeTo(impl).send();
-        console.log("new impl", await Bridge.getImplementation().call());
+        console.log("new impl", await bridge.getImplementation().call());
     } else if (hre.network.name === "zkSync") {
         console.log("deployer address:", deployer.address);
         let impl = await createZk("Bridge", [], hre);
@@ -102,7 +108,7 @@ task("bridge:upgrade", "upgrade bridge evm contract in proxy").setAction(async (
             log: true,
             contract: "Bridge",
         });
-        let impl = (await ethers.getContract("Bridge")).address;
+        let impl = (await hre.deployments.get("Bridge")).address;
         let bridge = Bridge.attach(addr);
         console.log("pre impl", await bridge.getImplementation());
         await (await bridge.upgradeTo(impl)).wait();
@@ -147,7 +153,7 @@ task("bridge:setRelay", "set relay")
         }
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
-            await bridge.setRelay(taskArgs.chain, taskArgs.address).send();
+            await bridge.setRelay(taskArgs.chain,taskArgs.address).send();
         } else {
             console.log("operator address is:", deployer.address);
             let bridge = Bridge.attach(addr);
@@ -231,7 +237,7 @@ task("bridge:grantRole", "grant role")
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
         let role;
-        if (taskArgs === "upgrade") {
+        if (taskArgs.role === "upgrade") {
             role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("UPGRADE_ROLE"));
         } else if (taskArgs.role === "manage") {
             role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("MANAGE_ROLE"));
@@ -246,7 +252,7 @@ task("bridge:grantRole", "grant role")
         }
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
-            await bridge.grantRole(role, taskArgs.account).send();
+            await bridge.grantRole(role, await toHex(taskArgs.account,hre.network.name)).send();
         } else {
             console.log("operator address is:", deployer.address);
             let bridge = Bridge.attach(addr);

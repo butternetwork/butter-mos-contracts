@@ -14,10 +14,10 @@ task("relay:deploy", "mos relay deploy")
             log: true,
             contract: "BridgeAndRelay",
         });
-        let impl = await ethers.getContract("BridgeAndRelay");
+        let impl = await hre.deployments.get("BridgeAndRelay");
         let implAddr = impl.address;
         let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
-        let data = await BridgeAndRelay.interface.encodeFunctionData("initialize", [taskArgs.wrapped, deploy.address]);
+        let data = await BridgeAndRelay.interface.encodeFunctionData("initialize", [taskArgs.wrapped, deployer.address]);
         let Proxy = await ethers.getContractFactory("ButterProxy");
         let proxy_salt = process.env.BRIDGE_PROXY_SALT;
         let param = ethers.utils.defaultAbiCoder.encode(["address", "bytes"], [implAddr, data]);
@@ -27,7 +27,7 @@ task("relay:deploy", "mos relay deploy")
         }
         let bridge = createResult[0];
         let relay = BridgeAndRelay.attach(bridge);
-        await (await relay.setMapoService(taskArgs.maos)).wait();
+        await (await relay.setMapoService(taskArgs.mos)).wait();
         console.log("wToken", await relay.wToken());
         console.log("mos", await relay.mos());
         let deployment = await readFromFile(hre.network.name);
@@ -46,7 +46,7 @@ task("relay:upgrade", "upgrade bridge evm contract in proxy").setAction(async (t
         log: true,
         contract: "BridgeAndRelay",
     });
-    let impl = await ethers.getContract("BridgeAndRelay");
+    let impl = await hre.deployments.get("BridgeAndRelay");
     let implAddr = impl.address;
     let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
     let deployment = await readFromFile(hre.network.name);
@@ -107,7 +107,7 @@ task("relay:grantRole", "grant Role")
         let deployment = await readFromFile(hre.network.name);
         let relay = BridgeAndRelay.attach(deployment[hre.network.name]["bridgeProxy"]);
         let role;
-        if (taskArgs === "upgrade") {
+        if (taskArgs.role === "upgrade") {
             role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("UPGRADE_ROLE"));
         } else if (taskArgs.role === "manage") {
             role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("MANAGE_ROLE"));

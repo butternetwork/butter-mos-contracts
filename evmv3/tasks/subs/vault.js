@@ -34,7 +34,7 @@ task("vault:grantRole", "grant Role")
         let VaultTokenV2 = await ethers.getContractFactory("VaultTokenV2");
         let vault = VaultTokenV2.attach(taskArgs.vault);
         let role;
-        if (taskArgs === "manage") {
+        if (taskArgs.role === "manage") {
             role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("MANAGER_ROLE"));
         } else {
             role = ethers.constants.HashZero;

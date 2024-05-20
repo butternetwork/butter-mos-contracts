@@ -14,10 +14,10 @@ task("register:deploy", "mos relay deploy")
             log: true,
             contract: "TokenRegisterV2",
         });
-        let impl = await ethers.getContract("TokenRegisterV2");
+        let impl = await hre.deployments.get("TokenRegisterV2");
         let implAddr = impl.address;
         let TokenRegisterV2 = await ethers.getContractFactory("TokenRegisterV2");
-        let data = await TokenRegisterV2.interface.encodeFunctionData("initialize", [deploy.address]);
+        let data = await TokenRegisterV2.interface.encodeFunctionData("initialize", [deployer.address]);
         let Proxy = await ethers.getContractFactory("ButterProxy");
         let proxy_salt = process.env.REGISTER_PROXY_SALT;
         let param = ethers.utils.defaultAbiCoder.encode(["address", "bytes"], [implAddr, data]);
@@ -42,7 +42,7 @@ task("register:upgrade", "upgrade bridge evm contract in proxy").setAction(async
         log: true,
         contract: "TokenRegisterV2",
     });
-    let impl = await ethers.getContract("TokenRegisterV2");
+    let impl = await  hre.deployments.get("TokenRegisterV2");
     let implAddr = impl.address;
     let TokenRegisterV2 = await ethers.getContractFactory("TokenRegisterV2");
     let deployment = await readFromFile(hre.network.name);
@@ -143,7 +143,7 @@ task("register:grantRole", "set token outFee")
         let deployment = await readFromFile(hre.network.name);
         let register = TokenRegisterV2.attach(deployment[hre.network.name]["registerProxy"]);
         let role;
-        if (taskArgs === "upgrade") {
+        if (taskArgs.role === "upgrade") {
             role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("UPGRADE_ROLE"));
         } else if (taskArgs.role === "manage") {
             role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("MANAGE_ROLE"));
