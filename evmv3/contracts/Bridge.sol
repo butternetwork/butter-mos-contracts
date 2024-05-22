@@ -20,11 +20,13 @@ contract Bridge is BridgeAbstract {
         uint256 amount;
         uint256 gasLimit;
     }
+    uint256 public nearChainId;
     uint256 public relayChainId;
     mapping(address => bool) public mintableTokens;
     mapping(uint256 => mapping(address => bool)) public tokenMappingList;
 
     event AddMintableToken(address[] _token);
+    event SetNearChainId(uint256 _nearChainId);
     event RemoveMintableToken(address[] _token);
     event SetRelay(uint256 _chainId, address _relay);
     event RegisterToken(address _token, uint256 _toChain, bool _enable);
@@ -37,6 +39,11 @@ contract Bridge is BridgeAbstract {
         uint256 gasLimit,
         uint256 messageFee
     );
+
+    function setNearChainId(uint256 _nearChainId) external onlyRole(MANAGE_ROLE) {
+        nearChainId = _nearChainId;
+        emit SetNearChainId(_nearChainId);
+    }
 
     function addMintableToken(address[] memory _tokens) external onlyRole(MANAGE_ROLE) {
         for (uint256 i = 0; i < _tokens.length; i++) {
@@ -95,7 +102,7 @@ contract Bridge is BridgeAbstract {
             );
             payload = abi.encode(OutType.SWAP, payload);
             IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
-                relay: param.toChain != relayChainId,
+                relay: (param.toChain != relayChainId && param.toChain != nearChainId),
                 msgType: IMOSV3.MessageType.MESSAGE,
                 target: bridges[relayChainId],
                 payload: payload,
@@ -108,11 +115,11 @@ contract Bridge is BridgeAbstract {
             orderId,
             param.toChain,
             param.token,
+            abi.encodePacked(param.token),
             param.amount,
             param.from,
             param.to,
             param.gasLimit,
-            param.relayGasLimit,
             messageFee,
             param.swapData
         );
@@ -158,6 +165,7 @@ contract Bridge is BridgeAbstract {
         bytes32 _orderId,
         bytes calldata _message
     ) external override nonReentrant checkOrder(_orderId) returns (bytes memory newMessage) {
+        require(msg.sender == address(mos), "only mos");
         require(_toChain == selfChainId, "invalid to chain");
         require(_checkBytes(_fromAddress, bridges[_fromChain]), "invalid from");
         SwapInParam memory param;
@@ -172,9 +180,7 @@ contract Bridge is BridgeAbstract {
         );
         param.token = _fromBytes(token);
         param.to = _fromBytes(to);
-        if (isMintable(param.token)) {
-            IMintableToken(param.token).mint(address(this), amount);
-        }
+        _checkAndMint(param.token, amount);
         _swapIn(param);
         return bytes("");
     }

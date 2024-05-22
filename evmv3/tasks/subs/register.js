@@ -42,7 +42,7 @@ task("register:upgrade", "upgrade bridge evm contract in proxy").setAction(async
         log: true,
         contract: "TokenRegisterV2",
     });
-    let impl = await  hre.deployments.get("TokenRegisterV2");
+    let impl = await hre.deployments.get("TokenRegisterV2");
     let implAddr = impl.address;
     let TokenRegisterV2 = await ethers.getContractFactory("TokenRegisterV2");
     let deployment = await readFromFile(hre.network.name);
