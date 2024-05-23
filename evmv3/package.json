@@ -55,6 +55,7 @@
     "typescript": "^4.9.5"
   },
   "dependencies": {
+    "@mapprotocol/protocol": "^0.6.1",
     "@butternetwork/bridge": "^1.2.0",
     "@openzeppelin/contracts": "^4.9.3"
   },

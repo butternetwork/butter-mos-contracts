@@ -71,6 +71,7 @@ abstract contract BridgeAbstract is
     address public nativeFeeReceiver;
     mapping(uint256 => bytes) public bridges;
     mapping(bytes32 => bool) public orderList;
+    mapping(address => bool) public morc20Proxy;
     // token => chainId => native fee
     mapping(address => mapping(uint256 => uint256)) public nativeFees;
 
@@ -78,6 +79,7 @@ abstract contract BridgeAbstract is
     event SetWrappedToken(address wToken);
     event SetSwapLimit(ISwapOutLimit _swapLimit);
     event SetNativeFeeReceiver(address _receiver);
+    event UpdateMorc20Proxy(address _proxy, bool _flag);
     event RegisterChain(uint256 _chainId, bytes _address);
     event SetNativeFee(address _token, uint256 _toChain, uint256 _amount);
     event CollectNativeFee(address _token, uint256 _toChain, uint256 amount);
@@ -87,12 +89,12 @@ abstract contract BridgeAbstract is
     event SwapOut(
         bytes32 orderId,
         uint256 tochain,
-        address token,
+        address inToken,
+        bytes outToken,
         uint256 amount,
         address from,
         bytes to,
         uint256 gasLimit,
-        uint256 relayGasLimit,
         uint256 messageFee,
         bytes swapData
     );
@@ -133,13 +135,13 @@ abstract contract BridgeAbstract is
     }
 
     function setSwapLimit(ISwapOutLimit _swapLimit) external onlyRole(MANAGE_ROLE) {
-        require(address(_swapLimit).isContract(), "mos is not contract");
+        require(address(_swapLimit).isContract(), "not contract");
         swapLimit = _swapLimit;
         emit SetSwapLimit(_swapLimit);
     }
 
     function setMapoService(IMOSV3 _mos) external onlyRole(MANAGE_ROLE) {
-        require(address(_mos).isContract(), "mos is not contract");
+        require(address(_mos).isContract(), "not contract");
         mos = _mos;
         emit SetMapoService(_mos);
     }
@@ -147,6 +149,12 @@ abstract contract BridgeAbstract is
     function registerChain(uint256 _chainId, bytes memory _address) external onlyRole(MANAGE_ROLE) {
         bridges[_chainId] = _address;
         emit RegisterChain(_chainId, _address);
+    }
+
+    function updateMorc20Proxy(address _proxy, bool _flag) external onlyRole(MANAGE_ROLE) {
+        require(_proxy.isContract(), "not contract");
+        morc20Proxy[_proxy] = _flag;
+        emit UpdateMorc20Proxy(_proxy, _flag);
     }
 
     function setNativeFee(address _token, uint256 _toChain, uint256 _amount) external onlyRole(MANAGE_ROLE) {
@@ -245,6 +253,7 @@ abstract contract BridgeAbstract is
     ) external override returns (bool) {
         address proxy = msg.sender;
         address token = IMORC20(proxy).token();
+        if (proxy != token) require(morc20Proxy[proxy], "not allow");
         require(Helper._getBalance(token, address(this)) >= _amount, "receive too low");
         SwapInParam memory param;
         param.from = from;
@@ -268,7 +277,7 @@ abstract contract BridgeAbstract is
         uint256 relayGasLimit,
         bool isSwap
     ) internal returns (address token, uint256 nativeFee, uint256 messageFee) {
-        require(amount > 0, "Sending value is zero");
+        require(amount > 0, "value is zero");
         token = token_;
         messageFee = getMessageFee(gasLimit, relayGasLimit, toChain);
         if (isSwap) nativeFee = _chargeNativeFee(token_, amount, toChain);
@@ -279,9 +288,7 @@ abstract contract BridgeAbstract is
         } else {
             IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), amount);
             require((messageFee + nativeFee) == msg.value, "fee mismatching");
-            if (isMintable(token)) {
-                IMintableToken(token).burn(amount);
-            }
+            _checkAndBurn(token, amount);
         }
     }
 
@@ -305,14 +312,30 @@ abstract contract BridgeAbstract is
             }
         } else {
             // transfer token if swap did not happen
-            if (param.token == wToken) {
-                Helper._safeWithdraw(wToken, param.amount);
-                AddressUpgradeable.sendValue(payable(param.to), param.amount);
-            } else {
-                Helper._transfer(selfChainId, param.token, param.to, param.amount);
-            }
+            _withdraw(param.token, param.to, param.amount);
         }
         emit SwapIn(param.token, param.amount, param.to, param.fromChain, param.from);
+    }
+
+    function _withdraw(address _token, address _receiver, uint256 _amount) internal {
+        if (_token == wToken) {
+            Helper._safeWithdraw(wToken, _amount);
+            AddressUpgradeable.sendValue(payable(_receiver), _amount);
+        } else {
+            Helper._transfer(selfChainId, _token, _receiver, _amount);
+        }
+    }
+
+    function _checkAndBurn(address _token, uint256 _amount) internal {
+        if (isMintable(_token)) {
+            IMintableToken(_token).burn(_amount);
+        }
+    }
+
+    function _checkAndMint(address _token, uint256 _amount) internal {
+        if (isMintable(_token)) {
+            IMintableToken(_token).mint(address(this), _amount);
+        }
     }
 
     function _checkBytes(bytes memory b1, bytes memory b2) internal pure returns (bool) {

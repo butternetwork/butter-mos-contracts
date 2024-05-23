@@ -17,7 +17,10 @@ task("relay:deploy", "mos relay deploy")
         let impl = await hre.deployments.get("BridgeAndRelay");
         let implAddr = impl.address;
         let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
-        let data = await BridgeAndRelay.interface.encodeFunctionData("initialize", [taskArgs.wrapped, deployer.address]);
+        let data = await BridgeAndRelay.interface.encodeFunctionData("initialize", [
+            taskArgs.wrapped,
+            deployer.address,
+        ]);
         let Proxy = await ethers.getContractFactory("ButterProxy");
         let proxy_salt = process.env.BRIDGE_PROXY_SALT;
         let param = ethers.utils.defaultAbiCoder.encode(["address", "bytes"], [implAddr, data]);

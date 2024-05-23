@@ -11,6 +11,15 @@ import "./interface/ITokenRegisterV2.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
+interface INearMosAdapter {
+    function relayTransferOut(
+        uint256 _toChain,
+        bytes memory messageData,
+        bytes32 orderId,
+        uint256 fromChain
+    ) external payable;
+}
+
 contract BridgeAndRelay is BridgeAbstract {
     using AddressUpgradeable for address;
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -24,8 +33,12 @@ contract BridgeAndRelay is BridgeAbstract {
     //id : 0 VToken  1:relayer
     mapping(uint256 => Rate) public distributeRate;
 
+    uint256 public nearChainId;
+    address public nearMosAdptor;
+
     event Relay(bytes32 orderId);
     event SetTokenRegister(address tokenRegister);
+    event SetNear(uint256 _nearChainId, address _nearMosAdptor);
     event SetDistributeRate(uint256 _id, address _to, uint256 _rate);
     event CollectFee(bytes32 indexed orderId, address indexed token, uint256 value);
     event DepositIn(
@@ -36,6 +49,12 @@ contract BridgeAndRelay is BridgeAbstract {
         address to,
         uint256 amount
     );
+
+    function setNear(uint256 _nearChainId, address _nearMosAdptor) external onlyRole(MANAGE_ROLE) {
+        nearChainId = _nearChainId;
+        nearMosAdptor = _nearMosAdptor;
+        emit SetNear(_nearChainId, _nearMosAdptor);
+    }
 
     function setTokenRegister(address _register) external onlyRole(MANAGE_ROLE) checkAddress(_register) {
         tokenRegister = ITokenRegisterV2(_register);
@@ -65,24 +84,24 @@ contract BridgeAndRelay is BridgeAbstract {
         require(_vaultToken == vaultToken, "Invalid vault token");
         uint256 amount = IVaultTokenV2(vaultToken).getTokenAmount(_vaultAmount);
         IVaultTokenV2(vaultToken).withdraw(selfChainId, _vaultAmount, msg.sender);
-        _withdraw(token, payable(msg.sender), amount);
+        _withdraw(token, msg.sender, amount);
     }
 
     function deposit(address _token, address _to, uint256 _amount) external payable nonReentrant whenNotPaused {
-        require(_amount > 0, "value too low");
+        require(_amount > 0, "value low");
         if (Helper._isNative(_token)) {
             require(_amount == msg.value, "value mismatching");
             Helper._safeDeposit(wToken, _amount);
             _token = wToken;
         } else {
-            require(_token.isContract(), "token is not contract");
+            require(_token.isContract(), "not contract");
             IERC20Upgradeable(_token).safeTransferFrom(msg.sender, address(this), _amount);
         }
         _deposit(_token, abi.encodePacked(msg.sender), _to, _amount, bytes32(""), selfChainId);
     }
 
     function swapOut(SwapOutParam calldata param) external payable override nonReentrant whenNotPaused {
-        require(param.toChain != selfChainId, "Cannot swap to self chain");
+        require(param.toChain != selfChainId, "Cannot swap self chain");
         (address token, , uint256 messageFee) = _tokenIn(
             param.toChain,
             param.amount,
@@ -93,10 +112,11 @@ contract BridgeAndRelay is BridgeAbstract {
         );
         _checkLimit(param.amount, param.toChain, token);
         bytes32 orderId;
+        bytes memory toToken;
         {
             (uint256 mapOutAmount, uint256 outAmount) = _collectFee(token, param.amount, selfChainId, param.toChain);
-            bytes memory toToken = tokenRegister.getToChainToken(token, param.toChain);
-            require(!_checkBytes(toToken, bytes("")), "Out token not registered");
+            toToken = tokenRegister.getToChainToken(token, param.toChain);
+            require(!_checkBytes(toToken, bytes("")), "token not registered");
             bytes memory payload = abi.encode(
                 toToken,
                 outAmount,
@@ -112,18 +132,19 @@ contract BridgeAndRelay is BridgeAbstract {
                 gasLimit: param.gasLimit,
                 value: 0
             });
-            orderId = mos.transferOut{value: messageFee}(param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
+            IMOSV3 _mos = param.toChain == nearChainId ? IMOSV3(nearMosAdptor) : mos;
+            orderId = _mos.transferOut{value: messageFee}(param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
             emit CollectFee(orderId, token, (param.amount - mapOutAmount));
         }
         emit SwapOut(
             orderId,
             param.toChain,
             param.token,
+            toToken,
             param.amount,
             param.from,
             param.to,
             param.gasLimit,
-            param.relayGasLimit,
             messageFee,
             param.swapData
         );
@@ -135,7 +156,8 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes calldata _fromAddress,
         bytes32 _orderId,
         bytes calldata _message
-    ) external override returns (bytes memory newMessage) {
+    ) external override nonReentrant checkOrder(_orderId) returns (bytes memory newMessage) {
+        require(msg.sender == address(mos) || msg.sender == nearMosAdptor, "only mos");
         require(_checkBytes(_fromAddress, bridges[_fromChain]), "invalid from");
         OutType oupType;
         bytes memory payload;
@@ -171,15 +193,6 @@ contract BridgeAndRelay is BridgeAbstract {
         emit DepositIn(_fromChain, _token, _orderId, _from, _to, _amount);
     }
 
-    function _withdraw(address _token, address payable _receiver, uint256 _amount) internal {
-        if (_token == wToken) {
-            Helper._safeWithdraw(wToken, _amount);
-            AddressUpgradeable.sendValue(payable(_receiver), _amount);
-        } else {
-            IERC20Upgradeable(_token).safeTransfer(_receiver, _amount);
-        }
-    }
-
     function _dealWithSwapOut(
         bytes32 orderId,
         uint256 fromChain,
@@ -202,9 +215,7 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 outAmount;
         {
             uint256 mapAmount = tokenRegister.getRelayChainAmount(param.token, fromChain, param.amount);
-            if (isMintable(param.token)) {
-                IMintableToken(param.token).mint(address(this), mapAmount);
-            }
+            _checkAndMint(param.token, mapAmount);
             (mapOutAmount, outAmount) = _collectFee(param.token, mapAmount, fromChain, toChain);
             emit CollectFee(orderId, param.token, (mapAmount - mapOutAmount));
         }
@@ -214,27 +225,34 @@ contract BridgeAndRelay is BridgeAbstract {
             _swapIn(param);
             return bytes("");
         } else {
-            bytes memory toToken = tokenRegister.getToChainToken(param.token, toChain);
-            require(!_checkBytes(toToken, bytes("")), "Out token not registered");
-            if (isMintable(param.token)) {
-                IMintableToken(param.token).burn(mapOutAmount);
+            IMOSV3.MessageData memory messageData;
+            {
+                bytes memory toToken = tokenRegister.getToChainToken(param.token, toChain);
+                require(!_checkBytes(toToken, bytes("")), "Out token not registered");
+                _checkAndBurn(param.token, mapOutAmount);
+                bytes memory m = abi.encode(toToken, outAmount, to, param.from, param.swapData);
+                messageData = IMOSV3.MessageData({
+                    relay: false,
+                    msgType: IMOSV3.MessageType.MESSAGE,
+                    target: bridges[toChain],
+                    payload: m,
+                    gasLimit: gasLimit,
+                    value: 0
+                });
+                emit Relay(orderId);
             }
-            bytes memory m = abi.encode(toToken, outAmount, to, param.from, param.swapData);
-            IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
-                relay: false,
-                msgType: IMOSV3.MessageType.MESSAGE,
-                target: bridges[toChain],
-                payload: m,
-                gasLimit: gasLimit,
-                value: 0
-            });
-            emit Relay(orderId);
-            return abi.encode(messageData);
+            if (toChain != nearChainId) {
+                return abi.encode(messageData);
+            } else {
+                // other cahin -> mapo -> near
+                INearMosAdapter(nearMosAdptor).relayTransferOut(toChain, abi.encode(messageData), orderId, fromChain);
+                return bytes("");
+            }
         }
     }
 
     function _dealWithDeposit(bytes32 orderId, uint256 fromChain, uint256 toChain, bytes memory payload) private {
-        require(selfChainId == toChain, "invalid chain id");
+        require(selfChainId == toChain, "invalid chain");
         bytes memory token;
         uint256 amount;
         bytes memory from;
@@ -243,9 +261,7 @@ contract BridgeAndRelay is BridgeAbstract {
         address relayToken = tokenRegister.getRelayChainToken(fromChain, token);
         require(relayToken != address(0), "map token not registered");
         uint256 mapAmount = tokenRegister.getRelayChainAmount(relayToken, fromChain, amount);
-        if (tokenRegister.checkMintable(relayToken)) {
-            IMintableToken(relayToken).mint(address(this), mapAmount);
-        }
+        _checkAndMint(relayToken, mapAmount);
         _deposit(relayToken, from, to, mapAmount, orderId, fromChain);
     }
 
@@ -274,12 +290,12 @@ contract BridgeAndRelay is BridgeAbstract {
 
             (uint256 out, address receiver) = getFee(1, fee);
             if (out > 0 && receiver != address(0)) {
-                _withdraw(token, payable(receiver), out);
+                _withdraw(token, receiver, out);
             }
 
             (uint256 protocolFee, address protocolReceiver) = getFee(2, fee);
             if (protocolFee > 0 && protocolReceiver != address(0)) {
-                _withdraw(token, payable(protocolReceiver), protocolFee);
+                _withdraw(token, protocolReceiver, protocolFee);
             }
         }
         IVaultTokenV2(vaultToken).transferToken(_fromChain, _mapAmount, _toChain, mapOutAmount, selfChainId, otherFee);
