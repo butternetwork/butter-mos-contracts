@@ -1,3 +1,4 @@
+const { types } = require("zksync-web3");
 let {
     create,
     createZk,
@@ -120,9 +121,10 @@ task("bridge:upgrade", "upgrade bridge evm contract in proxy").setAction(async (
     }
 });
 
-task("bridge:registerChain", "register chain")
+task("bridge:setBaseGas", "set base gas")
     .addParam("chain", "register address")
-    .addParam("address", "register address")
+    .addParam("outtype", "Out type 0 - swap,1 - deposit")
+    .addParam("gas", "base gas")
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
@@ -134,11 +136,11 @@ task("bridge:registerChain", "register chain")
         }
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
-            await bridge.registerChain(taskArgs.chain, taskArgs.address).send();
+            await bridge.registerChain(taskArgs.chain, taskArgs.outtype, taskArgs.gas).send();
         } else {
             console.log("operator address is:", deployer.address);
             let bridge = Bridge.attach(addr);
-            await (await bridge.registerChain(taskArgs.chain, taskArgs.address)).wait();
+            await (await bridge.registerChain(taskArgs.chain, taskArgs.outtype, taskArgs.gas)).wait();
         }
     });
 
@@ -229,6 +231,48 @@ task("bridge:removeMintableToken", "remove Mintable Token")
             console.log("operator address is:", deployer.address);
             let bridge = Bridge.attach(addr);
             await (await bridge.removeMintableToken(tokenList)).wait();
+        }
+    });
+task("bridge:setNearChainId", "set near chainId")
+    .addParam("chain", "near chain id")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        let Bridge = await ethers.getContractFactory("Bridge");
+        let deployment = await readFromFile(hre.network.name);
+        let addr = deployment[hre.network.name]["bridgeProxy"];
+        if (!addr) {
+            throw "bridge not deployed.";
+        }
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
+            await bridge.setNearChainId(taskArgs.chain).send();
+        } else {
+            console.log("operator address is:", deployer.address);
+            let bridge = Bridge.attach(addr);
+            await (await bridge.setNearChainId(taskArgs.chain)).wait();
+        }
+    });
+
+task("bridge:updateMorc20Proxy", "set near chainId")
+    .addParam("prox", "near chain id")
+    .addParam("flag", "support or not")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        let Bridge = await ethers.getContractFactory("Bridge");
+        let deployment = await readFromFile(hre.network.name);
+        let addr = deployment[hre.network.name]["bridgeProxy"];
+        if (!addr) {
+            throw "bridge not deployed.";
+        }
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
+            await bridge.updateMorc20Proxy(taskArgs.prox, taskArgs.flag).send();
+        } else {
+            console.log("operator address is:", deployer.address);
+            let bridge = Bridge.attach(addr);
+            await (await bridge.updateMorc20Proxy(taskArgs.prox, taskArgs.flag)).wait();
         }
     });
 

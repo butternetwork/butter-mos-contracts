@@ -99,6 +99,46 @@ task("relay:registerChain", "set distribute rate")
         await (await relay.registerChain(taskArgs.chain, taskArgs.address)).wait();
     });
 
+task("relay:setBaseGas", "set distribute rate")
+    .addParam("chain", "chain id")
+    .addParam("outtype", "Out type 0 - swap,1 - deposit")
+    .addParam("gas", "base gas")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+        let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
+        let deployment = await readFromFile(hre.network.name);
+        let relay = BridgeAndRelay.attach(deployment[hre.network.name]["bridgeProxy"]);
+        await (await relay.registerChain(taskArgs.chain, taskArgs.outtype, taskArgs.gas)).wait();
+    });
+
+task("relay:setNear", "set distribute rate")
+    .addParam("chain", "near chain id")
+    .addParam("adptor", "near mos v2 adpter")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+        let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
+        let deployment = await readFromFile(hre.network.name);
+        let relay = BridgeAndRelay.attach(deployment[hre.network.name]["bridgeProxy"]);
+        await (await relay.setNear(taskArgs.chain, taskArgs.adptor)).wait();
+    });
+
+task("relay:updateMorc20Proxy", "set distribute rate")
+    .addParam("prox", "near chain id")
+    .addParam("flag", "support or not")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+        let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
+        let deployment = await readFromFile(hre.network.name);
+        let relay = BridgeAndRelay.attach(deployment[hre.network.name]["bridgeProxy"]);
+        await (await relay.updateMorc20Proxy(taskArgs.prox, taskArgs.flag)).wait();
+    });
+
 task("relay:grantRole", "grant Role")
     .addParam("role", "role address")
     .addParam("account", "account address")

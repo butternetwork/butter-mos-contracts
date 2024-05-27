@@ -62,16 +62,16 @@ abstract contract BridgeAbstract is
         uint256 toChain;
         bytes swapData;
         uint256 gasLimit;
-        uint256 relayGasLimit;
     }
 
     IMOSV3 public mos;
     address public wToken;
     ISwapOutLimit public swapLimit;
     address public nativeFeeReceiver;
-    mapping(uint256 => bytes) public bridges;
+
     mapping(bytes32 => bool) public orderList;
     mapping(address => bool) public morc20Proxy;
+    mapping(uint256 => mapping(OutType => uint256)) public baseGasLookup;
     // token => chainId => native fee
     mapping(address => mapping(uint256 => uint256)) public nativeFees;
 
@@ -80,8 +80,8 @@ abstract contract BridgeAbstract is
     event SetSwapLimit(ISwapOutLimit _swapLimit);
     event SetNativeFeeReceiver(address _receiver);
     event UpdateMorc20Proxy(address _proxy, bool _flag);
-    event RegisterChain(uint256 _chainId, bytes _address);
     event SetNativeFee(address _token, uint256 _toChain, uint256 _amount);
+    event SetBaseGas(uint256 _toChain, OutType _outType, uint256 _gasLimit);
     event CollectNativeFee(address _token, uint256 _toChain, uint256 amount);
     event InterTransferAndCall(address proxy, address token, uint256 amount);
     event SwapIn(address token, uint256 amount, address to, uint256 fromChain, bytes from);
@@ -95,8 +95,7 @@ abstract contract BridgeAbstract is
         address from,
         bytes to,
         uint256 gasLimit,
-        uint256 messageFee,
-        bytes swapData
+        uint256 messageFee
     );
 
     receive() external payable {}
@@ -146,11 +145,6 @@ abstract contract BridgeAbstract is
         emit SetMapoService(_mos);
     }
 
-    function registerChain(uint256 _chainId, bytes memory _address) external onlyRole(MANAGE_ROLE) {
-        bridges[_chainId] = _address;
-        emit RegisterChain(_chainId, _address);
-    }
-
     function updateMorc20Proxy(address _proxy, bool _flag) external onlyRole(MANAGE_ROLE) {
         require(_proxy.isContract(), "not contract");
         morc20Proxy[_proxy] = _flag;
@@ -160,6 +154,12 @@ abstract contract BridgeAbstract is
     function setNativeFee(address _token, uint256 _toChain, uint256 _amount) external onlyRole(MANAGE_ROLE) {
         nativeFees[_token][_toChain] = _amount;
         emit SetNativeFee(_token, _toChain, _amount);
+    }
+
+    function setBaseGas(uint256 _toChain, OutType _outType, uint256 _gasLimit) external onlyRole(MANAGE_ROLE) {
+        require(_toChain != selfChainId, "self chain");
+        baseGasLookup[_toChain][_outType] = _gasLimit;
+        emit SetBaseGas(_toChain, _outType, _gasLimit);
     }
 
     function setNativeFeeReceiver(address _receiver) external onlyRole(MANAGE_ROLE) checkAddress(_receiver) {
@@ -274,12 +274,11 @@ abstract contract BridgeAbstract is
         uint256 amount,
         address token_,
         uint256 gasLimit,
-        uint256 relayGasLimit,
         bool isSwap
     ) internal returns (address token, uint256 nativeFee, uint256 messageFee) {
         require(amount > 0, "value is zero");
         token = token_;
-        messageFee = getMessageFee(gasLimit, relayGasLimit, toChain);
+        if (toChain != selfChainId) messageFee = getMessageFee(gasLimit, toChain);
         if (isSwap) nativeFee = _chargeNativeFee(token_, amount, toChain);
         if (Helper._isNative(token)) {
             require((amount + messageFee + nativeFee) == msg.value, "value and fee mismatching");
@@ -288,7 +287,7 @@ abstract contract BridgeAbstract is
         } else {
             IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), amount);
             require((messageFee + nativeFee) == msg.value, "fee mismatching");
-            _checkAndBurn(token, amount);
+            if (toChain != selfChainId) _checkAndBurn(token, amount);
         }
     }
 
@@ -346,7 +345,9 @@ abstract contract BridgeAbstract is
         if (address(swapLimit) != address(0)) swapLimit.checkLimit(amount, tochain, token);
     }
 
-    function getMessageFee(uint256 gasLimit, uint256 relayGasLimit, uint256 tochain) public virtual returns (uint256) {}
+    function getMessageFee(uint256 gasLimit, uint256 tochain) public virtual returns (uint256 fee) {
+        (fee, ) = mos.getMessageFee(tochain, Helper.ZERO_ADDRESS, gasLimit);
+    }
 
     function _chargeNativeFee(address _token, uint256 _amount, uint256 _tochain) internal virtual returns (uint256) {
         uint256 fee = nativeFees[_token][_tochain];
