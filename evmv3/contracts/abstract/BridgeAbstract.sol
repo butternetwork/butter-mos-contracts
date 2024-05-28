@@ -31,6 +31,9 @@ abstract contract BridgeAbstract is
     bytes32 public constant MANAGE_ROLE = keccak256("MANAGE_ROLE");
     bytes32 public constant UPGRADE_ROLE = keccak256("UPGRADE_ROLE");
 
+    uint256 constant MINTABLE_TOKEN = 0x01;
+    uint256 constant MORC20_TOKEN = 0x02;
+
     enum OutType {
         SWAP,
         DEPOSIT
@@ -70,7 +73,11 @@ abstract contract BridgeAbstract is
     address public nativeFeeReceiver;
 
     mapping(bytes32 => bool) public orderList;
-    mapping(address => bool) public morc20Proxy;
+    // mapping(address => bool) public morc20Proxy;
+
+    mapping(address => uint256) public tokenFeatureList;
+    mapping(uint256 => mapping(address => bool)) public tokenMappingList;
+
     mapping(uint256 => mapping(OutType => uint256)) public baseGasLookup;
     // token => chainId => native fee
     mapping(address => mapping(uint256 => uint256)) public nativeFees;
@@ -79,7 +86,8 @@ abstract contract BridgeAbstract is
     event SetWrappedToken(address wToken);
     event SetSwapLimit(ISwapOutLimit _swapLimit);
     event SetNativeFeeReceiver(address _receiver);
-    event UpdateMorc20Proxy(address _proxy, bool _flag);
+    // event UpdateMorc20Proxy(address _proxy, bool _flag);
+    event UpdateToken(address token, uint256 feature);
     event SetNativeFee(address _token, uint256 _toChain, uint256 _amount);
     event SetBaseGas(uint256 _toChain, OutType _outType, uint256 _gasLimit);
     event CollectNativeFee(address _token, uint256 _toChain, uint256 amount);
@@ -145,10 +153,13 @@ abstract contract BridgeAbstract is
         emit SetMapoService(_mos);
     }
 
-    function updateMorc20Proxy(address _proxy, bool _flag) external onlyRole(MANAGE_ROLE) {
-        require(_proxy.isContract(), "not contract");
-        morc20Proxy[_proxy] = _flag;
-        emit UpdateMorc20Proxy(_proxy, _flag);
+
+    function updateTokens(address[] memory _tokens, uint256 _feature) external onlyRole(MANAGE_ROLE) {
+        for (uint256 i = 0; i < _tokens.length; i++) {
+            tokenFeatureList[_tokens[i]] = _feature;
+
+            emit UpdateToken(_tokens[i], _feature);
+        }
     }
 
     function setNativeFee(address _token, uint256 _toChain, uint256 _amount) external onlyRole(MANAGE_ROLE) {
@@ -171,7 +182,9 @@ abstract contract BridgeAbstract is
         paused() ? _unpause() : _pause();
     }
 
-    function isMintable(address _token) public view virtual returns (bool) {}
+    function isMintable(address _token) public view virtual returns (bool) {
+        return tokenFeatureList[_token] & MINTABLE_TOKEN == MINTABLE_TOKEN;
+    }
 
     function swapOut(SwapOutParam calldata param) external payable virtual nonReentrant whenNotPaused {}
 
@@ -251,9 +264,9 @@ abstract contract BridgeAbstract is
         bytes32 _orderId,
         bytes calldata _message
     ) external override returns (bool) {
-        address proxy = msg.sender;
-        address token = IMORC20(proxy).token();
-        if (proxy != token) require(morc20Proxy[proxy], "not allow");
+        address morc20 = msg.sender;
+        require(_checkMorc20(morc20), "unregistered morc20 token");
+        address token = IMORC20(morc20).token();
         require(Helper._getBalance(token, address(this)) >= _amount, "receive too low");
         SwapInParam memory param;
         param.from = from;
@@ -265,8 +278,8 @@ abstract contract BridgeAbstract is
         return true;
     }
 
-    function getNativeFeePrice(address _token, uint256 _amount, uint256 _tochain) external view returns (uint256) {
-        return nativeFees[_token][_tochain];
+    function getNativeFeePrice(address _token, uint256 _amount, uint256 _toChain) external view returns (uint256) {
+        return nativeFees[_token][_toChain];
     }
 
     function _tokenIn(
@@ -323,6 +336,10 @@ abstract contract BridgeAbstract is
         } else {
             Helper._transfer(selfChainId, _token, _receiver, _amount);
         }
+    }
+
+    function _checkMorc20(address _token) internal returns (bool) {
+        return tokenFeatureList[_token] & MORC20_TOKEN == MORC20_TOKEN;
     }
 
     function _checkAndBurn(address _token, uint256 _amount) internal {

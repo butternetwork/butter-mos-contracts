@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "format": "prettier --print-width 120 --tab-width 4 --write ./contracts ./scripts ./tasks ./test ./utils ./configs"
+    "format": "prettier --print-width 120 --tab-width 4 --write ./contracts ./scripts ./tasks ./test ./utils"
   },
   "repository": {
     "type": "git",
@@ -41,8 +41,6 @@
     "@nomiclabs/hardhat-etherscan": "^3.0.0",
     "@typechain/ethers-v5": "^10.1.0",
     "@typechain/hardhat": "^6.1.2",
-    "@types/chai": "^4.2.0",
-    "@types/mocha": "^9.1.0",
     "chai": "^4.2.0",
     "ethers": "^5.4.7",
     "hardhat": "^2.14.0",
@@ -50,12 +48,10 @@
     "solidity-coverage": "^0.8.1",
     "prettier": "^2.8.8",
     "prettier-plugin-solidity": "^1.1.0",
-    "ts-node": "^10.9.1",
-    "typechain": "^8.1.0",
-    "typescript": "^4.9.5"
+    "typechain": "^8.1.0"
   },
   "dependencies": {
-    "@mapprotocol/protocol": "^0.6.1",
+    "@mapprotocol/protocol": "^0.6.2",
     "@butternetwork/bridge": "^1.2.0",
     "@openzeppelin/contracts": "^4.9.3"
   },

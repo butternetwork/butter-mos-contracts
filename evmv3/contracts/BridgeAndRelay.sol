@@ -170,10 +170,6 @@ contract BridgeAndRelay is BridgeAbstract {
         return (((_amount * rate.rate) / 1000000), rate.receiver);
     }
 
-    function isMintable(address _token) public view override returns (bool) {
-        return tokenRegister.checkMintable(_token);
-    }
-
     function _deposit(
         address _token,
         bytes memory _from,

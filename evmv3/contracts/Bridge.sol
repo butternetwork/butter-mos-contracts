@@ -22,12 +22,12 @@ contract Bridge is BridgeAbstract {
     uint256 public nearChainId;
     uint256 public relayChainId;
     address public relayContract;
-    mapping(address => bool) public mintableTokens;
-    mapping(uint256 => mapping(address => bool)) public tokenMappingList;
+//    mapping(address => bool) public mintableTokens;
+//    mapping(uint256 => mapping(address => bool)) public tokenMappingList;
 
-    event AddMintableToken(address[] _token);
+//    event AddMintableToken(address[] _token);
     event SetNearChainId(uint256 _nearChainId);
-    event RemoveMintableToken(address[] _token);
+//    event RemoveMintableToken(address[] _token);
     event SetRelay(uint256 _chainId, address _relay);
     event RegisterToken(address _token, uint256 _toChain, bool _enable);
     event Deposit(
@@ -43,20 +43,6 @@ contract Bridge is BridgeAbstract {
     function setNearChainId(uint256 _nearChainId) external onlyRole(MANAGE_ROLE) {
         nearChainId = _nearChainId;
         emit SetNearChainId(_nearChainId);
-    }
-
-    function addMintableToken(address[] memory _tokens) external onlyRole(MANAGE_ROLE) {
-        for (uint256 i = 0; i < _tokens.length; i++) {
-            mintableTokens[_tokens[i]] = true;
-        }
-        emit AddMintableToken(_tokens);
-    }
-
-    function removeMintableToken(address[] memory _tokens) external onlyRole(MANAGE_ROLE) {
-        for (uint256 i = 0; i < _tokens.length; i++) {
-            mintableTokens[_tokens[i]] = false;
-        }
-        emit RemoveMintableToken(_tokens);
     }
 
     function setRelay(uint256 _chainId, address _relay) external onlyRole(MANAGE_ROLE) checkAddress(_relay) {
@@ -172,10 +158,6 @@ contract Bridge is BridgeAbstract {
         _checkAndMint(param.token, amount);
         _swapIn(param);
         return bytes("");
-    }
-
-    function isMintable(address _token) public view override returns (bool) {
-        return mintableTokens[_token];
     }
 
     function checkBridgeable(address _token, uint256 _chainId) private view {
