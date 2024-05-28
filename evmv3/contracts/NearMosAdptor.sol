@@ -10,7 +10,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 
 interface IBridge {
-    function orderList(bytes32 orderId) external view returns(bool);
+    function orderList(bytes32 orderId) external view returns (bool);
 }
 
 contract NearMosAdptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
@@ -84,7 +84,7 @@ contract NearMosAdptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
         uint256,
         uint256 _blockNum,
         bytes32 _orderId
-    ) external view  returns (bool exists, bool verifiable, uint256 nodeType) {
+    ) external view returns (bool exists, bool verifiable, uint256 nodeType) {
         exists = IBridge(bridge).orderList(_orderId);
         verifiable = nearLightNode.isVerifiable(_blockNum, bytes32(""));
         nodeType = nearLightNode.nodeType();
