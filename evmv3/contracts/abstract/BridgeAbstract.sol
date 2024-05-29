@@ -93,7 +93,6 @@ abstract contract BridgeAbstract is
     event SetBaseGas(uint256 _toChain, OutType _outType, uint256 _gasLimit);
     event CollectNativeFee(address _token, uint256 _toChain, uint256 amount);
 
-    event SwapIn(address token, uint256 amount, address to, uint256 fromChain, bytes from);
     event ChargeNativeFee(address _token, uint256 _amount, uint256 fee, uint256 selfChainId, uint256 _tochain);
 
     event BridgeRelay(
@@ -103,18 +102,27 @@ abstract contract BridgeAbstract is
         bytes token, // token to transfer
         bytes from, // source chain from address
         bytes to,
+        uint256 amount
+    );
+
+    event SwapIn(
+        bytes32 indexed orderId,
+        uint256 indexed fromChain,
+        address indexed token,
         uint256 amount,
-        bytes swapData // swap data, used on target chain dex.
+        address to,
+        bytes from
     );
 
     event SwapOut(
-        bytes32 orderId,
-        uint256 tochain,
-        address inToken,
-        bytes outToken,
+        bytes32 indexed orderId,
+        uint256 indexed tochain,
+        address indexed token,
         uint256 amount,
         address from,
+        address caller,
         bytes to,
+        bytes outToken,
         uint256 gasLimit,
         uint256 messageFee
     );
@@ -179,7 +187,6 @@ abstract contract BridgeAbstract is
         }
     }
 
-
     function updateTokens(address[] memory _tokens, uint256 _feature) external onlyRole(MANAGE_ROLE) {
         for (uint256 i = 0; i < _tokens.length; i++) {
             tokenFeatureList[_tokens[i]] = _feature;
@@ -240,7 +247,6 @@ abstract contract BridgeAbstract is
             param.refundAddress,
             messageData
         );
-
     }
 
     function mapoExecute(
@@ -299,7 +305,6 @@ abstract contract BridgeAbstract is
         }
     }
 
-
     function _swapIn(SwapInParam memory param) internal {
         // if swap params is not empty, then we need to do swap on current chain
         if (param.swapData.length > 0 && param.to.isContract()) {
@@ -322,7 +327,7 @@ abstract contract BridgeAbstract is
             // transfer token if swap did not happen
             _withdraw(param.token, param.to, param.amount);
         }
-        emit SwapIn(param.token, param.amount, param.to, param.fromChain, param.from);
+        emit SwapIn(param.orderId, param.fromChain, param.token, param.amount, param.to, param.from);
     }
 
     function _withdraw(address _token, address _receiver, uint256 _amount) internal {
@@ -366,7 +371,12 @@ abstract contract BridgeAbstract is
         (fee, ) = mos.getMessageFee(_toChain, Helper.ZERO_ADDRESS, _gasLimit);
     }
 
-    function getTransferFee(address _token, uint256 _amount, uint256 _gasLimit, uint256 _toChain) public virtual returns (uint256 fee) {
+    function getTransferFee(
+        address _token,
+        uint256 _amount,
+        uint256 _gasLimit,
+        uint256 _toChain
+    ) public virtual returns (uint256 fee) {
         (fee, ) = mos.getMessageFee(_toChain, Helper.ZERO_ADDRESS, _gasLimit);
         fee += _chargeNativeFee(_token, _amount, _toChain);
     }

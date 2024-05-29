@@ -102,7 +102,7 @@ contract BridgeAndRelay is BridgeAbstract {
 
     function swapOutToken(
         address _sender, // initiator address
-        address _token,     // src token
+        address _token, // src token
         bytes memory _to,
         uint256 _amount,
         uint256 _toChain, // target chain id
@@ -161,15 +161,15 @@ contract BridgeAndRelay is BridgeAbstract {
             orderId,
             param.toChain,
             _token,
-            toToken,
             _amount,
             param.from,
+            msg.sender,
             param.to,
+            toToken,
             param.gasLimit,
             messageFee
         );
     }
-
 
     function mapoExecute(
         uint256 _fromChain,

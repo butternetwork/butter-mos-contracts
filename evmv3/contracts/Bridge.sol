@@ -36,7 +36,7 @@ contract Bridge is BridgeAbstract {
 
     function swapOutToken(
         address _sender, // initiator address
-        address _token,     // src token
+        address _token, // src token
         bytes memory _to,
         uint256 _amount,
         uint256 _toChain, // target chain id
@@ -86,26 +86,21 @@ contract Bridge is BridgeAbstract {
             orderId,
             _toChain,
             _token,
-            abi.encodePacked(param.token),
             _amount,
             _sender,
+            msg.sender,
             _to,
+            abi.encodePacked(param.token),
             param.gasLimit,
             messageFee
         );
     }
 
-
     function deposit(address _token, address _to, uint256 _amount) external payable nonReentrant whenNotPaused {
         uint256 gasLimit = baseGasLookup[relayChainId][OutType.DEPOSIT];
         (address token, , uint256 messageFee) = _tokenIn(relayChainId, _amount, _token, gasLimit, false);
         _checkBridgeable(token, relayChainId);
-        bytes memory payload = abi.encode(
-            abi.encodePacked(token),
-            _amount,
-            abi.encodePacked(msg.sender),
-            _to
-        );
+        bytes memory payload = abi.encode(abi.encodePacked(token), _amount, abi.encodePacked(msg.sender), _to);
         payload = abi.encode(OutType.DEPOSIT, payload);
         IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
             relay: false,
@@ -150,6 +145,4 @@ contract Bridge is BridgeAbstract {
         _swapIn(param);
         return bytes("");
     }
-
-
 }
