@@ -5,7 +5,7 @@ pragma solidity 0.8.20;
 import "./lib/NearDecoder.sol";
 import "./interface/IMOSV3.sol";
 import "./interface/IMapoExecutor.sol";
-import "@mapprotocol/protocol/contracts/interface/ILightNode.sol";
+import "@mapprotocol/protocol/contracts/interface/ILightClientManager.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 
@@ -20,10 +20,11 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
 
     IMOSV3 public mos;
     bytes public nearMos;
+    uint256 public nearChainId;
     uint256 private nonce;
     address public bridge;
     uint256 public gasLimit;
-    ILightNode public nearLightNode;
+    ILightClientManager public lightClientManager;
 
     enum OutType {
         SWAP,
@@ -76,7 +77,7 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     }
 
     function setLightNode(address _lightNode) external onlyRole(MANAGE_ROLE) {
-        nearLightNode = ILightNode(_lightNode);
+        lightClientManager = ILightClientManager(_lightNode);
         emit SetLightNode(_lightNode);
     }
 
@@ -86,8 +87,8 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
         bytes32 _orderId
     ) external view returns (bool exists, bool verifiable, uint256 nodeType) {
         exists = IBridge(bridge).orderList(_orderId);
-        verifiable = nearLightNode.isVerifiable(_blockNum, bytes32(""));
-        nodeType = nearLightNode.nodeType();
+        verifiable = lightClientManager.isVerifiable(nearChainId, _blockNum, bytes32(""));
+        nodeType = lightClientManager.nodeType(nearChainId);
     }
 
     function transferOut(uint256 toChain, bytes memory messageData, address) external payable returns (bytes32) {
@@ -115,7 +116,8 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     }
 
     function swapIn(uint256 _chainId, bytes memory _receiptProof) external {
-        (bool success, string memory message, bytes memory logArray) = nearLightNode.verifyProofDataWithCache(
+        (bool success, string memory message, bytes memory logArray) = lightClientManager.verifyProofDataWithCache(
+            nearChainId,
             _receiptProof
         );
         require(success, message);
@@ -133,7 +135,8 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     }
 
     function depositIn(bytes memory _receiptProof) external {
-        (bool success, string memory message, bytes memory logArray) = nearLightNode.verifyProofDataWithCache(
+        (bool success, string memory message, bytes memory logArray) = lightClientManager.verifyProofDataWithCache(
+            nearChainId,
             _receiptProof
         );
         require(success, message);
@@ -189,7 +192,7 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     }
 
     function _notifyLightClient(bytes memory _data) internal {
-        nearLightNode.notifyLightClient(address(this), _data);
+        lightClientManager.notifyLightClient(nearChainId, address(this), _data);
     }
 
     /** UUPS *********************************************************/

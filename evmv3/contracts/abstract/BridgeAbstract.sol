@@ -81,7 +81,7 @@ abstract contract BridgeAbstract is
     // token => chainId => native fee
     mapping(address => mapping(uint256 => uint256)) public nativeFees;
 
-    event SetMapoService(IMOSV3 _mos);
+    event SetOmniService(IMOSV3 mos);
     event SetWrappedToken(address wToken);
 
     event SetSwapLimit(ISwapOutLimit _swapLimit);
@@ -168,10 +168,10 @@ abstract contract BridgeAbstract is
         emit SetSwapLimit(_swapLimit);
     }
 
-    function setMapoService(IMOSV3 _mos) external onlyRole(MANAGE_ROLE) {
+    function setOmniService(IMOSV3 _mos) external onlyRole(MANAGE_ROLE) {
         require(address(_mos).isContract(), "not contract");
         mos = _mos;
-        emit SetMapoService(_mos);
+        emit SetOmniService(_mos);
     }
 
     function registerTokenChains(
