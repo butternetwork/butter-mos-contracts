@@ -13,23 +13,11 @@ contract Bridge is BridgeAbstract {
     using AddressUpgradeable for address;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
-    struct DepositParam {
-        address from;
-        address token;
-        address to;
-        uint256 amount;
-    }
-    uint256 public nearChainId;
     uint256 public relayChainId;
     address public relayContract;
-//    mapping(address => bool) public mintableTokens;
-//    mapping(uint256 => mapping(address => bool)) public tokenMappingList;
 
-//    event AddMintableToken(address[] _token);
-    event SetNearChainId(uint256 _nearChainId);
-//    event RemoveMintableToken(address[] _token);
     event SetRelay(uint256 _chainId, address _relay);
-    event RegisterToken(address _token, uint256 _toChain, bool _enable);
+
     event Deposit(
         bytes32 orderId,
         address token,
@@ -40,81 +28,83 @@ contract Bridge is BridgeAbstract {
         uint256 messageFee
     );
 
-    function setNearChainId(uint256 _nearChainId) external onlyRole(MANAGE_ROLE) {
-        nearChainId = _nearChainId;
-        emit SetNearChainId(_nearChainId);
-    }
-
     function setRelay(uint256 _chainId, address _relay) external onlyRole(MANAGE_ROLE) checkAddress(_relay) {
         relayChainId = _chainId;
         relayContract = _relay;
         emit SetRelay(_chainId, _relay);
     }
 
-    function registerTokenChains(
-        address _token,
-        uint256[] memory _toChains,
-        bool _enable
-    ) external onlyRole(MANAGE_ROLE) {
-        require(_token.isContract(), "token is not contract");
-        for (uint256 i = 0; i < _toChains.length; i++) {
-            uint256 toChain = _toChains[i];
-            tokenMappingList[toChain][_token] = _enable;
-            emit RegisterToken(_token, toChain, _enable);
+    function swapOutToken(
+        address _sender, // initiator address
+        address _token,     // src token
+        bytes memory _to,
+        uint256 _amount,
+        uint256 _toChain, // target chain id
+        bytes calldata _swapData
+    ) external virtual nonReentrant whenNotPaused returns (bytes32 orderId) {
+        require(_toChain != selfChainId, "Cannot swap to self chain");
+        SwapOutParam memory param;
+        param.gasLimit = baseGasLookup[_toChain][OutType.SWAP];
+        if (_swapData.length != 0) {
+            BridgeParam memory bridge = abi.decode(_swapData, (BridgeParam));
+            param.gasLimit += bridge.gasLimit;
+            param.refundAddress = bridge.refundAddress;
+            param.swapData = bridge.swapData;
         }
-    }
+        uint256 messageFee;
+        (param.token, , messageFee) = _tokenIn(_toChain, _amount, _token, param.gasLimit, true);
+        _checkLimit(_amount, _toChain, _token);
+        _checkBridgeable(param.token, _toChain);
 
-    function swapOut(SwapOutParam calldata param) external payable override nonReentrant whenNotPaused {
-        require(param.toChain != selfChainId, "Cannot swap to self chain");
-        uint256 gasLimit = param.swapData.length != 0
-            ? param.gasLimit + baseGasLookup[param.toChain][OutType.SWAP]
-            : param.gasLimit;
-        (address token, , uint256 messageFee) = _tokenIn(param.toChain, param.amount, param.token, gasLimit, true);
-        _checkLimit(param.amount, param.toChain, token);
-        checkBridgeable(token, param.toChain);
-        bytes32 orderId;
-        {
+        if (isOmniToken(param.token)) {
+            param.toChain = _toChain;
+            param.amount = _amount;
+            param.from = _sender;
+            param.to = _to;
+            orderId = _interTransferAndCall(param, abi.encodePacked(relayContract));
+        } else {
             bytes memory payload = abi.encode(
-                gasLimit,
-                abi.encodePacked(param.token),
-                param.amount,
-                abi.encodePacked(param.from),
-                param.to,
-                param.swapData
+                param.gasLimit,
+                abi.encodePacked(_token),
+                _amount,
+                abi.encodePacked(_sender),
+                _to,
+                _swapData
             );
             payload = abi.encode(OutType.SWAP, payload);
             IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
-                relay: (param.toChain != relayChainId && param.toChain != nearChainId),
+                relay: (_toChain != relayChainId),
                 msgType: IMOSV3.MessageType.MESSAGE,
                 target: abi.encodePacked(relayContract),
                 payload: payload,
-                gasLimit: gasLimit,
+                gasLimit: param.gasLimit,
                 value: 0
             });
-            orderId = mos.transferOut{value: messageFee}(param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
+            orderId = mos.transferOut{value: messageFee}(_toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
         }
         emit SwapOut(
             orderId,
-            param.toChain,
-            param.token,
+            _toChain,
+            _token,
             abi.encodePacked(param.token),
-            param.amount,
-            param.from,
-            param.to,
-            gasLimit,
+            _amount,
+            _sender,
+            _to,
+            param.gasLimit,
             messageFee
         );
     }
 
-    function deposit(DepositParam calldata param) external payable nonReentrant whenNotPaused {
+
+    function deposit(address _token, address _to, uint256 _amount) external payable nonReentrant whenNotPaused {
         uint256 gasLimit = baseGasLookup[relayChainId][OutType.DEPOSIT];
-        (address token, , uint256 messageFee) = _tokenIn(relayChainId, param.amount, param.token, gasLimit, false);
-        checkBridgeable(token, relayChainId);
+        (address token, , uint256 messageFee) = _tokenIn(relayChainId, _amount, _token, gasLimit, false);
+        _checkBridgeable(token, relayChainId);
         bytes memory payload = abi.encode(
-            abi.encodePacked(param.token),
-            param.amount,
-            abi.encodePacked(param.from),
-            param.to
+            abi.encodePacked(token),
+            _amount,
+            abi.encodePacked(msg.sender),
+            _to
         );
         payload = abi.encode(OutType.DEPOSIT, payload);
         IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
@@ -130,7 +120,7 @@ contract Bridge is BridgeAbstract {
             abi.encode(messageData),
             Helper.ZERO_ADDRESS
         );
-        emit Deposit(orderId, param.token, param.from, param.to, param.amount, gasLimit, messageFee);
+        emit Deposit(orderId, _token, msg.sender, _to, _amount, gasLimit, messageFee);
     }
 
     function mapoExecute(
@@ -160,7 +150,5 @@ contract Bridge is BridgeAbstract {
         return bytes("");
     }
 
-    function checkBridgeable(address _token, uint256 _chainId) private view {
-        require(tokenMappingList[_chainId][_token], "token not registered");
-    }
+
 }

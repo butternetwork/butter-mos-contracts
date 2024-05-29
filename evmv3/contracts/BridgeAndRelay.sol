@@ -36,9 +36,9 @@ contract BridgeAndRelay is BridgeAbstract {
     mapping(uint256 => Rate) public distributeRate;
 
     uint256 public nearChainId;
-    address public nearMosAdptor;
+    address public nearAdaptor;
 
-    event Relay(bytes32 orderId);
+    event Relay(bytes32 orderId1, bytes32 orderId2);
     event SetTokenRegister(address tokenRegister);
     event RegisterChain(uint256 _chainId, bytes _address);
     event SetNear(uint256 _nearChainId, address _nearMosAdptor);
@@ -53,10 +53,10 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 amount
     );
 
-    function setNear(uint256 _nearChainId, address _nearMosAdptor) external onlyRole(MANAGE_ROLE) {
+    function setNear(uint256 _nearChainId, address _nearAdaptor) external onlyRole(MANAGE_ROLE) {
         nearChainId = _nearChainId;
-        nearMosAdptor = _nearMosAdptor;
-        emit SetNear(_nearChainId, _nearMosAdptor);
+        nearAdaptor = _nearAdaptor;
+        emit SetNear(_nearChainId, _nearAdaptor);
     }
 
     function setTokenRegister(address _register) external onlyRole(MANAGE_ROLE) checkAddress(_register) {
@@ -85,7 +85,7 @@ contract BridgeAndRelay is BridgeAbstract {
         emit SetDistributeRate(_id, _to, _rate);
     }
 
-    function withdraw(address _vaultToken, uint256 _vaultAmount) external {
+    function withdraw(address _vaultToken, uint256 _vaultAmount) external whenNotPaused {
         require(_vaultToken != address(0), "vault token not registered");
         address token = IVaultTokenV2(_vaultToken).getTokenAddress();
         address vaultToken = tokenRegister.getVaultToken(token);
@@ -100,6 +100,75 @@ contract BridgeAndRelay is BridgeAbstract {
         _deposit(token, abi.encodePacked(msg.sender), _to, _amount, bytes32(""), selfChainId);
     }
 
+    function swapOutToken(
+        address _sender, // initiator address
+        address _token,     // src token
+        bytes memory _to,
+        uint256 _amount,
+        uint256 _toChain, // target chain id
+        bytes calldata _swapData
+    ) external virtual nonReentrant whenNotPaused returns (bytes32 orderId) {
+        require(_toChain != selfChainId, "Cannot swap to self chain");
+        SwapOutParam memory param;
+        param.from = _sender;
+        param.to = _to;
+        param.toChain = _toChain;
+
+        param.gasLimit = baseGasLookup[_toChain][OutType.SWAP];
+        if (_swapData.length != 0) {
+            BridgeParam memory bridge = abi.decode(_swapData, (BridgeParam));
+            param.gasLimit += bridge.gasLimit;
+            param.refundAddress = bridge.refundAddress;
+            param.swapData = bridge.swapData;
+        }
+        uint256 messageFee;
+        (param.token, , messageFee) = _tokenIn(_toChain, _amount, _token, param.gasLimit, true);
+        _checkLimit(_amount, _toChain, _token);
+        _checkBridgeable(param.token, _toChain);
+
+        bytes memory toToken = abi.encodePacked(param.token);
+        uint256 mapOutAmount;
+        (mapOutAmount, param.amount) = _collectFee(param.token, param.amount, selfChainId, param.toChain);
+        toToken = tokenRegister.getToChainToken(param.token, param.toChain);
+        require(!_checkBytes(toToken, bytes("")), "token not registered");
+
+        if (isOmniToken(param.token)) {
+            orderId = _interTransferAndCall(param, bridges[param.toChain]);
+        } else {
+            toToken = tokenRegister.getToChainToken(param.token, param.toChain);
+            require(!_checkBytes(toToken, bytes("")), "token not registered");
+            bytes memory payload = abi.encode(
+                toToken,
+                param.amount,
+                param.to,
+                abi.encodePacked(param.from),
+                param.swapData
+            );
+            IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
+                relay: false,
+                msgType: IMOSV3.MessageType.MESSAGE,
+                target: bridges[param.toChain],
+                payload: payload,
+                gasLimit: param.gasLimit,
+                value: 0
+            });
+            IMOSV3 _mos = param.toChain == nearChainId ? IMOSV3(nearAdaptor) : mos;
+            orderId = _mos.transferOut{value: messageFee}(param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
+            emit CollectFee(orderId, param.token, (_amount - mapOutAmount));
+        }
+        emit SwapOut(
+            orderId,
+            param.toChain,
+            _token,
+            toToken,
+            _amount,
+            param.from,
+            param.to,
+            param.gasLimit,
+            messageFee
+        );
+    }
+
     function swapOut(SwapOutParam calldata param) external payable override nonReentrant whenNotPaused {
         require(param.toChain != selfChainId, "Cannot swap self chain");
         uint256 gasLimit = param.swapData.length != 0
@@ -107,6 +176,7 @@ contract BridgeAndRelay is BridgeAbstract {
             : param.gasLimit;
         (address token, , uint256 messageFee) = _tokenIn(param.toChain, param.amount, param.token, gasLimit, true);
         _checkLimit(param.amount, param.toChain, token);
+        // TODO check bridge
         bytes32 orderId;
         bytes memory toToken;
         {
@@ -128,7 +198,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 gasLimit: gasLimit,
                 value: 0
             });
-            IMOSV3 _mos = param.toChain == nearChainId ? IMOSV3(nearMosAdptor) : mos;
+            IMOSV3 _mos = param.toChain == nearChainId ? IMOSV3(nearAdaptor) : mos;
             orderId = _mos.transferOut{value: messageFee}(param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
             emit CollectFee(orderId, token, (param.amount - mapOutAmount));
         }
@@ -152,12 +222,12 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes32 _orderId,
         bytes calldata _message
     ) external override nonReentrant checkOrder(_orderId) returns (bytes memory newMessage) {
-        require(msg.sender == address(mos) || msg.sender == nearMosAdptor, "only mos");
+        require(msg.sender == address(mos) || msg.sender == nearAdaptor, "only mos");
         require(_checkBytes(_fromAddress, bridges[_fromChain]), "invalid from");
-        OutType oupType;
+        OutType outType;
         bytes memory payload;
-        (oupType, payload) = abi.decode(_message, (OutType, bytes));
-        if (oupType == OutType.SWAP) {
+        (outType, payload) = abi.decode(_message, (OutType, bytes));
+        if (outType == OutType.SWAP) {
             return _dealWithSwapOut(_orderId, _fromChain, _toChain, payload);
         } else {
             _dealWithDeposit(_orderId, _fromChain, _toChain, payload);
@@ -223,22 +293,31 @@ contract BridgeAndRelay is BridgeAbstract {
                 _checkAndBurn(param.token, mapOutAmount);
                 bytes memory m = abi.encode(toToken, outAmount, to, param.from, param.swapData);
                 messageData = IMOSV3.MessageData({
-                    relay: false,
+                    relay: true,
                     msgType: IMOSV3.MessageType.MESSAGE,
                     target: bridges[toChain],
                     payload: m,
                     gasLimit: gasLimit,
                     value: 0
                 });
-                emit Relay(orderId);
+                emit Relay(orderId, orderId);
             }
-            if (toChain != nearChainId) {
-                return abi.encode(messageData);
-            } else {
-                // other cahin -> mapo -> near
-                INearMosAdapter(nearMosAdptor).relayTransferOut(toChain, abi.encode(messageData), orderId, fromChain);
+
+            if (toChain == nearChainId) {
+                // other chain -> mapo -> near
+                INearMosAdapter(nearAdaptor).relayTransferOut(toChain, abi.encode(messageData), orderId, fromChain);
                 return bytes("");
             }
+            bytes memory payLoad = abi.encode(messageData);
+
+            if (fromChain == nearChainId) {
+                // near -> mapo -> other chain
+                (uint256 msgFee, ) = mos.getMessageFee(toChain, address(0), gasLimit);
+                bytes32 v3OrderId = mos.transferOut{value: msgFee}(toChain, payLoad, address(0));
+                emit Relay(orderId, v3OrderId);
+            }
+
+            return payLoad;
         }
     }
 

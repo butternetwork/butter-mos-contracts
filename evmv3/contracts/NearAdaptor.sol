@@ -13,7 +13,7 @@ interface IBridge {
     function orderList(bytes32 orderId) external view returns (bool);
 }
 
-contract NearMosAdptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
+contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     uint256 public immutable selfChainId = block.chainid;
     bytes32 public constant MANAGE_ROLE = keccak256("MANAGE_ROLE");
     bytes32 public constant UPGRADE_ROLE = keccak256("UPGRADE_ROLE");
@@ -114,7 +114,7 @@ contract NearMosAdptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
         _notifyLightClient("");
     }
 
-    function swapIn(bytes memory _receiptProof) external {
+    function swapIn(uint256 _chainId, bytes memory _receiptProof) external {
         (bool success, string memory message, bytes memory logArray) = nearLightNode.verifyProofDataWithCache(
             _receiptProof
         );
@@ -175,11 +175,13 @@ contract NearMosAdptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
         );
         // near -> mapo -> other chain
         // relay to other chain;
+        /*
         if (relay.length != 0) {
             (uint256 msgFee, ) = mos.getMessageFee(outEvent.toChain, address(0), gasLimit);
             bytes32 orderId = mos.transferOut{value: msgFee}(outEvent.toChain, relay, address(0));
             emit Relay(outEvent.orderId, orderId);
         }
+        */
     }
 
     function _getOrderId(bytes memory _from, bytes memory _to, uint256 _amount) internal returns (bytes32) {
