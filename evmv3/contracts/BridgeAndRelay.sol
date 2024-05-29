@@ -122,6 +122,7 @@ contract BridgeAndRelay is BridgeAbstract {
             param.swapData = bridge.swapData;
         }
         uint256 messageFee;
+        // TODO: check omnitoken fee
         (param.token, , messageFee) = _tokenIn(_toChain, _amount, _token, param.gasLimit, true);
         _checkLimit(_amount, _toChain, _token);
         _checkBridgeable(param.token, _toChain);
@@ -169,51 +170,6 @@ contract BridgeAndRelay is BridgeAbstract {
         );
     }
 
-    function swapOut(SwapOutParam calldata param) external payable override nonReentrant whenNotPaused {
-        require(param.toChain != selfChainId, "Cannot swap self chain");
-        uint256 gasLimit = param.swapData.length != 0
-            ? param.gasLimit + baseGasLookup[param.toChain][OutType.SWAP]
-            : param.gasLimit;
-        (address token, , uint256 messageFee) = _tokenIn(param.toChain, param.amount, param.token, gasLimit, true);
-        _checkLimit(param.amount, param.toChain, token);
-        // TODO check bridge
-        bytes32 orderId;
-        bytes memory toToken;
-        {
-            (uint256 mapOutAmount, uint256 outAmount) = _collectFee(token, param.amount, selfChainId, param.toChain);
-            toToken = tokenRegister.getToChainToken(token, param.toChain);
-            require(!_checkBytes(toToken, bytes("")), "token not registered");
-            bytes memory payload = abi.encode(
-                toToken,
-                outAmount,
-                param.to,
-                abi.encodePacked(param.from),
-                param.swapData
-            );
-            IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
-                relay: false,
-                msgType: IMOSV3.MessageType.MESSAGE,
-                target: bridges[param.toChain],
-                payload: payload,
-                gasLimit: gasLimit,
-                value: 0
-            });
-            IMOSV3 _mos = param.toChain == nearChainId ? IMOSV3(nearAdaptor) : mos;
-            orderId = _mos.transferOut{value: messageFee}(param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
-            emit CollectFee(orderId, token, (param.amount - mapOutAmount));
-        }
-        emit SwapOut(
-            orderId,
-            param.toChain,
-            param.token,
-            toToken,
-            param.amount,
-            param.from,
-            param.to,
-            gasLimit,
-            messageFee
-        );
-    }
 
     function mapoExecute(
         uint256 _fromChain,
@@ -291,7 +247,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 bytes memory toToken = tokenRegister.getToChainToken(param.token, toChain);
                 require(!_checkBytes(toToken, bytes("")), "Out token not registered");
                 _checkAndBurn(param.token, mapOutAmount);
-                bytes memory m = abi.encode(toToken, outAmount, to, param.from, param.swapData);
+                bytes memory m = abi.encode(orderId, toToken, outAmount, to, param.from, param.swapData);
                 messageData = IMOSV3.MessageData({
                     relay: true,
                     msgType: IMOSV3.MessageType.MESSAGE,

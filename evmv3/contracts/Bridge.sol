@@ -139,10 +139,11 @@ contract Bridge is BridgeAbstract {
         bytes memory token;
         uint256 amount;
         bytes memory to;
-        (token, param.amount, to, param.from, param.swapData) = abi.decode(
+        (param.orderId, token, param.amount, to, param.from, param.swapData) = abi.decode(
             _message,
-            (bytes, uint256, bytes, bytes, bytes)
+            (bytes32, bytes, uint256, bytes, bytes, bytes)
         );
+        // TODO: check param.orderId
         param.token = _fromBytes(token);
         param.to = _fromBytes(to);
         _checkAndMint(param.token, amount);

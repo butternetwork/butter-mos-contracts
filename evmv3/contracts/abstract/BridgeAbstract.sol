@@ -230,7 +230,7 @@ abstract contract BridgeAbstract is
         orderId = _getOrderId(param.from, param.to, param.toChain);
 
         // bridge
-        bytes memory messageData = abi.encode(param.to, param.swapData);
+        bytes memory messageData = abi.encode(orderId, param.to, param.swapData);
         IMORC20(param.token).interTransferAndCall{value: value}(
             address(this),
             param.toChain,
@@ -267,7 +267,8 @@ abstract contract BridgeAbstract is
         param.fromChain = _fromChain;
         param.orderId = _orderId;
         param.amount = _amount;
-        (param.to, param.swapData) = abi.decode(_message, (address, bytes));
+        (param.orderId, param.to, param.swapData) = abi.decode(_message, (bytes32, address, bytes));
+        // TODO: check orderId
         _swapIn(param);
         return true;
     }
@@ -363,6 +364,11 @@ abstract contract BridgeAbstract is
 
     function getMessageFee(uint256 _gasLimit, uint256 _toChain) public virtual returns (uint256 fee) {
         (fee, ) = mos.getMessageFee(_toChain, Helper.ZERO_ADDRESS, _gasLimit);
+    }
+
+    function getTransferFee(address _token, uint256 _amount, uint256 _gasLimit, uint256 _toChain) public virtual returns (uint256 fee) {
+        (fee, ) = mos.getMessageFee(_toChain, Helper.ZERO_ADDRESS, _gasLimit);
+        fee += _chargeNativeFee(_token, _amount, _toChain);
     }
 
     function _chargeNativeFee(address _token, uint256 _amount, uint256 _toChain) internal virtual returns (uint256) {
