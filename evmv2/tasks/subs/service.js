@@ -1,5 +1,6 @@
 let { readFromFile, writeToFile, getChain, getMos, getToken } = require("../../utils/helper.js");
 let { mosDeploy, mosUpgrade, mosVerify } = require("../utils/util.js");
+let {execute} = require("../../utils/authority.js")
 let {
     tronMosDeploy,
     tronMosUpgrade,
@@ -291,6 +292,7 @@ task("mos:updateChain", "update token fee to target chain")
 
 task("mos:updateTokenChain", "update token fee to target chain")
     .addParam("token", "token name")
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
@@ -358,11 +360,19 @@ task("mos:updateTokenChain", "update token fee to target chain")
 
             if (disableList.length > 0) {
                 console.log(`mos remove token ${taskArgs.token} to chain ${disableList} ...`);
-                await mos.connect(deployer).registerTokenChains(tokenAddr, disableList, false);
+                if (taskArgs.auth) {
+                    await execute(mos, "registerTokenChains", [tokenAddr, disableList, false], deployer);
+                } else {
+                    await mos.connect(deployer).registerTokenChains(tokenAddr, disableList, false);
+                }
             }
             if (enableList.length > 0) {
                 console.log(`mos register token ${taskArgs.token} to chain ${enableList} ...`);
-                await mos.connect(deployer).registerTokenChains(tokenAddr, enableList, true);
+                if (taskArgs.auth) {
+                    await execute(mos, "registerTokenChains", [tokenAddr, enableList, true], deployer);
+                } else {
+                    await mos.connect(deployer).registerTokenChains(tokenAddr, enableList, true);
+                }
             }
         }
 
