@@ -92,27 +92,27 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     }
 
     function transferOut(uint256 toChain, bytes memory messageData, address) external payable returns (bytes32) {
-        IMOSV3.MessageData memory m = abi.decode(messageData, (IMOSV3.MessageData));
-        NearDecoder.SwapOutEvent memory s;
-        (s.token, s.amount, s.to, s.from, s.swapData) = abi.decode(m.payload, (bytes, uint256, bytes, bytes, bytes));
-
-        s.orderId = _getOrderId(s.to, s.from, s.amount);
-        emit MapSwapOut(selfChainId, toChain, s.orderId, s.token, s.from, s.to, s.amount, s.swapData);
-        _notifyLightClient("");
-        return s.orderId;
+        return _transferOut(toChain, messageData, selfChainId);
     }
 
-    function relayTransferOut(
+    function transferOut(
         uint256 toChain,
         bytes memory messageData,
-        bytes32 orderId,
         uint256 fromChain
-    ) external payable {
+    ) external payable returns (bytes32) {
+        return _transferOut(toChain, messageData, fromChain);
+    }
+
+    function _transferOut(uint256 toChain, bytes memory messageData, uint256 fromChain) private returns (bytes32) {
         IMOSV3.MessageData memory m = abi.decode(messageData, (IMOSV3.MessageData));
         NearDecoder.SwapOutEvent memory s;
-        (s.token, s.amount, s.to, s.from, s.swapData) = abi.decode(m.payload, (bytes, uint256, bytes, bytes, bytes));
-        emit MapSwapOut(fromChain, toChain, orderId, s.token, s.from, s.to, s.amount, s.swapData);
+        (s.orderId, s.token, s.amount, s.to, s.from, s.swapData) = abi.decode(
+            m.payload,
+            (bytes32, bytes, uint256, bytes, bytes, bytes)
+        );
+        emit MapSwapOut(fromChain, toChain, s.orderId, s.token, s.from, s.to, s.amount, s.swapData);
         _notifyLightClient("");
+        return s.orderId;
     }
 
     function swapIn(uint256 _chainId, bytes memory _receiptProof) external {
@@ -169,13 +169,7 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
             outEvent.swapData
         );
         payload = abi.encode(OutType.SWAP, payload);
-        bytes memory relay = IMapoExecutor(bridge).mapoExecute(
-            outEvent.fromChain,
-            outEvent.toChain,
-            nearMos,
-            outEvent.orderId,
-            payload
-        );
+        IMapoExecutor(bridge).mapoExecute(outEvent.fromChain, outEvent.toChain, nearMos, outEvent.orderId, payload);
         // near -> mapo -> other chain
         // relay to other chain;
         /*
@@ -185,10 +179,6 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
             emit Relay(outEvent.orderId, orderId);
         }
         */
-    }
-
-    function _getOrderId(bytes memory _from, bytes memory _to, uint256 _amount) internal returns (bytes32) {
-        return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _amount, _from, _to));
     }
 
     function _notifyLightClient(bytes memory _data) internal {

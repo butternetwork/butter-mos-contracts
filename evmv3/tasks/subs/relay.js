@@ -126,17 +126,20 @@ task("relay:setNear", "set distribute rate")
         await (await relay.setNear(taskArgs.chain, taskArgs.adptor)).wait();
     });
 
-task("relay:updateMorc20Proxy", "set distribute rate")
-    .addParam("prox", "near chain id")
-    .addParam("flag", "support or not")
+task("relay:updateTokens", "update tokens")
+    .addParam("tokens", "tokens")
+    .addParam("proxys", "proxys")
+    .addParam("feature", "feature")
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
+        let tokenList = tokens.split(",");
+        let proxyList = proxys.split(",");
         let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
         let deployment = await readFromFile(hre.network.name);
         let relay = BridgeAndRelay.attach(deployment[hre.network.name]["bridgeProxy"]);
-        await (await relay.updateMorc20Proxy(taskArgs.prox, taskArgs.flag)).wait();
+        await (await relay.updateMorc20Proxy(tokenList, proxyList, taskArgs.feature)).wait();
     });
 
 task("relay:grantRole", "grant Role")
