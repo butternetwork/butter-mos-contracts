@@ -233,30 +233,11 @@ task("bridge:removeMintableToken", "remove Mintable Token")
             await (await bridge.removeMintableToken(tokenList)).wait();
         }
     });
-task("bridge:setNearChainId", "set near chainId")
-    .addParam("chain", "near chain id")
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
-        let Bridge = await ethers.getContractFactory("Bridge");
-        let deployment = await readFromFile(hre.network.name);
-        let addr = deployment[hre.network.name]["bridgeProxy"];
-        if (!addr) {
-            throw "bridge not deployed.";
-        }
-        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-            let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
-            await bridge.setNearChainId(taskArgs.chain).send();
-        } else {
-            console.log("operator address is:", deployer.address);
-            let bridge = Bridge.attach(addr);
-            await (await bridge.setNearChainId(taskArgs.chain)).wait();
-        }
-    });
 
-task("bridge:updateMorc20Proxy", "set near chainId")
-    .addParam("prox", "near chain id")
-    .addParam("flag", "support or not")
+task("bridge:updateTokens", "update tokens")
+    .addParam("tokens", "tokens")
+    .addParam("proxys", "proxys")
+    .addParam("feature", "feature")
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
@@ -266,13 +247,15 @@ task("bridge:updateMorc20Proxy", "set near chainId")
         if (!addr) {
             throw "bridge not deployed.";
         }
+        let tokenList = tokens.split(",");
+        let proxyList = proxys.split(",");
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
-            await bridge.updateMorc20Proxy(taskArgs.prox, taskArgs.flag).send();
+            await bridge.updateTokens(tokenList, proxyList, taskArgs.feature).send();
         } else {
             console.log("operator address is:", deployer.address);
             let bridge = Bridge.attach(addr);
-            await (await bridge.updateMorc20Proxy(taskArgs.prox, taskArgs.flag)).wait();
+            await (await bridge.updateTokens(tokenList, proxyList, taskArgs.feature)).wait();
         }
     });
 
