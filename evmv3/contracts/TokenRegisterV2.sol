@@ -79,15 +79,13 @@ contract TokenRegisterV2 is ITokenRegisterV2, UUPSUpgradeable, AccessControlEnum
         address _token,
         uint256 _fromChain,
         bytes memory _fromToken,
-        uint8 _decimals,
-        bool _enableBridge
+        uint8 _decimals
     ) external onlyRole(MANAGE_ROLE) checkAddress(_token) {
         require(!Utils.checkBytes(_fromToken, bytes("")), "invalid from token");
         Token storage token = tokenList[_token];
-        require(token.vaultToken != address(0), "invalid map token");
+        //require(token.vaultToken != address(0), "invalid map token");
         token.tokenDecimals[_fromChain] = _decimals;
-        if (_enableBridge) token.mappingTokens[_fromChain] = _fromToken;
-        else token.mappingTokens[_fromChain] = bytes("");
+        token.mappingTokens[_fromChain] = _fromToken;
         tokenMappingList[_fromChain][_fromToken] = _token;
     }
 

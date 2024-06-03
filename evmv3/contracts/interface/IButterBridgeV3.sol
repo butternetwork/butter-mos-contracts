@@ -2,6 +2,18 @@
 pragma solidity ^0.8.0;
 
 interface IButterBridgeV3 {
+    enum OutType {
+        SWAP,
+        DEPOSIT,
+        INTER_TRANSFER
+    }
+
+    struct BridgeParam {
+        uint256 gasLimit;
+        bytes refundAddress;
+        bytes swapData;
+    }
+
     function swapOutToken(
         address _sender,
         address _token, // src token
@@ -9,15 +21,26 @@ interface IButterBridgeV3 {
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
-    ) external returns (bytes32 orderId);
+    ) external payable returns (bytes32 orderId);
 
-    function depositToken(address _token, address to, uint256 _amount) external;
+    function depositToken(address _token, address to, uint256 _amount) external payable;
 
     function getOrderStatus(
         uint256 _chainId,
         uint256 _blockNum,
         bytes32 _orderId
     ) external view returns (bool exists, bool verifiable, uint256 nodeType);
+
+    function getNativeFee(
+        address _token,
+        uint256 _gasLimit,
+        uint256 _toChain,
+        OutType _outType
+    ) external view returns (uint256);
+
+    event Relay(bytes32 orderId1, bytes32 orderId2);
+
+    event CollectFee(bytes32 indexed orderId, address indexed token, uint256 value);
 
     event DepositOut(
         uint256 indexed fromChain,

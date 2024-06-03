@@ -91,10 +91,6 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
         nodeType = lightClientManager.nodeType(nearChainId);
     }
 
-    function transferOut(uint256 toChain, bytes memory messageData, address) external payable returns (bytes32) {
-        return _transferOut(toChain, messageData, selfChainId);
-    }
-
     function transferOut(
         uint256 toChain,
         bytes memory messageData,
@@ -169,16 +165,17 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
             outEvent.swapData
         );
         payload = abi.encode(OutType.SWAP, payload);
-        IMapoExecutor(bridge).mapoExecute(outEvent.fromChain, outEvent.toChain, nearMos, outEvent.orderId, payload);
-        // near -> mapo -> other chain
-        // relay to other chain;
-        /*
-        if (relay.length != 0) {
-            (uint256 msgFee, ) = mos.getMessageFee(outEvent.toChain, address(0), gasLimit);
-            bytes32 orderId = mos.transferOut{value: msgFee}(outEvent.toChain, relay, address(0));
-            emit Relay(outEvent.orderId, orderId);
+        uint256 value;
+        if (outEvent.toChain != selfChainId) {
+            (value, ) = mos.getMessageFee(outEvent.toChain, address(0), gasLimit);
         }
-        */
+        IMapoExecutor(bridge).mapoExecute{value: value}(
+            outEvent.fromChain,
+            outEvent.toChain,
+            nearMos,
+            outEvent.orderId,
+            payload
+        );
     }
 
     function _notifyLightClient(bytes memory _data) internal {

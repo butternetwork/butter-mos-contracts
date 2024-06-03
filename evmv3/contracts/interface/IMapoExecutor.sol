@@ -9,5 +9,5 @@ interface IMapoExecutor {
         bytes calldata _fromAddress,
         bytes32 _orderId,
         bytes calldata _message
-    ) external returns (bytes memory newMessage);
+    ) external payable returns (bytes memory newMessage);
 }

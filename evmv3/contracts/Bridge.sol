@@ -41,14 +41,19 @@ contract Bridge is BridgeAbstract {
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
-    ) external override nonReentrant whenNotPaused returns (bytes32 orderId) {
+    ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         SwapOutParam memory param;
         param.from = _sender;
         param.to = _to;
         param.toChain = _toChain;
         param.amount = _amount;
-        param.gasLimit = baseGasLookup[_toChain][OutType.SWAP];
+        param.token = Helper._isNative(_token) ? wToken : _token;
+        if (isOmniToken(param.token)) {
+            param.gasLimit = baseGasLookup[_toChain][OutType.INTER_TRANSFER];
+        } else {
+            param.gasLimit = baseGasLookup[_toChain][OutType.SWAP];
+        }
         if (_swapData.length != 0) {
             BridgeParam memory bridge = abi.decode(_swapData, (BridgeParam));
             param.gasLimit += bridge.gasLimit;
@@ -56,7 +61,7 @@ contract Bridge is BridgeAbstract {
             param.swapData = bridge.swapData;
         }
         uint256 messageFee;
-        (param.token, , messageFee) = _tokenIn(param.toChain, param.amount, _token, param.gasLimit, true);
+        (, , messageFee) = _tokenIn(param.toChain, param.amount, _token, param.gasLimit, true);
         if (isOmniToken(param.token)) {
             orderId = _interTransferAndCall(param, abi.encodePacked(relayContract), messageFee);
         } else {
@@ -123,7 +128,7 @@ contract Bridge is BridgeAbstract {
         bytes calldata _fromAddress,
         bytes32 _orderId,
         bytes calldata _message
-    ) external override nonReentrant checkOrder(_orderId) returns (bytes memory newMessage) {
+    ) external payable override nonReentrant checkOrder(_orderId) returns (bytes memory newMessage) {
         require(msg.sender == address(mos), "only mos");
         require(_toChain == selfChainId, "invalid to chain");
         require(_fromBytes(_fromAddress) == relayContract, "invalid from");

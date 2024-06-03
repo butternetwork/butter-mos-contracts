@@ -30,7 +30,7 @@ task("relay:deploy", "mos relay deploy")
         }
         let bridge = createResult[0];
         let relay = BridgeAndRelay.attach(bridge);
-        await (await relay.setMapoService(taskArgs.mos)).wait();
+        await (await relay.setOmniService(taskArgs.mos)).wait();
         console.log("wToken", await relay.wToken());
         console.log("mos", await relay.mos());
         let deployment = await readFromFile(hre.network.name);
@@ -86,7 +86,7 @@ task("relay:setDistributeRate", "set distribute rate")
         await (await relay.setDistributeRate(taskArgs.id, taskArgs.receiver, taskArgs.rate)).wait();
     });
 
-task("relay:registerChain", "set distribute rate")
+task("relay:registerChain", "register Chain")
     .addParam("chain", "chainId")
     .addParam("address", "chainId => address")
     .setAction(async (taskArgs, hre) => {
@@ -97,6 +97,25 @@ task("relay:registerChain", "set distribute rate")
         let deployment = await readFromFile(hre.network.name);
         let relay = BridgeAndRelay.attach(deployment[hre.network.name]["bridgeProxy"]);
         await (await relay.registerChain(taskArgs.chain, taskArgs.address)).wait();
+    });
+
+task("relay:registerTokenChains", "register token Chains")
+    .addParam("chains", "chains address")
+    .addParam("token", "token address")
+    .addParam("enable", "enable bridge")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        let chainList = taskArgs.chains.split(",");
+        let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
+        let deployment = await readFromFile(hre.network.name);
+        let addr = deployment[hre.network.name]["bridgeProxy"];
+        if (!addr) {
+            throw "bridge not deployed.";
+        }
+        console.log("operator address is:", deployer.address);
+        let relay = BridgeAndRelay.attach(addr);
+        await (await relay.registerTokenChains(taskArgs.token, chainList, taskArgs.enable)).wait();
     });
 
 task("relay:setBaseGas", "set distribute rate")
