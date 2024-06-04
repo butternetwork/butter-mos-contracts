@@ -71,7 +71,6 @@ task("register:mapToken", "mapping token")
     .addParam("from", "from chain id")
     .addParam("fromtoken", "from token")
     .addParam("decimals", "token decimals")
-    .addParam("enable", "enable bridge out")
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
@@ -79,15 +78,7 @@ task("register:mapToken", "mapping token")
         let TokenRegisterV2 = await ethers.getContractFactory("TokenRegisterV2");
         let deployment = await readFromFile(hre.network.name);
         let register = TokenRegisterV2.attach(deployment[hre.network.name]["registerProxy"]);
-        await (
-            await register.mapToken(
-                taskArgs.token,
-                taskArgs.from,
-                taskArgs.fromtoken,
-                taskArgs.decimals,
-                taskArgs.enable
-            )
-        ).wait();
+        await (await register.mapToken(taskArgs.token, taskArgs.from, taskArgs.fromtoken, taskArgs.decimals)).wait();
     });
 
 task("register:setTransferOutFee", "set transfer outFee")

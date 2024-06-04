@@ -33,7 +33,7 @@ task("bridge:deploy", "bridge deploy")
             bridge_addr = await createTron("ButterProxy", [impl, data], hre.artifacts, networkName);
             bridge_addr = await fromHex(bridge_addr, networkName);
             let bridge = await getTronContract("Bridge", hre.artifacts, networkName, bridge_addr);
-            await bridge.setMapoService(await toHex(taskArgs.mos, networkName)).send();
+            await bridge.setOmniService(await toHex(taskArgs.mos, networkName)).send();
             console.log("wToken", await bridge.wToken().call());
             console.log("mos", await bridge.mos().call());
         } else if (hre.network.name === "zkSync") {
@@ -42,7 +42,7 @@ task("bridge:deploy", "bridge deploy")
             let impl = await createZk("Bridge", [], hre);
             bridge_addr = await createZk("ButterProxy", [impl, data], hre);
             let bridge = Bridge.attach(bridge_addr);
-            await (await bridge.setMapoService(taskArgs.mos)).wait();
+            await (await bridge.setOmniService(taskArgs.mos)).wait();
             console.log("wToken", await bridge.wToken());
             console.log("mos", await bridge.mos());
         } else {
@@ -209,28 +209,6 @@ task("bridge:addMintableToken", "add Mintable Token")
             console.log("operator address is:", deployer.address);
             let bridge = Bridge.attach(addr);
             await (await bridge.addMintableToken(tokenList)).wait();
-        }
-    });
-
-task("bridge:removeMintableToken", "remove Mintable Token")
-    .addParam("tokens", "chains address")
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
-        let tokenList = taskArgs.tokens.split(",");
-        let Bridge = await ethers.getContractFactory("Bridge");
-        let deployment = await readFromFile(hre.network.name);
-        let addr = deployment[hre.network.name]["bridgeProxy"];
-        if (!addr) {
-            throw "bridge not deployed.";
-        }
-        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-            let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
-            await bridge.removeMintableToken(tokenList).send();
-        } else {
-            console.log("operator address is:", deployer.address);
-            let bridge = Bridge.attach(addr);
-            await (await bridge.removeMintableToken(tokenList)).wait();
         }
     });
 

@@ -106,13 +106,18 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
-    ) external override nonReentrant whenNotPaused returns (bytes32 orderId) {
+    ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         SwapOutParam memory param;
         param.from = _sender;
         param.to = _to;
         param.toChain = _toChain;
-        param.gasLimit = baseGasLookup[_toChain][OutType.SWAP];
+        param.token = Helper._isNative(_token) ? wToken : _token;
+        if (isOmniToken(param.token)) {
+            param.gasLimit = baseGasLookup[_toChain][OutType.INTER_TRANSFER];
+        } else {
+            param.gasLimit = baseGasLookup[_toChain][OutType.SWAP];
+        }
         if (_swapData.length != 0) {
             BridgeParam memory bridge = abi.decode(_swapData, (BridgeParam));
             param.gasLimit += bridge.gasLimit;
@@ -120,7 +125,7 @@ contract BridgeAndRelay is BridgeAbstract {
             param.swapData = bridge.swapData;
         }
         uint256 messageFee;
-        (param.token, , messageFee) = _tokenIn(param.toChain, _amount, _token, param.gasLimit, true);
+        (, , messageFee) = _tokenIn(param.toChain, _amount, _token, param.gasLimit, true);
         bytes memory toToken = tokenRegister.getToChainToken(param.token, param.toChain);
         require(!_checkBytes(toToken, bytes("")), "token not registered");
         if (isOmniToken(param.token)) {
@@ -148,8 +153,15 @@ contract BridgeAndRelay is BridgeAbstract {
                 gasLimit: param.gasLimit,
                 value: 0
             });
-            IMOSV3 _mos = param.toChain == nearChainId ? IMOSV3(nearAdaptor) : mos;
-            _mos.transferOut{value: messageFee}(param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
+            if (param.toChain == nearChainId) {
+                INearMosAdapter(nearAdaptor).transferOut{value: messageFee}(
+                    param.toChain,
+                    abi.encode(messageData),
+                    selfChainId
+                );
+            } else {
+                mos.transferOut{value: messageFee}(param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
+            }
             emit CollectFee(orderId, param.token, (_amount - mapOutAmount));
         }
         emit SwapOut(
@@ -172,7 +184,7 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes calldata _fromAddress,
         bytes32 _orderId,
         bytes calldata _message
-    ) external override nonReentrant checkOrder(_orderId) returns (bytes memory newMessage) {
+    ) external payable override nonReentrant checkOrder(_orderId) returns (bytes memory newMessage) {
         require(msg.sender == address(mos) || msg.sender == nearAdaptor, "only mos");
         require(_checkBytes(_fromAddress, bridges[_fromChain]), "invalid from");
         OutType outType;
@@ -260,8 +272,8 @@ contract BridgeAndRelay is BridgeAbstract {
             }
             if (fromChain == nearChainId) {
                 // near -> mapo -> other chain
-                (uint256 msgFee, ) = mos.getMessageFee(toChain, address(0), gasLimit);
-                bytes32 v3OrderId = mos.transferOut{value: msgFee}(toChain, payLoad, address(0));
+                //(uint256 msgFee, ) = mos.getMessageFee(toChain, address(0), gasLimit);
+                bytes32 v3OrderId = mos.transferOut{value: msg.value}(toChain, payLoad, address(0));
                 emit Relay(orderId, v3OrderId);
             }
             return payLoad;
