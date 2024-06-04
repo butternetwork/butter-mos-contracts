@@ -7,11 +7,6 @@
 ```solidity
 
 interface IButterBridgeV3 {
-    enum OutType {
-        SWAP,
-        DEPOSIT,
-        INTER_TRANSFER
-    }
 
     struct BridgeParam {
         uint256 gasLimit;
@@ -39,8 +34,7 @@ interface IButterBridgeV3 {
     function getNativeFee(
         address _token,
         uint256 _gasLimit,
-        uint256 _toChain,
-        OutType _outType
+        uint256 _toChain
     ) external view returns (uint256);
 
     event Relay(bytes32 orderId1, bytes32 orderId2);
@@ -102,6 +96,10 @@ First determine the swap native fee, then call swapOutToken() to transfer the as
 
 ```solidity
 IButterBridgeV3(brdige).getNativeFee(
+        address _token,
+        uint256 _gasLimit, // gasLimit call IButterReceiver.onReceived() if not need call set 0
+        uint256 _toChain
+    )
 
 ```
 
@@ -118,14 +116,7 @@ IButterBridgeV3(brdige).swapOutToken(
     ) external payable 
 ```
 
-_swapData  if need call contract on target chain  or src token is OmniToken  otherwise set '0x' for it
-
-How to tell whether scr token is OmniToken
-
-```solidity
-IButterBridgeV3(brdige).isOmniToken(address _token)
-// _token src token(wtoken replace of native token)
-```
+_swapData  if need call contract on target chain    otherwise set '0x' for it
 
 how to get _swapData ?
 

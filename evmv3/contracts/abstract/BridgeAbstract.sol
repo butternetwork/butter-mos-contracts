@@ -305,18 +305,20 @@ abstract contract BridgeAbstract is
     function getNativeFee(
         address _token,
         uint256 _gasLimit,
-        uint256 _toChain,
-        OutType _outType
+        uint256 _toChain
     ) external view returns (uint256) {
         address atoken = Helper._isNative(_token) ? wToken : _token;
-        _gasLimit = (_outType == OutType.DEPOSIT) ? 0 : _gasLimit;
-        uint256 gasLimit = _gasLimit + baseGasLookup[_toChain][_outType];
-        uint256 fee = getMessageFee(atoken, gasLimit, _toChain);
-        if (_outType != OutType.DEPOSIT) {
-            fee += nativeFees[_token][_toChain];
+        uint256 gasLimit;
+        if(isOmniToken(atoken)){
+            gasLimit = _gasLimit + baseGasLookup[_toChain][OutType.INTER_TRANSFER];
+        } else {
+            gasLimit = _gasLimit + baseGasLookup[_toChain][OutType.SWAP];
         }
+        uint256 fee = getMessageFee(atoken, gasLimit, _toChain);
+        fee += nativeFees[_token][_toChain];
         return fee;
     }
+
 
     function _tokenIn(
         uint256 _toChain,

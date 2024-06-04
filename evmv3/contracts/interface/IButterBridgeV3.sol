@@ -2,12 +2,7 @@
 pragma solidity ^0.8.0;
 
 interface IButterBridgeV3 {
-    enum OutType {
-        SWAP,
-        DEPOSIT,
-        INTER_TRANSFER
-    }
-
+    
     struct BridgeParam {
         uint256 gasLimit;
         bytes refundAddress;
@@ -34,8 +29,7 @@ interface IButterBridgeV3 {
     function getNativeFee(
         address _token,
         uint256 _gasLimit,
-        uint256 _toChain,
-        OutType _outType
+        uint256 _toChain
     ) external view returns (uint256);
 
     event Relay(bytes32 orderId1, bytes32 orderId2);
