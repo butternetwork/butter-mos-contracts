@@ -2,12 +2,7 @@
 pragma solidity ^0.8.0;
 
 interface IButterBridgeV3 {
-    enum OutType {
-        SWAP,
-        DEPOSIT,
-        INTER_TRANSFER
-    }
-
+    
     struct BridgeParam {
         uint256 gasLimit;
         bytes refundAddress;
@@ -15,11 +10,11 @@ interface IButterBridgeV3 {
     }
 
     function swapOutToken(
-        address _sender,
-        address _token, // src token
-        bytes memory _to,
-        uint256 _amount,
-        uint256 _toChain, // target chain id
+        address _sender,   // user account send this transation
+        address _token,    // src token
+        bytes memory _to,  // receiver account
+        uint256 _amount,   // token amount
+        uint256 _toChain,  // target chain id
         bytes calldata _swapData
     ) external payable returns (bytes32 orderId);
 
@@ -34,8 +29,7 @@ interface IButterBridgeV3 {
     function getNativeFee(
         address _token,
         uint256 _gasLimit,
-        uint256 _toChain,
-        OutType _outType
+        uint256 _toChain
     ) external view returns (uint256);
 
     event Relay(bytes32 orderId1, bytes32 orderId2);
@@ -53,23 +47,24 @@ interface IButterBridgeV3 {
     );
 
     event SwapOut(
-        uint256 indexed fromChain, // from chain
-        uint256 indexed toChain, // to chain
-        bytes32 orderId, // order id
-        bytes token, // token to transfer
-        bytes from, // source chain from address
-        bytes to,
-        uint256 amount,
-        bytes swapData // swap data, used on target chain dex.
+        bytes32 indexed orderId, // orderId
+        uint256 indexed tochain, // to chain
+        address indexed token,   // token to across chain 
+        uint256 amount,          // amount to transfer
+        address from,            // account send this transation
+        address caller,          // msg.sender call swapOutToken
+        bytes to,                // account receiver on target chain
+        bytes outToken,          // token bridge to target chain(token is native this maybe wtoken)
+        uint256 gasLimit,        // gasLimit for call on target chain 
+        uint256 messageFee       // native amount for pass message  
     );
 
     event SwapIn(
-        uint256 indexed fromChain,
-        uint256 indexed toChain,
-        bytes32 indexed orderId,
-        address token,
-        bytes from,
-        address toAddress,
-        uint256 amountOut
+        bytes32 indexed orderId,  // orderId
+        uint256 indexed fromChain,// from chain
+        address indexed token,    // token received on target chain
+        uint256 amount,           // target token amount 
+        address to,               // account receiver on target chain  
+        bytes from                // from chain account send this transation
     );
 }

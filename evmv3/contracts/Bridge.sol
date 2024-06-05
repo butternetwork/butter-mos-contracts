@@ -148,4 +148,12 @@ contract Bridge is BridgeAbstract {
         _swapIn(param);
         return bytes("");
     }
+
+    function getDepositNativeFee(
+        address _token
+    ) external view returns (uint256){
+        address atoken = Helper._isNative(_token) ? wToken : _token;
+        uint256 gasLimit = baseGasLookup[relayChainId][OutType.DEPOSIT];
+        return getMessageFee(atoken, gasLimit, relayChainId);
+    }
 }
