@@ -3,6 +3,7 @@
 pragma solidity 0.8.20;
 
 import "../lib/Helper.sol";
+import "../interface/IButterBridgeV3.sol";
 import "../interface/IMOSV3.sol";
 import "../interface/IMORC20.sol";
 import "../interface/IMintableToken.sol";
@@ -22,6 +23,7 @@ abstract contract BridgeAbstract is
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
     AccessControlEnumerableUpgradeable,
+    IButterBridgeV3,
     IMORC20Receiver,
     IMapoExecutor
 {
@@ -47,12 +49,6 @@ abstract contract BridgeAbstract is
         address to;
         bytes swapData;
         uint256 amount;
-    }
-
-    struct BridgeParam {
-        uint256 gasLimit;
-        bytes refundAddress;
-        bytes swapData;
     }
 
     struct SwapOutParam {
@@ -102,28 +98,6 @@ abstract contract BridgeAbstract is
         bytes from, // source chain from address
         bytes to,
         uint256 amount
-    );
-
-    event SwapIn(
-        bytes32 indexed orderId,
-        uint256 indexed fromChain,
-        address indexed token,
-        uint256 amount,
-        address to,
-        bytes from
-    );
-
-    event SwapOut(
-        bytes32 indexed orderId,
-        uint256 indexed tochain,
-        address indexed token,
-        uint256 amount,
-        address from,
-        address caller,
-        bytes to,
-        bytes outToken,
-        uint256 gasLimit,
-        uint256 messageFee
     );
 
     receive() external payable {}
@@ -245,6 +219,8 @@ abstract contract BridgeAbstract is
         bytes calldata _swapData
     ) external payable virtual nonReentrant whenNotPaused returns (bytes32 orderId) {}
 
+    function depositToken(address _token, address to, uint256 _amount) external payable virtual {}
+
     function _interTransferAndCall(
         SwapOutParam memory param,
         bytes memory target,
@@ -302,14 +278,10 @@ abstract contract BridgeAbstract is
         return true;
     }
 
-    function getNativeFee(
-        address _token,
-        uint256 _gasLimit,
-        uint256 _toChain
-    ) external view returns (uint256) {
+    function getNativeFee(address _token, uint256 _gasLimit, uint256 _toChain) external view returns (uint256) {
         address atoken = Helper._isNative(_token) ? wToken : _token;
         uint256 gasLimit;
-        if(isOmniToken(atoken)){
+        if (isOmniToken(atoken)) {
             gasLimit = _gasLimit + baseGasLookup[_toChain][OutType.INTER_TRANSFER];
         } else {
             gasLimit = _gasLimit + baseGasLookup[_toChain][OutType.SWAP];
@@ -318,7 +290,6 @@ abstract contract BridgeAbstract is
         fee += nativeFees[_token][_toChain];
         return fee;
     }
-
 
     function _tokenIn(
         uint256 _toChain,
@@ -348,6 +319,7 @@ abstract contract BridgeAbstract is
 
     function _swapIn(SwapInParam memory param) internal {
         // if swap params is not empty, then we need to do swap on current chain
+        address outToken = param.token;
         if (param.swapData.length > 0 && param.to.isContract()) {
             Helper._transfer(selfChainId, param.token, param.to, param.amount);
             try
@@ -367,9 +339,9 @@ abstract contract BridgeAbstract is
         } else {
             // transfer token if swap did not happen
             _withdraw(param.token, param.to, param.amount);
-            if (param.token == wToken) param.token = Helper.ZERO_ADDRESS;
+            if (param.token == wToken) outToken = Helper.ZERO_ADDRESS;
         }
-        emit SwapIn(param.orderId, param.fromChain, param.token, param.amount, param.to, param.from);
+        emit SwapIn(param.orderId, param.fromChain, param.token, param.amount, param.to, outToken, param.from);
     }
 
     function _withdraw(address _token, address _receiver, uint256 _amount) internal {

@@ -37,12 +37,11 @@ contract BridgeAndRelay is BridgeAbstract {
     uint256 public nearChainId;
     address public nearAdaptor;
 
-    event Relay(bytes32 orderId1, bytes32 orderId2);
     event SetTokenRegister(address tokenRegister);
     event RegisterChain(uint256 _chainId, bytes _address);
     event SetNear(uint256 _nearChainId, address _nearMosAdptor);
     event SetDistributeRate(uint256 _id, address _to, uint256 _rate);
-    event CollectFee(bytes32 indexed orderId, address indexed token, uint256 value);
+
     event DepositIn(
         uint256 indexed fromChain,
         address indexed token,
@@ -94,7 +93,11 @@ contract BridgeAndRelay is BridgeAbstract {
         _withdraw(token, msg.sender, amount);
     }
 
-    function deposit(address _token, address _to, uint256 _amount) external payable nonReentrant whenNotPaused {
+    function depositToken(
+        address _token,
+        address _to,
+        uint256 _amount
+    ) external payable override nonReentrant whenNotPaused {
         (address token, , ) = _tokenIn(selfChainId, _amount, _token, 0, false);
         _deposit(token, abi.encodePacked(msg.sender), _to, _amount, bytes32(""), selfChainId);
     }
@@ -267,6 +270,7 @@ contract BridgeAndRelay is BridgeAbstract {
             bytes memory payLoad = abi.encode(messageData);
             if (toChain == nearChainId) {
                 // other chain -> mapo -> near
+                // todo
                 INearMosAdapter(nearAdaptor).transferOut(toChain, payLoad, fromChain);
                 return bytes("");
             }

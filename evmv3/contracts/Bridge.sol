@@ -100,7 +100,11 @@ contract Bridge is BridgeAbstract {
         );
     }
 
-    function deposit(address _token, address _to, uint256 _amount) external payable nonReentrant whenNotPaused {
+    function depositToken(
+        address _token,
+        address _to,
+        uint256 _amount
+    ) external payable override nonReentrant whenNotPaused {
         uint256 gasLimit = baseGasLookup[relayChainId][OutType.DEPOSIT];
         (address token, , uint256 messageFee) = _tokenIn(relayChainId, _amount, _token, gasLimit, false);
         _checkBridgeable(token, relayChainId);
@@ -149,11 +153,9 @@ contract Bridge is BridgeAbstract {
         return bytes("");
     }
 
-    function getDepositNativeFee(
-        address _token
-    ) external view returns (uint256){
-        address atoken = Helper._isNative(_token) ? wToken : _token;
+    function getDepositNativeFee(address _token) external view returns (uint256) {
+        address token = Helper._isNative(_token) ? wToken : _token;
         uint256 gasLimit = baseGasLookup[relayChainId][OutType.DEPOSIT];
-        return getMessageFee(atoken, gasLimit, relayChainId);
+        return getMessageFee(token, gasLimit, relayChainId);
     }
 }
