@@ -242,6 +242,24 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         emit mapSwapExecute(_chainId, selfChainId, msg.sender);
     }
 
+     // verify swap in logs and store hash
+    function swapInVerify(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
+        require(_chainId == relayChainId, "invalid chain id");
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(_receiptProof);
+        require(success, message);
+        bytes32 hash = keccak256(logArray);
+        require(!storedOrderId[hash], "already verified");
+        storedOrderId[hash] = true;
+        emit mapSwapInVerified(logArray);
+    }
+
+    // execute stored swap in logs
+    function swapInVerifiedWithIndex(bytes calldata logArray,uint256 logIndex) external nonReentrant whenNotPaused {
+        bytes32 hash = keccak256(logArray);
+        require(storedOrderId[hash], "not verified");
+        _swapInVerifiedWithIndex(logArray,logIndex);
+    }
+
     function isMintable(address _token) public view returns (bool) {
         return mintableTokens[_token];
     }
