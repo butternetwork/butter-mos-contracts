@@ -395,15 +395,15 @@ abstract contract BridgeAbstract is
         }
     }
 
-    function getTransferFee(
-        address _token,
-        uint256 _amount,
-        uint256 _gasLimit,
-        uint256 _toChain
-    ) public virtual returns (uint256 fee) {
-        (fee, ) = mos.getMessageFee(_toChain, Helper.ZERO_ADDRESS, _gasLimit);
-        fee += _chargeNativeFee(_token, _amount, _toChain);
-    }
+    // function getTransferFee(
+    //     address _token,
+    //     uint256 _amount,
+    //     uint256 _gasLimit,
+    //     uint256 _toChain
+    // ) public virtual returns (uint256 fee) {
+    //     (fee, ) = mos.getMessageFee(_toChain, Helper.ZERO_ADDRESS, _gasLimit);
+    //     fee += _chargeNativeFee(_token, _amount, _toChain);
+    // }
 
     function _chargeNativeFee(address _token, uint256 _amount, uint256 _toChain) internal virtual returns (uint256) {
         uint256 fee = nativeFees[_token][_toChain];

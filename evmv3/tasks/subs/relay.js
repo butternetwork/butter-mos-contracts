@@ -96,7 +96,7 @@ task("relay:registerChain", "register Chain")
         let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
         let deployment = await readFromFile(hre.network.name);
         let relay = BridgeAndRelay.attach(deployment[hre.network.name]["bridgeProxy"]);
-        await (await relay.registerChain(taskArgs.chain, taskArgs.address)).wait();
+        await (await relay.registerChain([taskArgs.chain], [taskArgs.address])).wait();
     });
 
 task("relay:registerTokenChains", "register token Chains")
