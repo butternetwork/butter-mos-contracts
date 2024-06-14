@@ -62,9 +62,13 @@ contract BridgeAndRelay is BridgeAbstract {
         emit SetTokenRegister(_register);
     }
 
-    function registerChain(uint256 _chainId, bytes memory _address) external onlyRole(MANAGE_ROLE) {
-        bridges[_chainId] = _address;
-        emit RegisterChain(_chainId, _address);
+    function registerChain(uint256[] calldata _chainIds, bytes[] calldata _addresses) external onlyRole(MANAGE_ROLE) {
+        uint256 len = _chainIds.length;
+        require(len == _addresses.length,"length mismatching");
+        for(uint256 i = 0; i < len; i++ ){
+            bridges[_chainIds[i]] = _addresses[i];
+            emit RegisterChain(_chainIds[i], _addresses[i]);
+        }
     }
 
     function setDistributeRate(

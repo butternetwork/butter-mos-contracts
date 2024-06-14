@@ -166,6 +166,28 @@ task("bridge:setRelay", "set relay")
         }
     });
 
+task("bridge:registerChain", "register Chain")
+    .addParam("chain", "chainId")
+    .addParam("address", "chainId => address")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        let Bridge = await ethers.getContractFactory("Bridge");
+        let deployment = await readFromFile(hre.network.name);
+        let addr = deployment[hre.network.name]["bridgeProxy"];
+        if (!addr) {
+            throw "bridge not deployed.";
+        }
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
+            await bridge.setRelay([taskArgs.chain], [taskArgs.address]).send();
+        } else {
+            console.log("operator address is:", deployer.address);
+            let bridge = Bridge.attach(addr);
+            await (await bridge.setRelay([taskArgs.chain], [taskArgs.address])).wait();
+        }
+    });
+
 task("bridge:registerTokenChains", "register token Chains")
     .addParam("chains", "chains address")
     .addParam("token", "token address")

@@ -15,9 +15,10 @@ contract Bridge is BridgeAbstract {
 
     uint256 public relayChainId;
     address public relayContract;
+    mapping(uint256 => bytes) public bridges;
 
     event SetRelay(uint256 _chainId, address _relay);
-
+    event RegisterChain(uint256 _chainId, bytes _address);
     event Deposit(
         bytes32 orderId,
         address token,
@@ -31,7 +32,17 @@ contract Bridge is BridgeAbstract {
     function setRelay(uint256 _chainId, address _relay) external onlyRole(MANAGE_ROLE) checkAddress(_relay) {
         relayChainId = _chainId;
         relayContract = _relay;
+        bridges[relayChainId] = abi.encodePacked(relayContract);
         emit SetRelay(_chainId, _relay);
+    }
+
+    function registerChain(uint256[] calldata _chainIds, bytes[] calldata _addresses) external onlyRole(MANAGE_ROLE) {
+        uint256 len = _chainIds.length;
+        require(len == _addresses.length,"length mismatching");
+        for(uint256 i = 0; i < len; i++ ){
+            bridges[_chainIds[i]] = _addresses[i];
+            emit RegisterChain(_chainIds[i], _addresses[i]);
+        }
     }
 
     function swapOutToken(
@@ -63,7 +74,7 @@ contract Bridge is BridgeAbstract {
         uint256 messageFee;
         (, , messageFee) = _tokenIn(param.toChain, param.amount, _token, param.gasLimit, true);
         if (isOmniToken(param.token)) {
-            orderId = _interTransferAndCall(param, abi.encodePacked(relayContract), messageFee);
+            orderId = _interTransferAndCall(param, bridges[_toChain], messageFee);
         } else {
             _checkBridgeable(param.token, param.toChain);
             _checkLimit(param.amount, param.toChain, param.token);
