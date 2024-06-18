@@ -14,7 +14,7 @@ interface IButterBridgeV3 {
         bytes memory _to, // receiver account
         uint256 _amount, // token amount
         uint256 _toChain, // target chain id
-        bytes calldata _swapData
+        bytes calldata _bridgeData
     ) external payable returns (bytes32 orderId);
 
     function depositToken(address _token, address to, uint256 _amount) external payable;

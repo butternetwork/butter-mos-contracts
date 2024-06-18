@@ -64,8 +64,8 @@ contract BridgeAndRelay is BridgeAbstract {
 
     function registerChain(uint256[] calldata _chainIds, bytes[] calldata _addresses) external onlyRole(MANAGE_ROLE) {
         uint256 len = _chainIds.length;
-        require(len == _addresses.length,"length mismatching");
-        for(uint256 i = 0; i < len; i++ ){
+        require(len == _addresses.length, "length mismatching");
+        for (uint256 i = 0; i < len; i++) {
             bridges[_chainIds[i]] = _addresses[i];
             emit RegisterChain(_chainIds[i], _addresses[i]);
         }
@@ -112,7 +112,7 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes memory _to,
         uint256 _amount,
         uint256 _toChain, // target chain id
-        bytes calldata _swapData
+        bytes calldata _bridgeData
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         SwapOutParam memory param;
@@ -125,8 +125,8 @@ contract BridgeAndRelay is BridgeAbstract {
         } else {
             param.gasLimit = baseGasLookup[_toChain][OutType.SWAP];
         }
-        if (_swapData.length != 0) {
-            BridgeParam memory bridge = abi.decode(_swapData, (BridgeParam));
+        if (_bridgeData.length != 0) {
+            BridgeParam memory bridge = abi.decode(_bridgeData, (BridgeParam));
             param.gasLimit += bridge.gasLimit;
             param.refundAddress = bridge.refundAddress;
             param.swapData = bridge.swapData;

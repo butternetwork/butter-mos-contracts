@@ -38,8 +38,8 @@ contract Bridge is BridgeAbstract {
 
     function registerChain(uint256[] calldata _chainIds, bytes[] calldata _addresses) external onlyRole(MANAGE_ROLE) {
         uint256 len = _chainIds.length;
-        require(len == _addresses.length,"length mismatching");
-        for(uint256 i = 0; i < len; i++ ){
+        require(len == _addresses.length, "length mismatching");
+        for (uint256 i = 0; i < len; i++) {
             bridges[_chainIds[i]] = _addresses[i];
             emit RegisterChain(_chainIds[i], _addresses[i]);
         }

@@ -1,6 +1,6 @@
 {
-  "name": "@butternetwork",
-  "version": "1.3.0",
+  "name": "@butternetwork/bridge",
+  "version": "3.0.0",
   "description": "Butter omni-chain aggregate swap contracts based on MAP Protocol",
   "main": "index.js",
   "files": [
@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "format": "prettier --print-width 120 --tab-width 4 --write ./contracts ./scripts ./tasks ./test ./utils"
+    "format": "prettier --print-width 120 --tab-width 4 --write ./contracts ./scripts ./tasks ./utils"
   },
   "repository": {
     "type": "git",

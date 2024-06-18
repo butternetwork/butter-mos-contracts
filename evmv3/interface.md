@@ -25,11 +25,6 @@ interface IButterBridgeV3 {
 
     function depositToken(address _token, address to, uint256 _amount) external payable;
 
-    function getOrderStatus(
-        uint256 _chainId,
-        uint256 _blockNum,
-        bytes32 _orderId
-    ) external view returns (bool exists, bool verifiable, uint256 nodeType);
 
     function getNativeFee(
         address _token,
