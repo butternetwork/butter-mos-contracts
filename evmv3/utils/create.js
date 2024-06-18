@@ -9,7 +9,41 @@ let IDeployFactory_abi = [
     "function deploy(bytes32 salt, bytes memory creationCode, uint256 value) external",
     "function getAddress(bytes32 salt) external view returns (address)",
 ];
-async function create(salt, bytecode, param) {
+
+
+async function create(hre, deployer, contract, paramTypes, args, salt) {
+    // todo contract verify
+    console.log(`deploy contract ${contract} ...`);
+    const { deploy } = hre.deployments;
+
+    let contractAddr;
+    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+        contractAddr = await createTron(contract, args, hre.artifacts, hre.network.name);
+    } else if (hre.network.zksync === true) {
+        contractAddr = await createZk(contract, args, hre);
+    } else if (salt != "") {
+        let contractFactory = await ethers.getContractFactory(contract);
+        let params = ethers.utils.defaultAbiCoder.encode(paramTypes, args);
+        let createResult = await createFactory(salt, contractFactory.bytecode, params);
+        if (!createResult[1]) {
+            throw ("deploy failed...");
+        }
+        contractAddr = createResult[0];
+    } else {
+        let impl = await deploy(contract, {
+            from: deployer.address,
+            args: args,
+            log: true,
+            contract: contract,
+        });
+
+        contractAddr = impl.address;
+    }
+    console.log(`deploy contract [${contract}] address ${contractAddr}`);
+    return contractAddr;
+}
+
+async function createFactory(salt, bytecode, param) {
     let [wallet] = await ethers.getSigners();
     let factory = await ethers.getContractAt(IDeployFactory_abi, DEPLOY_FACTORY, wallet);
     let salt_hash = await ethers.utils.keccak256(await ethers.utils.toUtf8Bytes(salt));
@@ -144,6 +178,7 @@ module.exports = {
     writeToFile,
     readFromFile,
     create,
+    createFactory,
     createZk,
     createTron,
     getTronWeb,

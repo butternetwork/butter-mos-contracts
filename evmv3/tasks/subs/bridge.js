@@ -1,4 +1,4 @@
-const { types } = require("zksync-web3");
+// const { types } = require("zksync-web3");
 let {
     create,
     createZk,
@@ -12,76 +12,69 @@ let {
 } = require("../../utils/create.js");
 
 let { verify } = require("../utils/verify.js");
+let {getChain} = require("../../utils/helper");
 
 task("bridge:deploy", "bridge deploy")
-    .addParam("wrapped", "native wrapped token address")
-    .addParam("mos", "mos address")
+    .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
+    .addOptionalParam("mos", "omni-chain service address", "", types.string)
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const { deploy } = hre.deployments;
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
-        let bridge_addr;
+        console.log("deployer:", deployer.address);
+
+        let chain = await getChain(hre.network.config.chainId);
+
+        let mos = (taskArgs.mos === "") ? chain.mos : taskArgs.mos;
+        let wrapped = (taskArgs.wrapped === "") ? chain.wToken : taskArgs.wrapped;
+        console.log("wrapped token:", wrapped);
+        console.log("mos address:", mos);
+
+        let implAddr = await create(hre, deployer, "Bridge", [], [], "");
+        console.log("bridge impl address:", implAddr);
+
         let Bridge = await ethers.getContractFactory("Bridge");
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            wrapped = await toHex(wrapped, hre.network.name);
+        }
+        let data = await Bridge.interface.encodeFunctionData("initialize", [
+            wrapped,
+            deployer.address,
+        ]);
+        let proxy_salt = process.env.BRIDGE_PROXY_SALT;
+        let proxy = await create(hre, deployer, "BridgeProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
 
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-            let networkName = hre.network.name;
-            let impl = await createTron("Bridge", [], hre.artifacts, networkName);
-            let data = await Bridge.interface.encodeFunctionData("initialize", [
-                await toHex(taskArgs.wrapped, networkName),
-                await getTronDeployer(true, networkName),
-            ]);
-            bridge_addr = await createTron("ButterProxy", [impl, data], hre.artifacts, networkName);
-            bridge_addr = await fromHex(bridge_addr, networkName);
-            let bridge = await getTronContract("Bridge", hre.artifacts, networkName, bridge_addr);
-            await bridge.setOmniService(await toHex(taskArgs.mos, networkName)).send();
+            // bridge_addr = await fromHex(bridge_addr, networkName);
+            let bridge = await getTronContract("Bridge", hre.artifacts, networkName, proxy);
+            await bridge.setOmniService(mos).send();
             console.log("wToken", await bridge.wToken().call());
             console.log("mos", await bridge.mos().call());
-        } else if (hre.network.name === "zkSync") {
-            let data = await Bridge.interface.encodeFunctionData("initialize", [taskArgs.wrapped, deployer.address]);
-            console.log("deployer address is:", deployer.address);
-            let impl = await createZk("Bridge", [], hre);
-            bridge_addr = await createZk("ButterProxy", [impl, data], hre);
-            let bridge = Bridge.attach(bridge_addr);
-            await (await bridge.setOmniService(taskArgs.mos)).wait();
-            console.log("wToken", await bridge.wToken());
-            console.log("mos", await bridge.mos());
         } else {
-            let data = await Bridge.interface.encodeFunctionData("initialize", [taskArgs.wrapped, deployer.address]);
-            console.log("deployer address is:", deployer.address);
-            await deploy("Bridge", {
-                from: deployer.address,
-                args: [],
-                log: true,
-                contract: "Bridge",
-            });
-            let impl = (await hre.deployments.get("Bridge")).address;
-            let Proxy = await ethers.getContractFactory("ButterProxy");
-            let proxy_salt = process.env.BRIDGE_PROXY_SALT;
-            let param = ethers.utils.defaultAbiCoder.encode(["address", "bytes"], [impl, data]);
-            let createResult = await create(proxy_salt, Proxy.bytecode, param);
-            if (!createResult[1]) {
-                return;
-            }
-            bridge_addr = createResult[0];
-            let bridge = Bridge.attach(bridge_addr);
-            await (await bridge.setMapoService(taskArgs.mos)).wait();
+            let bridge = Bridge.attach(proxy);
+            await (await bridge.setOmniService(mos)).wait();
             console.log("wToken", await bridge.wToken());
             console.log("mos", await bridge.mos());
-            await verify(
-                bridge_addr,
-                [impl.address, data],
-                "contracts/ButterProxy.sol:ButterProxy",
-                hre.network.config.chainId,
-                false
-            );
-            await verify(impl, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, false);
         }
+
         let deployment = await readFromFile(hre.network.name);
-        deployment[hre.network.name]["bridgeProxy"] = bridge_addr;
+        deployment[hre.network.name]["bridgeProxy"] = proxy;
         await writeToFile(deployment);
+
+        await verify(
+            proxy,
+            [implAddr, data],
+            "contracts/BridgeProxy.sol:BridgeProxy",
+            hre.network.config.chainId,
+            true
+        );
+        await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, false);
     });
 
-task("bridge:upgrade", "upgrade bridge evm contract in proxy").setAction(async (taskArgs, hre) => {
+
+task("bridge:upgrade", "upgrade bridge evm contract in proxy")
+    .setAction(async (taskArgs, hre) => {
     const { deploy } = hre.deployments;
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];

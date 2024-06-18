@@ -1,0 +1,142 @@
+[
+    {
+        "chain": "Mapo",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "22776",
+        "wToken": "0x13cb04d4a5dfb6398fc5ab005a6c84337256ee23",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Eth",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "1",
+        "wToken": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Bsc",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "56",
+        "wToken": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Polygon",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "137",
+        "wToken": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Conflux",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "1030",
+        "wToken": "0x14b2d3bc65e74dae1030eafd8ac30c533c976a9b",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Klaytn",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "8217",
+        "wToken": "0x19aac5f612f524b754ca7e7c41cbfa2e981a4432",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Near",
+        "bridge": "bridgev21.mfac.butternetwork.near",
+        "chainId": "1360100178526209",
+        "wToken": "wrap.near",
+        "mos": "client2.cfac.mapprotocol.near"
+    },
+    {
+        "chain": "Merlin",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "4200",
+        "wToken": "0xF6D226f9Dc15d9bB51182815b320D3fBE324e1bA",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Blast",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "81457",
+        "wToken": "0x4300000000000000000000000000000000000004",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Base",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "8453",
+        "wToken": "0x4200000000000000000000000000000000000006",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Ainn",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "2649",
+        "wToken": "0x1470a4831F76954686BfB4dE8180F7469EA8dE6F",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Tron",
+        "bridge": "TYMpgB8Q9vSoGtkyE3hXsvUrpte3KCDGj6",
+        "chainId": "728126428",
+        "wToken": "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
+        "mos": "TCgts2dcdEszFdHnp3D9iKqxGqNrpTYSjQ"
+    },
+    {
+        "chain": "zkSync",
+        "bridge": "0xBEf06a32166C4B819fF04cCfa887733B8bb67eB5",
+        "chainId": "324",
+        "wToken": "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "B2",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "223",
+        "wToken": "0x4200000000000000000000000000000000000006",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Optimism",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "10",
+        "wToken": "0x4200000000000000000000000000000000000006",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Arbitrum",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "42161",
+        "wToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Linea",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "59144",
+        "wToken": "0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Scroll",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "534352",
+        "wToken": "0x5300000000000000000000000000000000000004",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Mantle",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "5000",
+        "wToken": "0x78c1b0C915c4FAA5FffA6CAbf0219DA63d7f4cb8",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    },
+    {
+        "chain": "Makalu",
+        "bridge": "0xfeB2b97e4Efce787c08086dC16Ab69E063911380",
+        "chainId": "212",
+        "wToken": "0x2eD27dF9B4c903aB53666CcA59AFB431F7D15e91",
+        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+    }
+]

@@ -44,7 +44,7 @@ module.exports = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
-    Map: {
+    Mapo: {
       chainId: 22776,
       url: "https://rpc.maplabs.io",
       zksync: false,
@@ -62,41 +62,30 @@ module.exports = {
       url: `https://rpc.ankr.com/bsc`,
       chainId: 56,
       zksync: false,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Klaytn: {
       url: `https://public-en-cypress.klaytn.net`,
       chainId: 8217,
       zksync: false,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Conflux: {
       url: `https://evm.confluxrpc.com`,
       chainId: 1030,
       zksync: false,
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Merlin: {
       url: `https://rpc.merlinchain.io`,
       chainId : 4200,
       gasPrice: 50000000,
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-    },
-    Bevm: {
-      url: `https://rpc-canary-2.bevm.io/`,
-      chainId : 1501,
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Blast: {
       url: `https://rpc.blast.io`,
       chainId : 81457,
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Base: {
       url: `https://mainnet.base.org`,
@@ -107,109 +96,87 @@ module.exports = {
       url: `https://mainnet-rpc.anvm.io`,
       chainId : 2649,
       gasPrice: 50000000,
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     zkSync: {
       url: `https://mainnet.era.zksync.io`,
       chainId: 324,
       zksync: true,
       ethNetwork: "Eth",
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     B2: {
       url: `https://rpc.bsquared.network`,
       chainId : 223,
       gasPrice: 10000,
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Optimism: {
       url: `https://mainnet.optimism.io`,
       chainId : 10,
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Arbitrum: {
       url: `https://arb1.arbitrum.io/rpc`,
       chainId : 42161,
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Linea: {
       url: `https://rpc.linea.build`,
       chainId : 59144,
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Scroll: {
       url: `https://rpc.scroll.io`,
       chainId : 534352,
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Mantle: {
       url: `https://rpc.mantle.xyz`,
       chainId : 5000,
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
 
     Tron: {
-      url: `https://mainnet-rpc.thundertoken.net`,
-      chainId: 108, //728126428,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      url: `https://api.trongrid.io/jsonrpc`,
+      chainId: 728126428,
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TRON_PRIVATE_KEY] : [],
     },
+
     MaticTest: {
       url: `https://polygon-mumbai.blockpi.network/v1/rpc/public`,
       chainId: 80001,
-      zksync: false,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     BscTest: {
       url: "https://bsc-testnet.blockpi.network/v1/rpc/public",
       chainId: 97,
-      zksync: false,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     Makalu: {
       chainId: 212,
       url: "https://testnet-rpc.maplabs.io",
-      zksync: false,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
-    arb_Sepolia: {
+    ArbitrumSepolia: {
       url: "https://public.stackup.sh/api/v1/node/arbitrum-sepolia",
       chainId: 421614,
-      zksync: false,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
-    KlayTest: {
+    KlaytnTest: {
       url: `https://api.baobab.klaytn.net:8651/`,
       chainId: 1001,
-      zksync: false,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     ConfluxTest: {
       url: `https://evmtestnet.confluxrpc.com`,
       chainId: 71,
-      zksync: false,
-      accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     TronTest: {
-      url: `https://mainnet-rpc.thundertoken.net`,
-      chainId: 108,
-      zksync: false,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      url: `https://nile.trongrid.io/jsonrpc`,
+      chainId: 3448148188,
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
   },
 
