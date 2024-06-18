@@ -254,7 +254,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     }
 
     // execute stored swap in logs
-    function swapInVerifiedWithIndex(bytes calldata logArray,uint256 logIndex) external nonReentrant whenNotPaused {
+    function swapInVerifiedWithIndex(bytes calldata logArray, uint256 logIndex) external nonReentrant whenNotPaused {
         bytes32 hash = keccak256(logArray);
         require(storedOrderId[hash], "not verified");
         _swapInVerifiedWithIndex(logArray,logIndex);
