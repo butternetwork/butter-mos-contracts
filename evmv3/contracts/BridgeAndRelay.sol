@@ -11,7 +11,7 @@ import "./interface/ITokenRegisterV3.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-interface INearMosAdapter {
+interface IAdapter {
     function transferOut(
         uint256 toChain,
         bytes memory messageData,
@@ -27,20 +27,28 @@ contract BridgeAndRelay is BridgeAbstract {
         address receiver;
         uint256 rate;
     }
+    enum chainType {
+        NULL,
+        EVM,
+        NEAR,
+        TON,
+        SOLANA
+    }
 
     mapping(uint256 => bytes) public bridges;
+    mapping(uint256 => chainType) public chainTypes;
 
     ITokenRegisterV3 public tokenRegister;
     //id : 0 VToken  1:relayer
     mapping(uint256 => Rate) public distributeRate;
 
-    uint256 public nearChainId;
-    address public nearAdaptor;
+    uint256 public adaptorChainId;
+    address public adaptor;         // near adaptor
 
     event SetTokenRegister(address tokenRegister);
-    event RegisterChain(uint256 _chainId, bytes _address);
-    event SetNear(uint256 _nearChainId, address _nearMosAdptor);
-    event SetDistributeRate(uint256 _id, address _to, uint256 _rate);
+    event RegisterChain(uint256 chainId, bytes bridge);
+    event SetAdaptor(uint256 chainId, address adptor);
+    event SetDistributeRate(uint256 id, address to, uint256 rate);
 
     event DepositIn(
         uint256 indexed fromChain,
@@ -51,10 +59,10 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 amount
     );
 
-    function setNear(uint256 _nearChainId, address _nearAdaptor) external onlyRole(MANAGER_ROLE) {
-        nearChainId = _nearChainId;
-        nearAdaptor = _nearAdaptor;
-        emit SetNear(_nearChainId, _nearAdaptor);
+    function setAdaptor(uint256 _chainId, address _adaptor) external onlyRole(MANAGER_ROLE) {
+        adaptorChainId = _chainId;
+        adaptor = _adaptor;
+        emit SetAdaptor(_chainId, _adaptor);
     }
 
     function setTokenRegister(address _register) external onlyRole(MANAGER_ROLE) checkAddress(_register) {
@@ -160,8 +168,8 @@ contract BridgeAndRelay is BridgeAbstract {
                 gasLimit: param.gasLimit,
                 value: 0
             });
-            if (param.toChain == nearChainId) {
-                INearMosAdapter(nearAdaptor).transferOut{value: messageFee}(
+            if (param.toChain == adaptorChainId) {
+                IAdapter(adaptor).transferOut{value: messageFee}(
                     param.toChain,
                     abi.encode(messageData),
                     selfChainId
@@ -192,7 +200,7 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes32 _orderId,
         bytes calldata _message
     ) external payable override nonReentrant checkOrder(_orderId) returns (bytes memory newMessage) {
-        require(msg.sender == address(mos) || msg.sender == nearAdaptor, "only mos");
+        require(msg.sender == address(mos) || msg.sender == adaptor, "only mos");
         require(_checkBytes(_fromAddress, bridges[_fromChain]), "invalid from");
         OutType outType;
         bytes memory payload;
@@ -272,13 +280,13 @@ contract BridgeAndRelay is BridgeAbstract {
                 emit Relay(orderId, orderId);
             }
             bytes memory payLoad = abi.encode(messageData);
-            if (toChain == nearChainId) {
+            if (toChain == adaptorChainId) {
                 // other chain -> mapo -> near
                 // todo
-                INearMosAdapter(nearAdaptor).transferOut(toChain, payLoad, fromChain);
+                IAdapter(adaptor).transferOut(toChain, payLoad, fromChain);
                 return bytes("");
             }
-            if (fromChain == nearChainId) {
+            if (fromChain == adaptorChainId) {
                 // near -> mapo -> other chain
                 //(uint256 msgFee, ) = mos.getMessageFee(toChain, address(0), gasLimit);
                 bytes32 v3OrderId = mos.transferOut{value: msg.value}(toChain, payLoad, address(0));

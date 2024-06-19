@@ -15,13 +15,12 @@ interface IBridge {
 
 contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     uint256 public immutable selfChainId = block.chainid;
-    bytes32 public constant MANAGE_ROLE = keccak256("MANAGE_ROLE");
-    bytes32 public constant UPGRADE_ROLE = keccak256("UPGRADE_ROLE");
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     IMOSV3 public mos;
     bytes public nearMos;
     uint256 public nearChainId;
-    uint256 private nonce;
     address public bridge;
     uint256 public gasLimit;
     ILightClientManager public lightClientManager;
@@ -57,26 +56,26 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     function initialize(address _defaultAdmin) public initializer {
         __AccessControlEnumerable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
-        _grantRole(MANAGE_ROLE, _defaultAdmin);
+        _grantRole(MANAGER_ROLE, _defaultAdmin);
     }
 
-    function setMos(address _mos, bytes memory _nearMos) external onlyRole(MANAGE_ROLE) {
+    function setMos(address _mos, bytes memory _nearMos) external onlyRole(MANAGER_ROLE) {
         mos = IMOSV3(_mos);
         nearMos = _nearMos;
         emit SetMos(_mos, _nearMos);
     }
 
-    function setBridge(address _bridge) external onlyRole(MANAGE_ROLE) {
+    function setBridge(address _bridge) external onlyRole(MANAGER_ROLE) {
         bridge = _bridge;
         emit SetBridge(_bridge);
     }
 
-    function setGasLimit(uint256 _gasLimit) external onlyRole(MANAGE_ROLE) {
+    function setGasLimit(uint256 _gasLimit) external onlyRole(MANAGER_ROLE) {
         gasLimit = _gasLimit;
         emit SetGasLimit(_gasLimit);
     }
 
-    function setLightNode(address _lightNode) external onlyRole(MANAGE_ROLE) {
+    function setLightNode(address _lightNode) external onlyRole(MANAGER_ROLE) {
         lightClientManager = ILightClientManager(_lightNode);
         emit SetLightNode(_lightNode);
     }
@@ -184,7 +183,7 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
 
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {
-        require(hasRole(UPGRADE_ROLE, msg.sender), "Bridge: only Admin can upgrade");
+        require(hasRole(UPGRADER_ROLE, msg.sender), "Bridge: only Admin can upgrade");
     }
 
     function getImplementation() external view returns (address) {
