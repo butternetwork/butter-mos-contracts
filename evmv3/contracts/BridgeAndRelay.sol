@@ -27,7 +27,7 @@ contract BridgeAndRelay is BridgeAbstract {
         address receiver;
         uint256 rate;
     }
-    enum chainType {
+    enum ChainType {
         NULL,
         EVM,
         NEAR,
@@ -36,7 +36,7 @@ contract BridgeAndRelay is BridgeAbstract {
     }
 
     mapping(uint256 => bytes) public bridges;
-    mapping(uint256 => chainType) public chainTypes;
+    mapping(uint256 => ChainType) public chainTypes;
 
     ITokenRegisterV3 public tokenRegister;
     //id : 0 VToken  1:relayer
@@ -46,7 +46,7 @@ contract BridgeAndRelay is BridgeAbstract {
     address public adaptor;         // near adaptor
 
     event SetTokenRegister(address tokenRegister);
-    event RegisterChain(uint256 chainId, bytes bridge);
+    event RegisterChain(uint256 chainId, bytes bridge, ChainType chainType);
     event SetAdaptor(uint256 chainId, address adptor);
     event SetDistributeRate(uint256 id, address to, uint256 rate);
 
@@ -70,12 +70,13 @@ contract BridgeAndRelay is BridgeAbstract {
         emit SetTokenRegister(_register);
     }
 
-    function registerChain(uint256[] calldata _chainIds, bytes[] calldata _addresses) external onlyRole(MANAGER_ROLE) {
+    function registerChain(uint256[] calldata _chainIds, bytes[] calldata _addresses, ChainType _type) external onlyRole(MANAGER_ROLE) {
         uint256 len = _chainIds.length;
         require(len == _addresses.length, "length mismatching");
         for (uint256 i = 0; i < len; i++) {
             bridges[_chainIds[i]] = _addresses[i];
-            emit RegisterChain(_chainIds[i], _addresses[i]);
+            chainTypes[_chainIds[i]] = _type;
+            emit RegisterChain(_chainIds[i], _addresses[i], _type);
         }
     }
 
@@ -129,9 +130,9 @@ contract BridgeAndRelay is BridgeAbstract {
         param.toChain = _toChain;
         param.token = Helper._isNative(_token) ? wToken : _token;
         if (isOmniToken(param.token)) {
-            param.gasLimit = baseGasLookup[_toChain][OutType.INTER_TRANSFER];
+            param.gasLimit = _getBaseGas(_toChain, OutType.INTER_TRANSFER);
         } else {
-            param.gasLimit = baseGasLookup[_toChain][OutType.SWAP];
+            param.gasLimit = _getBaseGas(_toChain, OutType.SWAP);
         }
         if (_bridgeData.length != 0) {
             BridgeParam memory bridge = abi.decode(_bridgeData, (BridgeParam));

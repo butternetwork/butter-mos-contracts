@@ -33,6 +33,8 @@ abstract contract BridgeAbstract is
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
+    uint256 constant DEFAULT_CHAIN = 0x00;
+
     uint256 constant MINTABLE_TOKEN = 0x01;
     uint256 constant MORC20_TOKEN = 0x02;
 
@@ -75,8 +77,6 @@ abstract contract BridgeAbstract is
 
     // chainId => (type => gasLimit)
     mapping(uint256 => mapping(OutType => uint256)) public baseGasLookup;
-    mapping(OutType => uint256) public baseGasLookup2;
-    // token => chainId => native fee
     mapping(address => mapping(uint256 => uint256)) public nativeFees;
 
     event SetOmniService(IMOSV3 mos);
@@ -281,15 +281,16 @@ abstract contract BridgeAbstract is
     }
 
     function getNativeFee(address _token, uint256 _gasLimit, uint256 _toChain) external view returns (uint256) {
-        address atoken = Helper._isNative(_token) ? wToken : _token;
+        address token = Helper._isNative(_token) ? wToken : _token;
         uint256 gasLimit;
-        if (isOmniToken(atoken)) {
-            gasLimit = _gasLimit + baseGasLookup[_toChain][OutType.INTER_TRANSFER];
+        if (isOmniToken(token)) {
+            gasLimit = _getBaseGas(_toChain, OutType.INTER_TRANSFER);
         } else {
-            gasLimit = _gasLimit + baseGasLookup[_toChain][OutType.SWAP];
+            gasLimit = _getBaseGas(_toChain, OutType.SWAP);
         }
-        uint256 fee = getMessageFee(atoken, gasLimit, _toChain);
-        fee += nativeFees[_token][_toChain];
+        gasLimit += _gasLimit;
+        uint256 fee = getMessageFee(token, gasLimit, _toChain);
+        fee += nativeFees[token][_toChain];
         return fee;
     }
 
@@ -381,6 +382,15 @@ abstract contract BridgeAbstract is
 
     function _checkLimit(uint256 amount, uint256 tochain, address token) internal {
         if (address(swapLimit) != Helper.ZERO_ADDRESS) swapLimit.checkLimit(amount, tochain, token);
+    }
+
+    function _getBaseGas(uint256 _chain, OutType _type) internal view returns (uint256) {
+        uint256 gasLimit = baseGasLookup[_chain][_type];
+        if (gasLimit == 0) {
+            gasLimit = baseGasLookup[DEFAULT_CHAIN][_type];
+        }
+
+        return gasLimit;
     }
 
     function getMessageFee(

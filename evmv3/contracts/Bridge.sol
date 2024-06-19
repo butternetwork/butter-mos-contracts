@@ -61,9 +61,9 @@ contract Bridge is BridgeAbstract {
         param.amount = _amount;
         param.token = Helper._isNative(_token) ? wToken : _token;
         if (isOmniToken(param.token)) {
-            param.gasLimit = baseGasLookup[_toChain][OutType.INTER_TRANSFER];
+            param.gasLimit = _getBaseGas(_toChain, OutType.INTER_TRANSFER);
         } else {
-            param.gasLimit = baseGasLookup[_toChain][OutType.SWAP];
+            param.gasLimit = _getBaseGas(_toChain, OutType.SWAP);
         }
         if (_swapData.length != 0) {
             BridgeParam memory bridge = abi.decode(_swapData, (BridgeParam));
@@ -116,7 +116,7 @@ contract Bridge is BridgeAbstract {
         address _to,
         uint256 _amount
     ) external payable override nonReentrant whenNotPaused {
-        uint256 gasLimit = baseGasLookup[relayChainId][OutType.DEPOSIT];
+        uint256 gasLimit = _getBaseGas(relayChainId, OutType.DEPOSIT);
         (address token, , uint256 messageFee) = _tokenIn(relayChainId, _amount, _token, gasLimit, false);
         _checkBridgeable(token, relayChainId);
         bytes memory payload = abi.encode(abi.encodePacked(token), _amount, abi.encodePacked(msg.sender), _to);
@@ -166,7 +166,7 @@ contract Bridge is BridgeAbstract {
 
     function getDepositNativeFee(address _token) external view returns (uint256) {
         address token = Helper._isNative(_token) ? wToken : _token;
-        uint256 gasLimit = baseGasLookup[relayChainId][OutType.DEPOSIT];
+        uint256 gasLimit = _getBaseGas(relayChainId, OutType.DEPOSIT);
         return getMessageFee(token, gasLimit, relayChainId);
     }
 }
