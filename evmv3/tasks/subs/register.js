@@ -140,7 +140,7 @@ task("register:grantRole", "set token outFee")
             await (await register.grantRole(role, taskArgs.account)).wait();
             console.log(`grant ${taskArgs.account} role ${role}`);
         } else {
-            await register.revoke(role, taskArgs.account);
+            await register.revokeRole(role, taskArgs.account);
             console.log(`revoke ${taskArgs.account} role ${role}`);
         }
     });
