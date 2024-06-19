@@ -29,14 +29,14 @@ contract Bridge is BridgeAbstract {
         uint256 messageFee
     );
 
-    function setRelay(uint256 _chainId, address _relay) external onlyRole(MANAGE_ROLE) checkAddress(_relay) {
+    function setRelay(uint256 _chainId, address _relay) external onlyRole(MANAGER_ROLE) checkAddress(_relay) {
         relayChainId = _chainId;
         relayContract = _relay;
         bridges[relayChainId] = abi.encodePacked(relayContract);
         emit SetRelay(_chainId, _relay);
     }
 
-    function registerChain(uint256[] calldata _chainIds, bytes[] calldata _addresses) external onlyRole(MANAGE_ROLE) {
+    function registerChain(uint256[] calldata _chainIds, bytes[] calldata _addresses) external onlyRole(MANAGER_ROLE) {
         uint256 len = _chainIds.length;
         require(len == _addresses.length, "length mismatching");
         for (uint256 i = 0; i < len; i++) {

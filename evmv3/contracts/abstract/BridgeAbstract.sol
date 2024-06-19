@@ -30,8 +30,8 @@ abstract contract BridgeAbstract is
     using AddressUpgradeable for address;
     using SafeERC20Upgradeable for IERC20Upgradeable;
     uint256 public immutable selfChainId = block.chainid;
-    bytes32 public constant MANAGE_ROLE = keccak256("MANAGE_ROLE");
-    bytes32 public constant UPGRADE_ROLE = keccak256("UPGRADE_ROLE");
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     uint256 constant MINTABLE_TOKEN = 0x01;
     uint256 constant MORC20_TOKEN = 0x02;
@@ -73,7 +73,9 @@ abstract contract BridgeAbstract is
     mapping(address => uint256) public tokenFeatureList;
     mapping(uint256 => mapping(address => bool)) public tokenMappingList;
 
+    // chainId => (type => gasLimit)
     mapping(uint256 => mapping(OutType => uint256)) public baseGasLookup;
+    mapping(OutType => uint256) public baseGasLookup2;
     // token => chainId => native fee
     mapping(address => mapping(uint256 => uint256)) public nativeFees;
 
@@ -122,7 +124,7 @@ abstract contract BridgeAbstract is
         __ReentrancyGuard_init();
         __AccessControlEnumerable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
-        _grantRole(MANAGE_ROLE, _defaultAdmin);
+        _grantRole(MANAGER_ROLE, _defaultAdmin);
     }
 
     modifier checkAddress(address _address) {
@@ -130,18 +132,18 @@ abstract contract BridgeAbstract is
         _;
     }
 
-    function setWrappedToken(address _wToken) external onlyRole(MANAGE_ROLE) {
+    function setWrappedToken(address _wToken) external onlyRole(MANAGER_ROLE) {
         wToken = _wToken;
         emit SetWrappedToken(_wToken);
     }
 
-    function setSwapLimit(ISwapOutLimit _swapLimit) external onlyRole(MANAGE_ROLE) {
+    function setSwapLimit(ISwapOutLimit _swapLimit) external onlyRole(MANAGER_ROLE) {
         require(address(_swapLimit).isContract(), "not contract");
         swapLimit = _swapLimit;
         emit SetSwapLimit(_swapLimit);
     }
 
-    function setOmniService(IMOSV3 _mos) external onlyRole(MANAGE_ROLE) {
+    function setOmniService(IMOSV3 _mos) external onlyRole(MANAGER_ROLE) {
         require(address(_mos).isContract(), "not contract");
         mos = _mos;
         emit SetOmniService(_mos);
@@ -151,7 +153,7 @@ abstract contract BridgeAbstract is
         address _token,
         uint256[] memory _toChains,
         bool _enable
-    ) external onlyRole(MANAGE_ROLE) {
+    ) external onlyRole(MANAGER_ROLE) {
         require(_token.isContract(), "token is not contract");
         for (uint256 i = 0; i < _toChains.length; i++) {
             uint256 toChain = _toChains[i];
@@ -164,7 +166,7 @@ abstract contract BridgeAbstract is
         address[] calldata _tokens,
         address[] calldata omniProxys,
         uint96 _feature
-    ) external onlyRole(MANAGE_ROLE) {
+    ) external onlyRole(MANAGER_ROLE) {
         require(_tokens.length == omniProxys.length, "mismatching");
         for (uint256 i = 0; i < _tokens.length; i++) {
             tokenFeatureList[_tokens[i]] = (uint256(uint160(omniProxys[i])) << 96) | _feature;
@@ -172,23 +174,23 @@ abstract contract BridgeAbstract is
         }
     }
 
-    function setNativeFee(address _token, uint256 _toChain, uint256 _amount) external onlyRole(MANAGE_ROLE) {
+    function setNativeFee(address _token, uint256 _toChain, uint256 _amount) external onlyRole(MANAGER_ROLE) {
         nativeFees[_token][_toChain] = _amount;
         emit SetNativeFee(_token, _toChain, _amount);
     }
 
-    function setBaseGas(uint256 _toChain, OutType _outType, uint256 _gasLimit) external onlyRole(MANAGE_ROLE) {
+    function setBaseGas(uint256 _toChain, OutType _outType, uint256 _gasLimit) external onlyRole(MANAGER_ROLE) {
         require(_toChain != selfChainId, "self chain");
         baseGasLookup[_toChain][_outType] = _gasLimit;
         emit SetBaseGas(_toChain, _outType, _gasLimit);
     }
 
-    function setNativeFeeReceiver(address _receiver) external onlyRole(MANAGE_ROLE) checkAddress(_receiver) {
+    function setNativeFeeReceiver(address _receiver) external onlyRole(MANAGER_ROLE) checkAddress(_receiver) {
         nativeFeeReceiver = _receiver;
         emit SetNativeFeeReceiver(_receiver);
     }
 
-    function trigger() external onlyRole(MANAGE_ROLE) {
+    function trigger() external onlyRole(MANAGER_ROLE) {
         paused() ? _unpause() : _pause();
     }
 
@@ -423,7 +425,7 @@ abstract contract BridgeAbstract is
 
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {
-        require(hasRole(UPGRADE_ROLE, msg.sender), "Bridge: only Admin can upgrade");
+        require(hasRole(UPGRADER_ROLE, msg.sender), "Bridge: only Admin can upgrade");
     }
 
     function getImplementation() external view returns (address) {

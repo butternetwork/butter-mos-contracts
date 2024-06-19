@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-interface ITokenRegisterV2 {
+interface ITokenRegisterV3 {
     // Get token address on target chain
     function getToChainToken(address _token, uint256 _toChain) external view returns (bytes memory _toChainToken);
 

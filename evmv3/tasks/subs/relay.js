@@ -11,20 +11,13 @@ task("relay:deploy", "mos relay deploy")
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
 
-        let mos = (task.mos === "") ? chain.mos : taskArgs.mos;
-        let wrapped = (task.wrapped === "") ? chain.wToken : taskArgs.wrapped;
+        let chain = await getChain(hre.network.config.chainId);
 
-        let implAddr = await uniDeploy(hre, "BridgeAndRelay", [], [], "");
-        /*
-        await deploy("BridgeAndRelay", {
-            from: deployer.address,
-            args: [],
-            log: true,
-            contract: "BridgeAndRelay",
-        });
-        let impl = await hre.deployments.get("BridgeAndRelay");
-        let implAddr = impl.address;
-         */
+        let mos = (taskArgs.mos === "") ? chain.mos : taskArgs.mos;
+        let wrapped = (taskArgs.wrapped === "") ? chain.wToken : taskArgs.wrapped;
+
+        let implAddr = await create(hre, deployer, "BridgeAndRelay", [], [], "");
+
         let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
         let data = await BridgeAndRelay.interface.encodeFunctionData("initialize", [
             wrapped,
@@ -32,21 +25,14 @@ task("relay:deploy", "mos relay deploy")
         ]);
         let proxy_salt = process.env.BRIDGE_PROXY_SALT;
 
-        let bridge = await uniDeploy(hre, "BridgeProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
-        /*
-        let Proxy = await ethers.getContractFactory("ButterProxy");
-        let param = ethers.utils.defaultAbiCoder.encode(["address", "bytes"], [implAddr, data]);
-        let createResult = await create(proxy_salt, Proxy.bytecode, param);
-        if (!createResult[1]) {
-            return;
-        }
-        let bridge = createResult[0];
-        */
+        let bridge = await create(hre, deployer, "BridgeProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
+
         let relay = BridgeAndRelay.attach(bridge);
         await (await relay.setOmniService(mos)).wait();
 
         console.log("wToken", await relay.wToken());
         console.log("mos", await relay.mos());
+
         let deployment = await readFromFile(hre.network.name);
         deployment[hre.network.name]["bridgeProxy"] = bridge;
         await writeToFile(deployment);
@@ -65,7 +51,7 @@ task("relay:upgrade", "upgrade bridge evm contract in proxy")
 
     let implAddr = taskArgs.impl;
     if (implAddr === "") {
-        implAddr = await uniDeploy(hre, "BridgeAndRelay", [], [], "");
+        implAddr = await create(hre, deployer, "BridgeAndRelay", [], [], "");
     }
 
     let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");

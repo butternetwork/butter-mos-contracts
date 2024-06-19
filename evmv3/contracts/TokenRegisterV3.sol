@@ -2,17 +2,17 @@
 
 pragma solidity 0.8.20;
 
-import "./interface/IVaultTokenV2.sol";
-import "./interface/ITokenRegisterV2.sol";
+import "./interface/IVaultTokenV3.sol";
+import "./interface/ITokenRegisterV3.sol";
 import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 
-contract TokenRegisterV2 is ITokenRegisterV2, UUPSUpgradeable, AccessControlEnumerableUpgradeable {
+contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     uint256 constant MAX_RATE_UNI = 1000000;
-    bytes32 public constant MANAGE_ROLE = keccak256("MANAGE_ROLE");
-    bytes32 public constant UPGRADE_ROLE = keccak256("UPGRADE_ROLE");
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     struct FeeRate {
         uint256 lowest;
@@ -64,9 +64,9 @@ contract TokenRegisterV2 is ITokenRegisterV2, UUPSUpgradeable, AccessControlEnum
         address _token,
         address _vaultToken,
         bool _mintable
-    ) external onlyRole(MANAGE_ROLE) checkAddress(_token) checkAddress(_vaultToken) {
+    ) external onlyRole(MANAGER_ROLE) checkAddress(_token) checkAddress(_vaultToken) {
         Token storage token = tokenList[_token];
-        address tokenAddress = IVaultTokenV2(_vaultToken).getTokenAddress();
+        address tokenAddress = IVaultTokenV3(_vaultToken).getTokenAddress();
         require(_token == tokenAddress, "invalid vault token");
 
         token.vaultToken = _vaultToken;
@@ -80,7 +80,7 @@ contract TokenRegisterV2 is ITokenRegisterV2, UUPSUpgradeable, AccessControlEnum
         uint256 _fromChain,
         bytes memory _fromToken,
         uint8 _decimals
-    ) external onlyRole(MANAGE_ROLE) checkAddress(_token) {
+    ) external onlyRole(MANAGER_ROLE) checkAddress(_token) {
         require(!Utils.checkBytes(_fromToken, bytes("")), "invalid from token");
         Token storage token = tokenList[_token];
         //require(token.vaultToken != address(0), "invalid map token");
@@ -95,7 +95,7 @@ contract TokenRegisterV2 is ITokenRegisterV2, UUPSUpgradeable, AccessControlEnum
         uint256 _lowest,
         uint256 _highest,
         uint256 _rate
-    ) external onlyRole(MANAGE_ROLE) checkAddress(_token) {
+    ) external onlyRole(MANAGER_ROLE) checkAddress(_token) {
         Token storage token = tokenList[_token];
         require(token.vaultToken != address(0), "invalid map token");
         require(_highest >= _lowest, "invalid highest and lowest");
@@ -112,7 +112,7 @@ contract TokenRegisterV2 is ITokenRegisterV2, UUPSUpgradeable, AccessControlEnum
         uint256 _lowest,
         uint256 _highest,
         uint256 _rate
-    ) external onlyRole(MANAGE_ROLE) checkAddress(_token) {
+    ) external onlyRole(MANAGER_ROLE) checkAddress(_token) {
         Token storage token = tokenList[_token];
         require(token.vaultToken != address(0), "invalid map token");
         require(_highest >= _lowest, "invalid highest and lowest");
@@ -379,7 +379,7 @@ contract TokenRegisterV2 is ITokenRegisterV2, UUPSUpgradeable, AccessControlEnum
 
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {
-        require(hasRole(UPGRADE_ROLE, msg.sender), "TokenRegister: only Admin can upgrade");
+        require(hasRole(UPGRADER_ROLE, msg.sender), "TokenRegister: only Admin can upgrade");
     }
 
     function getImplementation() external view returns (address) {

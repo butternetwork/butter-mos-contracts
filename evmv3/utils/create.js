@@ -39,7 +39,7 @@ async function create(hre, deployer, contract, paramTypes, args, salt) {
 
         contractAddr = impl.address;
     }
-    console.log(`deploy contract [${contract}] address ${contractAddr}`);
+    console.log(`deploy contract [${contract}] address: ${contractAddr}`);
     return contractAddr;
 }
 
@@ -47,7 +47,7 @@ async function createFactory(salt, bytecode, param) {
     let [wallet] = await ethers.getSigners();
     let factory = await ethers.getContractAt(IDeployFactory_abi, DEPLOY_FACTORY, wallet);
     let salt_hash = await ethers.utils.keccak256(await ethers.utils.toUtf8Bytes(salt));
-    console.log("deploy factory address:", factory.address);
+    // console.log("deploy factory address:", factory.address);
     console.log("deploy salt:", salt);
     let addr = await factory.getAddress(salt_hash);
     console.log("deployed to :", addr);

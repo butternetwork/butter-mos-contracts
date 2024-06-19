@@ -32,7 +32,6 @@ task("bridge:deploy", "bridge deploy")
         console.log("mos address:", mos);
 
         let implAddr = await create(hre, deployer, "Bridge", [], [], "");
-        console.log("bridge impl address:", implAddr);
 
         let Bridge = await ethers.getContractFactory("Bridge");
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
@@ -74,45 +73,40 @@ task("bridge:deploy", "bridge deploy")
 
 
 task("bridge:upgrade", "upgrade bridge evm contract in proxy")
+    .addOptionalParam("impl", "implementation address", "", types.string)
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
-    const { deploy } = hre.deployments;
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-    let deployment = await readFromFile(hre.network.name);
-    let Bridge = await ethers.getContractFactory("Bridge");
-    let addr = deployment[hre.network.name]["bridgeProxy"];
-    if (!addr) {
-        throw "bridge not deployed.";
-    }
-    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-        let impl = await createTron("Bridge", [], hre.artifacts, hre.network.name);
-        let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
-        console.log("pre impl", await bridge.getImplementation().call());
-        await bridge.upgradeTo(impl).send();
-        console.log("new impl", await bridge.getImplementation().call());
-    } else if (hre.network.name === "zkSync") {
-        console.log("deployer address:", deployer.address);
-        let impl = await createZk("Bridge", [], hre);
-        let bridge = Bridge.attach(addr);
-        console.log("pre impl", await bridge.getImplementation());
-        await bridge.upgradeTo(impl);
-        console.log("new impl", await bridge.getImplementation());
-    } else {
-        console.log("deployer address:", deployer.address);
-        await deploy("Bridge", {
-            from: deployer.address,
-            args: [],
-            log: true,
-            contract: "Bridge",
-        });
-        let impl = (await hre.deployments.get("Bridge")).address;
-        let bridge = Bridge.attach(addr);
-        console.log("pre impl", await bridge.getImplementation());
-        await (await bridge.upgradeTo(impl)).wait();
-        console.log("new impl", await bridge.getImplementation());
-        await verify(impl, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, false);
-    }
-});
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
+        let implAddr = taskArgs.impl;
+        if (implAddr === "") {
+            implAddr = await create(hre, deployer, "BridgeAndRelay", [], [], "");
+        }
+
+        let deployment = await readFromFile(hre.network.name);
+        let Bridge = await ethers.getContractFactory("Bridge");
+        let proxy = deployment[hre.network.name]["bridgeProxy"];
+        if (!proxy) {
+            throw "bridge not deployed.";
+        }
+
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            // bridge_addr = await fromHex(bridge_addr, networkName);
+            let bridge = await getTronContract("Bridge", hre.artifacts, networkName, proxy);
+            console.log("pre impl", await bridge.getImplementation().call());
+            await bridge.upgradeTo(implAddr).send();
+            console.log("new impl", await bridge.getImplementation().call());
+        } else {
+            let bridge = Bridge.attach(proxy);
+            console.log("pre impl", await bridge.getImplementation());
+            await bridge.upgradeTo(implAddr);
+            console.log("new impl", await bridge.getImplementation());
+        }
+
+        await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, true);
+
+    });
 
 task("bridge:setBaseGas", "set base gas")
     .addParam("chain", "register address")

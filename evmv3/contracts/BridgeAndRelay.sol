@@ -4,10 +4,10 @@ pragma solidity 0.8.20;
 
 import "./lib/Helper.sol";
 import "./interface/IMOSV3.sol";
-import "./interface/IVaultTokenV2.sol";
+import "./interface/IVaultTokenV3.sol";
 import "./abstract/BridgeAbstract.sol";
 import "./interface/IMintableToken.sol";
-import "./interface/ITokenRegisterV2.sol";
+import "./interface/ITokenRegisterV3.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
@@ -30,7 +30,7 @@ contract BridgeAndRelay is BridgeAbstract {
 
     mapping(uint256 => bytes) public bridges;
 
-    ITokenRegisterV2 public tokenRegister;
+    ITokenRegisterV3 public tokenRegister;
     //id : 0 VToken  1:relayer
     mapping(uint256 => Rate) public distributeRate;
 
@@ -51,18 +51,18 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 amount
     );
 
-    function setNear(uint256 _nearChainId, address _nearAdaptor) external onlyRole(MANAGE_ROLE) {
+    function setNear(uint256 _nearChainId, address _nearAdaptor) external onlyRole(MANAGER_ROLE) {
         nearChainId = _nearChainId;
         nearAdaptor = _nearAdaptor;
         emit SetNear(_nearChainId, _nearAdaptor);
     }
 
-    function setTokenRegister(address _register) external onlyRole(MANAGE_ROLE) checkAddress(_register) {
-        tokenRegister = ITokenRegisterV2(_register);
+    function setTokenRegister(address _register) external onlyRole(MANAGER_ROLE) checkAddress(_register) {
+        tokenRegister = ITokenRegisterV3(_register);
         emit SetTokenRegister(_register);
     }
 
-    function registerChain(uint256[] calldata _chainIds, bytes[] calldata _addresses) external onlyRole(MANAGE_ROLE) {
+    function registerChain(uint256[] calldata _chainIds, bytes[] calldata _addresses) external onlyRole(MANAGER_ROLE) {
         uint256 len = _chainIds.length;
         require(len == _addresses.length, "length mismatching");
         for (uint256 i = 0; i < len; i++) {
@@ -75,7 +75,7 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _id,
         address _to,
         uint256 _rate
-    ) external onlyRole(MANAGE_ROLE) checkAddress(_to) {
+    ) external onlyRole(MANAGER_ROLE) checkAddress(_to) {
         require(_id < 3, "Invalid rate id");
 
         distributeRate[_id] = Rate(_to, _rate);
@@ -89,11 +89,11 @@ contract BridgeAndRelay is BridgeAbstract {
 
     function withdraw(address _vaultToken, uint256 _vaultAmount) external whenNotPaused {
         require(_vaultToken != address(0), "vault token not registered");
-        address token = IVaultTokenV2(_vaultToken).getTokenAddress();
+        address token = IVaultTokenV3(_vaultToken).getTokenAddress();
         address vaultToken = tokenRegister.getVaultToken(token);
         require(_vaultToken == vaultToken, "Invalid vault token");
-        uint256 amount = IVaultTokenV2(vaultToken).getTokenAmount(_vaultAmount);
-        IVaultTokenV2(vaultToken).withdraw(selfChainId, _vaultAmount, msg.sender);
+        uint256 amount = IVaultTokenV3(vaultToken).getTokenAmount(_vaultAmount);
+        IVaultTokenV3(vaultToken).withdraw(selfChainId, _vaultAmount, msg.sender);
         _withdraw(token, msg.sender, amount);
     }
 
@@ -219,7 +219,7 @@ contract BridgeAndRelay is BridgeAbstract {
     ) internal {
         address vaultToken = tokenRegister.getVaultToken(_token);
         require(vaultToken != address(0), "vault token not registered");
-        IVaultTokenV2(vaultToken).deposit(_fromChain, _amount, _to);
+        IVaultTokenV3(vaultToken).deposit(_fromChain, _amount, _to);
         emit DepositIn(_fromChain, _token, _orderId, _from, _to, _amount);
     }
 
@@ -341,7 +341,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 _withdraw(token, protocolReceiver, protocolFee);
             }
         }
-        IVaultTokenV2(vaultToken).transferToken(_fromChain, _mapAmount, _toChain, mapOutAmount, selfChainId, otherFee);
+        IVaultTokenV3(vaultToken).transferToken(_fromChain, _mapAmount, _toChain, mapOutAmount, selfChainId, otherFee);
         return (mapOutAmount, outAmount);
     }
 }
