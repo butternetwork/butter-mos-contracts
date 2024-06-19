@@ -10,7 +10,6 @@ let IDeployFactory_abi = [
     "function getAddress(bytes32 salt) external view returns (address)",
 ];
 
-
 async function create(hre, deployer, contract, paramTypes, args, salt) {
     // todo contract verify
     console.log(`deploy contract ${contract} ...`);
@@ -26,7 +25,7 @@ async function create(hre, deployer, contract, paramTypes, args, salt) {
         let params = ethers.utils.defaultAbiCoder.encode(paramTypes, args);
         let createResult = await createFactory(salt, contractFactory.bytecode, params);
         if (!createResult[1]) {
-            throw ("deploy failed...");
+            throw "deploy failed...";
         }
         contractAddr = createResult[0];
     } else {

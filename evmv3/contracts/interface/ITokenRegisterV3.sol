@@ -15,8 +15,6 @@ interface ITokenRegisterV3 {
     // Get token amount on relay chain
     function getRelayChainAmount(address _token, uint256 _fromChain, uint256 _amount) external view returns (uint256);
 
-    function checkMintable(address _token) external view returns (bool);
-
     function getVaultToken(address _token) external view returns (address);
 
     function getTokenFee(address _token, uint256 _amount, uint256 _toChain) external view returns (uint256);

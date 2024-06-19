@@ -1,5 +1,5 @@
 let { create, createZk, createTron, readFromFile, writeToFile } = require("../../utils/create.js");
-let {getChain} = require("../../utils/helper");
+let { getChain } = require("../../utils/helper");
 
 task("relay:deploy", "mos relay deploy")
     .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
@@ -13,16 +13,13 @@ task("relay:deploy", "mos relay deploy")
 
         let chain = await getChain(hre.network.config.chainId);
 
-        let mos = (taskArgs.mos === "") ? chain.mos : taskArgs.mos;
-        let wrapped = (taskArgs.wrapped === "") ? chain.wToken : taskArgs.wrapped;
+        let mos = taskArgs.mos === "" ? chain.mos : taskArgs.mos;
+        let wrapped = taskArgs.wrapped === "" ? chain.wToken : taskArgs.wrapped;
 
         let implAddr = await create(hre, deployer, "BridgeAndRelay", [], [], "");
 
         let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
-        let data = await BridgeAndRelay.interface.encodeFunctionData("initialize", [
-            wrapped,
-            deployer.address,
-        ]);
+        let data = await BridgeAndRelay.interface.encodeFunctionData("initialize", [wrapped, deployer.address]);
         let proxy_salt = process.env.BRIDGE_PROXY_SALT;
 
         let bridge = await create(hre, deployer, "BridgeProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
@@ -44,24 +41,24 @@ task("relay:upgrade", "upgrade bridge evm contract in proxy")
     .addOptionalParam("impl", "implementation address", "", types.string)
     .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
-    const { deploy } = hre.deployments;
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-    console.log("deployer address:", deployer.address);
+        const { deploy } = hre.deployments;
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
 
-    let implAddr = taskArgs.impl;
-    if (implAddr === "") {
-        implAddr = await create(hre, deployer, "BridgeAndRelay", [], [], "");
-    }
+        let implAddr = taskArgs.impl;
+        if (implAddr === "") {
+            implAddr = await create(hre, deployer, "BridgeAndRelay", [], [], "");
+        }
 
-    let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
-    let deployment = await readFromFile(hre.network.name);
-    let relay = BridgeAndRelay.attach(deployment[hre.network.name]["bridgeProxy"]);
+        let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
+        let deployment = await readFromFile(hre.network.name);
+        let relay = BridgeAndRelay.attach(deployment[hre.network.name]["bridgeProxy"]);
 
-    console.log("pre impl", await relay.getImplementation());
-    await (await relay.upgradeTo(implAddr)).wait();
-    console.log("new impl", await relay.getImplementation());
-});
+        console.log("pre impl", await relay.getImplementation());
+        await (await relay.upgradeTo(implAddr)).wait();
+        console.log("new impl", await relay.getImplementation());
+    });
 
 task("relay:setTokenRegister", "set token register")
     .addParam("register", "register address")

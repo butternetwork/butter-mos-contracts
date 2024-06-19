@@ -12,7 +12,7 @@ let {
 } = require("../../utils/create.js");
 
 let { verify } = require("../utils/verify.js");
-let {getChain} = require("../../utils/helper");
+let { getChain } = require("../../utils/helper");
 
 task("bridge:deploy", "bridge deploy")
     .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
@@ -26,8 +26,8 @@ task("bridge:deploy", "bridge deploy")
 
         let chain = await getChain(hre.network.config.chainId);
 
-        let mos = (taskArgs.mos === "") ? chain.mos : taskArgs.mos;
-        let wrapped = (taskArgs.wrapped === "") ? chain.wToken : taskArgs.wrapped;
+        let mos = taskArgs.mos === "" ? chain.mos : taskArgs.mos;
+        let wrapped = taskArgs.wrapped === "" ? chain.wToken : taskArgs.wrapped;
         console.log("wrapped token:", wrapped);
         console.log("mos address:", mos);
 
@@ -37,10 +37,7 @@ task("bridge:deploy", "bridge deploy")
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             wrapped = await toHex(wrapped, hre.network.name);
         }
-        let data = await Bridge.interface.encodeFunctionData("initialize", [
-            wrapped,
-            deployer.address,
-        ]);
+        let data = await Bridge.interface.encodeFunctionData("initialize", [wrapped, deployer.address]);
         let proxy_salt = process.env.BRIDGE_PROXY_SALT;
         let proxy = await create(hre, deployer, "BridgeProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
 
@@ -70,7 +67,6 @@ task("bridge:deploy", "bridge deploy")
         );
         await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, false);
     });
-
 
 task("bridge:upgrade", "upgrade bridge evm contract in proxy")
     .addOptionalParam("impl", "implementation address", "", types.string)
@@ -105,7 +101,6 @@ task("bridge:upgrade", "upgrade bridge evm contract in proxy")
         }
 
         await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, true);
-
     });
 
 task("bridge:setBaseGas", "set base gas")

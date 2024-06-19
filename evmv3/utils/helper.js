@@ -1,7 +1,6 @@
 let fs = require("fs");
 let path = require("path");
 
-
 function getRole(role) {
     if (role.substr(0, 2) === "0x") {
         return role;
@@ -17,7 +16,6 @@ function getRole(role) {
     }
     return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(roleName));
 }
-
 
 async function getFeeList(token) {
     let p = path.join(__dirname, "../constants/fee.json");

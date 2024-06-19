@@ -21,10 +21,10 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     }
 
     struct Token {
-        bool mintable;
         uint8 decimals;
         address vaultToken;
         mapping(uint256 => FeeRate) fees;
+        mapping(uint256 => FeeRate) outFees;
         // chain_id => decimals
         mapping(uint256 => uint8) tokenDecimals;
         // chain_id => token
@@ -38,15 +38,13 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     mapping(uint256 => mapping(bytes => address)) public tokenMappingList;
 
     mapping(address => Token) public tokenList;
-    //from chainId => [relay token => fee]
-    mapping(uint256 => mapping(address => FeeRate)) public transferOutFee;
 
     modifier checkAddress(address _address) {
         require(_address != address(0), "address is zero");
         _;
     }
 
-    event RegisterToken(address _token, address _vaultToken, bool _mintable);
+    event RegisterToken(address _token, address _vaultToken);
     event SetTokenFee(address _token, uint256 _toChain, uint256 _lowest, uint256 _highest, uint256 _rate);
     event SetTransferOutTokenFee(address _token, uint256 _toChain, uint256 _lowest, uint256 _highest, uint256 _rate);
 
@@ -62,8 +60,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
     function registerToken(
         address _token,
-        address _vaultToken,
-        bool _mintable
+        address _vaultToken
     ) external onlyRole(MANAGER_ROLE) checkAddress(_token) checkAddress(_vaultToken) {
         Token storage token = tokenList[_token];
         address tokenAddress = IVaultTokenV3(_vaultToken).getTokenAddress();
@@ -71,8 +68,8 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
         token.vaultToken = _vaultToken;
         token.decimals = IERC20MetadataUpgradeable(_token).decimals();
-        token.mintable = _mintable;
-        emit RegisterToken(_token, _vaultToken, _mintable);
+        // token.mintable = _mintable;
+        emit RegisterToken(_token, _vaultToken);
     }
 
     function mapToken(
@@ -101,7 +98,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         require(_highest >= _lowest, "invalid highest and lowest");
         require(_rate <= MAX_RATE_UNI, "invalid proportion value");
 
-        transferOutFee[_fromChain][_token] = FeeRate(_lowest, _highest, _rate);
+        token.outFees[_fromChain] = FeeRate(_lowest, _highest, _rate);
 
         emit SetTransferOutTokenFee(_token, _fromChain, _lowest, _highest, _rate);
     }
@@ -185,10 +182,6 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         return (_amount * (10 ** decimalsTo)) / (10 ** decimalsFrom);
     }
 
-    function checkMintable(address _token) external view override returns (bool) {
-        return tokenList[_token].mintable;
-    }
-
     function getVaultToken(address _token) external view override returns (address) {
         return tokenList[_token].vaultToken;
     }
@@ -206,7 +199,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     ) external view override returns (uint256) {
         FeeRate memory feeRate = tokenList[_token].fees[_toChain];
         uint256 fee = _getFee(feeRate, _amount);
-        FeeRate memory outFeeRate = transferOutFee[_fromChain][_token];
+        FeeRate memory outFeeRate = tokenList[_token].outFees[_fromChain];
         uint256 fromChainFee = _getFee(outFeeRate, _amount);
         return fee > fromChainFee ? fee : fromChainFee;
     }
@@ -238,7 +231,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         }
 
         feeRate = tokenList[_token].fees[_chain];
-        outFeeRate = transferOutFee[_chain][_token];
+        outFeeRate = tokenList[_token].outFees[_chain];
     }
 
     function getToChainTokenInfo(
@@ -330,7 +323,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     ) internal view returns (uint256) {
         FeeRate memory feeRate = tokenList[_token].fees[_toChain];
         uint256 outAmount = _getBeforeAmount(feeRate, _amount);
-        FeeRate memory fromChainFeeRate = transferOutFee[_fromChain][_token];
+        FeeRate memory fromChainFeeRate = tokenList[_token].outFees[_fromChain];
         uint256 fAmount = _getBeforeAmount(fromChainFeeRate, _amount);
         return outAmount > fAmount ? outAmount : fAmount;
     }
