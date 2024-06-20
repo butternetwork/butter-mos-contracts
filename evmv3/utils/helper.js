@@ -1,6 +1,16 @@
 let fs = require("fs");
 let path = require("path");
 
+
+async function  stringToHex(str) {
+    return str
+        .split("")
+        .map(function (c) {
+            return ("0" + c.charCodeAt(0).toString(16)).slice(-2);
+        })
+        .join("");
+};
+
 function getRole(role) {
     if (role.substr(0, 2) === "0x") {
         return role;
@@ -125,5 +135,6 @@ module.exports = {
     getRole,
     getTokenList,
     getChainList,
+    stringToHex,
     getFeeList,
 };
