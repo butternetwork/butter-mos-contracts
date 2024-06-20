@@ -10,7 +10,7 @@ let {
 } = require("../../utils/create.js");
 
 let { verify } = require("../utils/verify.js");
-let { getChain, getToken } = require("../../utils/helper");
+let { getChain, getToken, getFeeList, getChainList } = require("../../utils/helper");
 
 
 async function getBridge(network, abstract) {
@@ -238,6 +238,75 @@ task("bridge:addMintableToken", "add Mintable Token")
         }
     });
 
+task("bridge:updateTokenChain", "update token to target chain")
+    .addParam("token", "token name")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        console.log(`token ${taskArgs.token}  address: ${tokenAddr}`);
+
+        let chain = await getChain(hre.network.config.chainId);
+        let feeList = await getFeeList(taskArgs.token);
+        let targetList = feeList[chain.chain].target;
+        let tokenMintable = feeList[chain.chain].mintable;
+
+        let bridge = await getBridge(hre.network.name, true);
+
+        let chainList = await getChainList();
+        let addList = [];
+        let removeList = [];
+        for (let i = 0; i < targetList.length; i++) {
+            let targetChain = await getChain(targetList[i]);
+
+            let bridgeable = await bridge.tokenMappingList(targetChain.chainId, tokenAddr);
+            if (!bridgeable) {
+                addList.push(targetChain.chainId);
+            }
+        }
+        for (let i = 0; i < chainList.length; i++) {
+            let j = 0;
+            for (j = 0; j < targetList.length; j++) {
+                if (chainList[i].chain === targetList[j]) {
+                    break;
+                }
+            }
+            if (j < targetList.length) {
+                continue;
+            }
+            let bridgeable = await bridge.tokenMappingList(chainList[i].chainId, tokenAddr);
+            if (bridgeable) {
+                removeList.push(chainList[i].chainId);
+            }
+        }
+        console.log("remove list", removeList);
+        console.log("add list", addList);
+
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await tronUpdateChain(hre.artifacts, hre.network.name, tokenAddr, addList, removeList);
+        } else {
+            let mintable = await bridge.isMintable(tokenAddr);
+            if (tokenMintable !== mintable) {
+                let feature = tokenMintable ? 0x01 : 0x00;
+                await bridge.updateTokens([tokenAddr], [ethers.constants.AddressZero], feature);
+                console.log(`set token ${taskArgs.token} mintable ${feature}`);
+            }
+
+            if (removeList.length > 0) {
+                console.log(`remove token ${taskArgs.token} to chain ${removeList} ...`);
+                await bridge.registerTokenChains(tokenAddr, removeList, false);
+            }
+            if (addList.length > 0) {
+                console.log(`register token ${taskArgs.token} to chain ${addList} ...`);
+                await bridge.registerTokenChains(tokenAddr, addList, true);
+            }
+        }
+
+        console.log(`mos update update token ${taskArgs.token} bridge success`);
+    });
+
 task("bridge:updateMorc20", "update tokens")
     .addParam("token", "tokens")
     .addOptionalParam("proxy", "proxy", "0x0000000000000000000000000000000000000000", types.string)
@@ -347,9 +416,75 @@ task("bridge:transferOut", "Cross-chain transfer token")
             console.log(`${tokenAddr} approve ${bridge.address} value ${value} ...`);
             await token.approve(bridge.address, value);
         }
-        console.log("value", fee);
-        await bridge.swapOutToken(deployer.address, tokenAddr, receiver, value, targetChainId, "0x",
-            {value: fee, gasLimit: 1000000 });
+        console.log(`transfer ${taskArgs.token} with value ${fee} ...`);
+        let rst = await bridge.swapOutToken(deployer.address, tokenAddr, receiver, value, targetChainId, "0x",
+            {value: fee, gasLimit: 400000 });
+        console.log(rst);
 
         console.log(`transfer token ${taskArgs.token} ${taskArgs.value} to ${receiver} successful`);
+    });
+
+task("bridge:list", "List mos  infos")
+    .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
+    .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
+    .setAction(async (taskArgs, hre) => {
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await tronList(hre.artifacts, hre.network.name, taskArgs.mos, taskArgs.token);
+        } else {
+            const accounts = await ethers.getSigners();
+            const deployer = accounts[0];
+            const chainId = await deployer.getChainId();
+            console.log("deployer address:", deployer.address);
+
+            let bridge = await getBridge(hre.network.name, false);
+
+            let selfChainId = await bridge.selfChainId();
+            console.log("selfChainId:\t", selfChainId.toString());
+            console.log("wToken address:\t", await bridge.wToken());
+            console.log("mos:\t", await bridge.mos());
+            console.log("relay chain:\t", await bridge.relayChainId());
+            console.log("relay contract:\t", await bridge.relayContract());
+            console.log("Impl:\t", await bridge.getImplementation());
+
+            console.log("fee receiver:\t", await bridge.nativeFeeReceiver());
+
+            console.log("base fee swap:\t", await bridge.baseGasLookup(0, 0));
+            console.log("base fee deposit:\t", await bridge.baseGasLookup(0, 1));
+            console.log("base fee intertransfer:\t", await bridge.baseGasLookup(0, 2));
+        }
+    });
+
+
+task("bridge:tokenInfo", "List mos  infos")
+    .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
+    .setAction(async (taskArgs, hre) => {
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await tronList(hre.artifacts, hre.network.name, taskArgs.mos, taskArgs.token);
+        } else {
+            const accounts = await ethers.getSigners();
+            const deployer = accounts[0];
+            const chainId = await deployer.getChainId();
+            console.log("deployer address:", deployer.address);
+
+            let bridge = await getBridge(hre.network.name, true);
+
+            let tokenAddr = taskArgs.token;
+            if (tokenAddr == "wtoken") {
+                tokenAddr = wtoken;
+            }
+            tokenAddr = await getToken(hre.network.config.chainId, tokenAddr);
+
+            console.log("\ntoken address:", tokenAddr);
+            console.log(`token mintalbe:\t ${await bridge.isMintable(tokenAddr)}`);
+            console.log(`token feature:\t ${await bridge.tokenFeatureList(tokenAddr)}`);
+
+            console.log("register chains:");
+            let chains = await getChainList();
+            for (let i = 0; i < chains.length; i++) {
+                let bridgeable = await bridge.tokenMappingList(chains[i].chainId, tokenAddr);
+                if (bridgeable) {
+                    console.log(`${chains[i].chain} (${chains[i].chainId})`);
+                }
+            }
+        }
     });

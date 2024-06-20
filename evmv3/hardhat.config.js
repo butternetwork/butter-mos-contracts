@@ -55,8 +55,7 @@ module.exports = {
       url: `https://rpc.ankr.com/polygon`,
       chainId: 137,
       zksync: false,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Bsc: {
       url: `https://rpc.ankr.com/bsc`,
