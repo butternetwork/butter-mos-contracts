@@ -4,7 +4,7 @@ require("hardhat-deploy");
 require('@nomiclabs/hardhat-ethers');
 require("@matterlabs/hardhat-zksync-deploy");
 require("@matterlabs/hardhat-zksync-solc");
-require("@matterlabs/hardhat-zksync-verify");
+// require("@matterlabs/hardhat-zksync-verify");
 require("./tasks");
 
 /** @type import('hardhat/config').HardhatUserConfig */

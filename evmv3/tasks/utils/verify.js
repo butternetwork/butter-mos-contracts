@@ -11,7 +11,7 @@ exports.verify = async function (addr, args, code, chainId, wait) {
         console.log("args:", args);
 
         const verifyArgs = args.map((arg) => (typeof arg == "string" ? `'${arg}'` : arg)).join(" ");
-        console.log(`To verify, run: npx hardhat verify --network Network ${addr} ${verifyArgs}`);
+        console.log(`To verify, run: npx hardhat verify --network Network --contract ${code} ${addr} ${verifyArgs}`);
 
         await run("verify:verify", {
             contract: code,

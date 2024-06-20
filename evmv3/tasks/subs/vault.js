@@ -14,7 +14,7 @@ task("vault:deploy", "Deploy the vault token")
         let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
         console.log("token address:", tokenAddr);
 
-        await deploy("VaultTokenV2", {
+        await deploy("VaultTokenV3", {
             from: deployer.address,
             args: [tokenAddr, taskArgs.name, taskArgs.symbol],
             log: true,
