@@ -73,6 +73,7 @@ contract Bridge is BridgeAbstract {
         }
         uint256 messageFee;
         (, , messageFee) = _tokenIn(param.toChain, param.amount, _token, param.gasLimit, true);
+        _checkAndBurn(param.token, _amount);
         if (isOmniToken(param.token)) {
             orderId = _interTransferAndCall(param, bridges[_toChain], messageFee);
         } else {
@@ -118,6 +119,7 @@ contract Bridge is BridgeAbstract {
     ) external payable override nonReentrant whenNotPaused {
         uint256 gasLimit = _getBaseGas(relayChainId, OutType.DEPOSIT);
         (address token, , uint256 messageFee) = _tokenIn(relayChainId, _amount, _token, gasLimit, false);
+        _checkAndBurn(_token, _amount);
         _checkBridgeable(token, relayChainId);
         bytes memory payload = abi.encode(abi.encodePacked(token), _amount, abi.encodePacked(msg.sender), _to);
         payload = abi.encode(OutType.DEPOSIT, payload);
