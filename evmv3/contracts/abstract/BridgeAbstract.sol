@@ -311,7 +311,7 @@ abstract contract BridgeAbstract is
             token = wToken;
         } else {
             IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), _amount);
-            if (_toChain != selfChainId) _checkAndBurn(token, _amount);
+            //if (_toChain != selfChainId) _checkAndBurn(token, _amount);
         }
         if (_toChain != selfChainId) {
             messageFee = getMessageFee(token, _gasLimit, _toChain);

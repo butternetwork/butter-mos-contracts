@@ -153,6 +153,7 @@ contract BridgeAndRelay is BridgeAbstract {
             orderId = _getOrderId(param.from, toToken, param.toChain);
             uint256 mapOutAmount;
             (mapOutAmount, param.amount) = _collectFee(param.token, _amount, selfChainId, param.toChain);
+            _checkAndBurn(param.token, mapOutAmount);
             bytes memory payload = abi.encode(
                 orderId,
                 toToken,
