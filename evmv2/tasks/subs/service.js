@@ -90,6 +90,7 @@ task("mos:upgrade", "upgrade mos evm contract in proxy")
 //client -> update mos light client
 task("mos:setLightClient", "set light client contracts for mos")
     .addParam("address", "light client contracts address")
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             await tronSetup(hre.artifacts, hre.network.name, taskArgs.address);
@@ -102,7 +103,13 @@ task("mos:setLightClient", "set light client contracts for mos")
                 throw "mos not deployed ...";
             }
             console.log("mos address", mos.address);
-            await (await mos.connect(deployer).setLightClient(taskArgs.address)).wait();
+
+            if (taskArgs.auth) {
+                await execute(mos, "setLightClient", [taskArgs.address], deployer);
+            } else {
+                await (await mos.connect(deployer).setLightClient(taskArgs.address)).wait();
+            }
+
             console.log(`mos set  light client ${taskArgs.address} successfully `);
         }
     });
@@ -499,6 +506,53 @@ task("mos:setPause", "set pause for mos")
 task("mos:changeOwner", "changeOwner for mos")
     .addParam("owner", "owner address")
     .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
+    .setAction(async (taskArgs, hre) => {
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await tronSetup(hre.artifacts, hre.network.name, taskArgs.address, taskArgs.type);
+        } else {
+            const accounts = await ethers.getSigners();
+            const deployer = accounts[0];
+            const chainId = await hre.network.config.chainId;
+            let mos = await getMos(chainId, hre.network.name);
+            if (mos == undefined) {
+                throw "mos not deployed ...";
+            }
+            console.log("mos address", mos.address);
+
+            let owner = await mos.connect(deployer).getAdmin();
+            console.log("mos pre owner", owner);
+
+            if (taskArgs.auth) {
+                let deployment = await readFromFile(hre.network.name);
+                if (!deployment[hre.network.name]["authority"]) {
+                    throw "authority not deployed";
+                }
+                let Authority = await ethers.getContractFactory("Authority");
+                let authority = Authority.attach(deployment[hre.network.name]["authority"]);
+
+                let data = mos.interface.encodeFunctionData("changeAdmin", [taskArgs.owner]);
+                let executeData = authority.interface.encodeFunctionData("execute", [mos.address, 0, data]);
+                console.log("target:", mos.address);
+                console.log("value:", 0);
+                console.log("payload:", data);
+                console.log("execute input:", executeData);
+
+                await (await authority.execute(mos.address, 0, data)).wait();
+            } else {
+                await (await mos.connect(deployer).changeAdmin(taskArgs.owner)).wait();
+            }
+
+            owner = await mos.connect(deployer).getAdmin();
+            console.log("mos owner", owner);
+
+            console.log(`mos set owner ${taskArgs.owner} successfully `);
+        }
+    });
+
+task("mos:getOrderStatus", "changeOwner for mos")
+    .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
+    .addOptionalParam("order", "The token address, default wtoken", "wtoken", types.string)
+    .addOptionalParam("block", "The token address, default wtoken", "wtoken", types.string)
     .setAction(async (taskArgs, hre) => {
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             await tronSetup(hre.artifacts, hre.network.name, taskArgs.address, taskArgs.type);

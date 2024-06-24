@@ -71,13 +71,8 @@ module.exports = {
       gasPrice: 11 * 1000000000,
     },
     Eth: {
-      url: `https://mainnet.infura.io/v3/` + INFURA_KEY,
+      url: `https://1rpc.io/eth`,
       chainId: 1,
-      accounts: accounts,
-    },
-    Goerli: {
-      url: `https://goerli.infura.io/v3/` + INFURA_KEY,
-      chainId: 5,
       accounts: accounts,
     },
     Klay: {
