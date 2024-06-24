@@ -282,15 +282,14 @@ abstract contract BridgeAbstract is
 
     function getNativeFee(address _token, uint256 _gasLimit, uint256 _toChain) external view returns (uint256) {
         address token = Helper._isNative(_token) ? wToken : _token;
-        uint256 gasLimit;
+        uint256 gasLimit = _gasLimit;
         if (isOmniToken(token)) {
-            gasLimit = _getBaseGas(_toChain, OutType.INTER_TRANSFER);
+            gasLimit += _getBaseGas(_toChain, OutType.INTER_TRANSFER);
         } else {
-            gasLimit = _getBaseGas(_toChain, OutType.SWAP);
+            gasLimit += _getBaseGas(_toChain, OutType.SWAP);
         }
-        gasLimit += _gasLimit;
         uint256 fee = getMessageFee(token, gasLimit, _toChain);
-        fee += nativeFees[token][_toChain];
+        fee += _getTokenNativeFee(token, _toChain);
         return fee;
     }
 
@@ -302,8 +301,6 @@ abstract contract BridgeAbstract is
         bool _isSwap
     ) internal returns (address token, uint256 nativeFee, uint256 messageFee) {
         require(_amount > 0, "value is zero");
-        token = _token;
-        if (_isSwap) nativeFee = _chargeNativeFee(_token, _amount, _toChain);
         uint256 value = nativeFee;
         if (Helper._isNative(token)) {
             value += _amount;
@@ -311,13 +308,18 @@ abstract contract BridgeAbstract is
             token = wToken;
         } else {
             IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), _amount);
+            token = _token;
             //if (_toChain != selfChainId) _checkAndBurn(token, _amount);
         }
+
+        if (_isSwap) nativeFee = _chargeNativeFee(token, _amount, _toChain);
+        value += nativeFee;
+
         if (_toChain != selfChainId) {
             messageFee = getMessageFee(token, _gasLimit, _toChain);
             value += messageFee;
         }
-        require(value == msg.value, "value or fee mismatching");
+        require(value <= msg.value, "value or fee mismatching");
     }
 
     function _swapIn(SwapInParam memory param) internal {
@@ -393,6 +395,15 @@ abstract contract BridgeAbstract is
         return gasLimit;
     }
 
+    function _getTokenNativeFee(address _token, uint256 _toChain) internal view returns (uint256) {
+        uint256 fee = nativeFees[_token][_toChain];
+        if (fee == 0) {
+            fee = nativeFees[_token][DEFAULT_CHAIN];
+        }
+
+        return fee;
+    }
+
     function getMessageFee(
         address _token,
         uint256 _gasLimit,
@@ -407,18 +418,8 @@ abstract contract BridgeAbstract is
         }
     }
 
-    // function getTransferFee(
-    //     address _token,
-    //     uint256 _amount,
-    //     uint256 _gasLimit,
-    //     uint256 _toChain
-    // ) public virtual returns (uint256 fee) {
-    //     (fee, ) = mos.getMessageFee(_toChain, Helper.ZERO_ADDRESS, _gasLimit);
-    //     fee += _chargeNativeFee(_token, _amount, _toChain);
-    // }
-
     function _chargeNativeFee(address _token, uint256 _amount, uint256 _toChain) internal virtual returns (uint256) {
-        uint256 fee = nativeFees[_token][_toChain];
+        uint256 fee = _getTokenNativeFee(_token, _toChain);
         if (fee != 0 && nativeFeeReceiver != Helper.ZERO_ADDRESS) {
             Helper._transfer(selfChainId, Helper.ZERO_ADDRESS, nativeFeeReceiver, fee);
             emit ChargeNativeFee(_token, _amount, fee, selfChainId, _toChain);

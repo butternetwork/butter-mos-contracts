@@ -124,11 +124,17 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes calldata _bridgeData
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
+        require(!_checkBytes(bridges[_toChain], bytes("")), "bridge not registered");
+
         SwapOutParam memory param;
         param.from = _sender;
         param.to = _to;
         param.toChain = _toChain;
         param.token = Helper._isNative(_token) ? wToken : _token;
+
+        _checkBridgeable(param.token, param.toChain);
+        _checkLimit(_amount, param.toChain, param.token);
+
         if (isOmniToken(param.token)) {
             param.gasLimit = _getBaseGas(_toChain, OutType.INTER_TRANSFER);
         } else {
@@ -148,9 +154,7 @@ contract BridgeAndRelay is BridgeAbstract {
             param.amount = _amount;
             orderId = _interTransferAndCall(param, bridges[param.toChain], messageFee);
         } else {
-            _checkBridgeable(param.token, param.toChain);
-            _checkLimit(_amount, param.toChain, param.token);
-            orderId = _getOrderId(param.from, toToken, param.toChain);
+            orderId = _getOrderId(param.from, param.to, param.toChain);
             uint256 mapOutAmount;
             (mapOutAmount, param.amount) = _collectFee(param.token, _amount, selfChainId, param.toChain);
             _checkAndBurn(param.token, mapOutAmount);
