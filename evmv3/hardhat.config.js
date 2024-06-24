@@ -58,7 +58,7 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Bsc: {
-      url: `https://rpc.ankr.com/bsc`,
+      url: `https://bsc-dataseed1.defibit.io`,
       chainId: 56,
       zksync: false,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],

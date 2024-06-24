@@ -2,6 +2,7 @@ let fs = require("fs");
 let path = require("path");
 let { Wallet } = require("zksync-web3");
 let { Deployer } = require("@matterlabs/hardhat-zksync-deploy");
+
 const TronWeb = require("tronweb");
 
 DEPLOY_FACTORY = "0x6258e4d2950757A749a4d4683A7342261ce12471";
@@ -9,6 +10,23 @@ let IDeployFactory_abi = [
     "function deploy(bytes32 salt, bytes memory creationCode, uint256 value) external",
     "function getAddress(bytes32 salt) external view returns (address)",
 ];
+
+async function contractCall(hre, contract, method, args, read) {
+    let result;
+    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+        let methodFunc = contract.methods[method];
+        if (read) {
+            result = await methodFunc(args).call();
+        } else {
+            result = await methodFunc(args).send();
+        }
+    } else {
+        let methodFunc = contract.funcs[method];
+        result = await methodFunc(args);
+    }
+
+    return result;
+}
 
 async function create(hre, deployer, contract, paramTypes, args, salt) {
     // todo contract verify

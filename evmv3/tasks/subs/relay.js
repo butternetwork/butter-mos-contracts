@@ -114,33 +114,6 @@ task("relay:registerChain", "register Chain")
         console.log(`register chain ${taskArgs.chain} address ${taskArgs.address} success`);
     });
 
-task("relay:registerTokenChains", "register token Chains")
-    .addParam("chains", "chains address")
-    .addParam("token", "token address")
-    .addParam("enable", "enable bridge")
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
-        let chainList = taskArgs.chains.split(",");
-
-        console.log("operator address is:", deployer.address);
-        let relay = await getRelay(hre.network.name);
-        await (await relay.registerTokenChains(taskArgs.token, chainList, taskArgs.enable)).wait();
-    });
-
-task("relay:setBaseGas", "set base gas")
-    .addParam("chain", "chain id")
-    .addParam("type", "Out type, 0 - swap, 1 - deposit, 2 - morc20")
-    .addParam("gas", "base gas limit")
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
-        console.log("deployer address:", deployer.address);
-        let relay = await getRelay(hre.network.name);
-
-        await (await relay.setBaseGas(taskArgs.chain, taskArgs.type, taskArgs.gas)).wait();
-    });
-
 task("relay:setNear", "set distribute rate")
     .addParam("chain", "near chain id")
     .addParam("adaptor", "near mos v2 adapter")
@@ -183,34 +156,35 @@ task("relay:grantRole", "grant Role")
         }
     });
 
-task("relay:updateToken", "update token fee to target chain")
+task("relay:updateToken", "update token bridge and fee to target chain")
     .addParam("token", "relay chain token name")
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
-        console.log("deployer address:", deployer.address);
+        // console.log("deployer address:", deployer.address);
+
+        await hre.run("bridge:updateToken", {
+            token: taskArgs.token
+        });
 
         let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
         let token = await ethers.getContractAt("IERC20MetadataUpgradeable", tokenAddr);
         let decimals = await token.decimals();
-        console.log(`token ${taskArgs.token} address: ${token.address}, decimals ${decimals}`);
+        // console.log(`token ${taskArgs.token} address: ${token.address}, decimals ${decimals}`);
 
         let feeList = await getFeeList(taskArgs.token);
         let chainList = Object.keys(feeList);
-
-        // todo update chain and mintable
         for (let i = 0; i < chainList.length; i++) {
             let chain = await getChain(chainList[i]);
-
             let chainFee = feeList[chain.chain];
-            let targetDecimals = chainFee.decimals;
+
             let targetToken = await getToken(chain.chainId, taskArgs.token);
-            console.log(`target ${chain.chainId}, ${targetToken}, ${targetDecimals}`)
+            // console.log(`target ${chain.chainId}, ${targetToken}, ${chainFee.decimals}`)
             await hre.run("register:mapToken", {
                 token: tokenAddr,
                 chain: chain.chainId,
                 target: targetToken,
-                decimals: targetDecimals
+                decimals: chainFee.decimals
             });
 
             await hre.run("register:setTokenFee", {
@@ -219,25 +193,24 @@ task("relay:updateToken", "update token fee to target chain")
                 lowest: chainFee.fee.min,
                 highest: chainFee.fee.max,
                 rate: chainFee.fee.rate,
-                decimals: targetDecimals
+                decimals: decimals
             });
 
             let transferOutFee = chainFee.outFee;
             if (transferOutFee === undefined) {
                 transferOutFee = {min: "0", max: "0", rate: "0"}
             }
-
             await hre.run("register:setTransferOutFee", {
                 token: tokenAddr,
                 chain: chain.chainId,
                 lowest: transferOutFee.min,
                 highest: transferOutFee.max,
                 rate: transferOutFee.rate,
-                decimals: targetDecimals
+                decimals: decimals
             });
         }
 
-        console.log(`Token register manager update token ${taskArgs.token} success`);
+        console.log(`Update token ${taskArgs.token} success`);
     });
 
 task("relay:list", "List relay infos")
@@ -276,7 +249,7 @@ task("relay:list", "List relay infos")
         let chains = [selfChainId];
         for (let i = 0; i < chainList.length; i++) {
             let contract = await relay.bridges(chainList[i].chainId);
-            if (contract != "0x") {
+            if (contract !== "0x") {
                 let chaintype = await relay.chainTypes(chainList[i].chainId);
                 console.log(`type(${chaintype}) ${chainList[i].chainId}\t => ${contract} `);
                 chains.push(chainList[i].chainId);
@@ -287,23 +260,18 @@ task("relay:list", "List relay infos")
 task("relay:tokenInfo", "List token infos")
     .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
     .setAction(async (taskArgs, hre) => {
-
         let relay = await getRelay(hre.network.name);
-
-        let tokenmanager = await relay.tokenRegister();
-
-        let manager = await ethers.getContractAt("TokenRegisterV3", tokenmanager);
+        let tokenManager = await relay.tokenRegister();
+        let manager = await ethers.getContractAt("TokenRegisterV3", tokenManager);
         console.log("Token manager:\t", manager.address);
 
         let tokenAddr = taskArgs.token;
-        if (tokenAddr == "wtoken") {
+        if (tokenAddr === "wtoken") {
             tokenAddr = await relay.wToken();
         }
         tokenAddr = await getToken(hre.network.config.chainId, tokenAddr);
 
-        console.log("\ntoken:", taskArgs.token);
-        console.log("token address:", tokenAddr);
-        console.log(`token mintalbe:\t ${await relay.isMintable(tokenAddr)}`);
+        await hre.run("bridge:tokenInfo", {token: taskArgs.token});
 
         let token = await manager.tokenList(tokenAddr);
         console.log(`token decimals:\t ${token.decimals}`);
@@ -319,7 +287,7 @@ task("relay:tokenInfo", "List token infos")
         let chains = [hre.network.config.chainId];
         for (let i = 0; i < chainList.length; i++) {
             let contract = await relay.bridges(chainList[i].chainId);
-            if (contract != "0x") {
+            if (contract !== "0x") {
                 chains.push(chainList[i].chainId);
             }
         }
