@@ -231,8 +231,10 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     function swapInWithIndex(
         uint256 _chainId,
         uint256 logIndex,
+        bytes32 orderId,
         bytes memory _receiptProof
     ) external nonReentrant whenNotPaused {
+        require(!orderList[orderId], "order exist");
         require(_chainId == relayChainId, "invalid chain id");
         (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(
             _receiptProof
@@ -254,7 +256,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     }
 
     // execute stored swap in logs
-    function swapInVerifiedWithIndex(bytes calldata logArray, uint256 logIndex) external nonReentrant whenNotPaused {
+    function swapInVerifiedWithIndex(bytes32 orderId,bytes calldata logArray, uint256 logIndex) external nonReentrant whenNotPaused {
+        require(!orderList[orderId], "order exist");
         bytes32 hash = keccak256(logArray);
         require(storedOrderId[hash], "not verified");
         _swapInVerifiedWithIndex(logArray,logIndex);
