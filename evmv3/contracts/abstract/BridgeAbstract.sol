@@ -301,14 +301,14 @@ abstract contract BridgeAbstract is
         bool _isSwap
     ) internal returns (address token, uint256 nativeFee, uint256 messageFee) {
         require(_amount > 0, "value is zero");
-        uint256 value = nativeFee;
+        uint256 value;
+        token = _token;
         if (Helper._isNative(token)) {
             value += _amount;
             Helper._safeDeposit(wToken, _amount);
             token = wToken;
         } else {
             IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), _amount);
-            token = _token;
             //if (_toChain != selfChainId) _checkAndBurn(token, _amount);
         }
 
