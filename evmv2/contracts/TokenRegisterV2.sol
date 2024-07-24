@@ -15,17 +15,26 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
 
     uint256 constant MAX_RATE_UNI = 1000000;
 
+    struct StepFee {
+        uint256 start;
+        uint256 rate; // unit is parts per million
+    }
+
     struct FeeRate {
         uint256 lowest;
         uint256 highest;
-        uint256 rate; // unit is parts per million
+        uint256 defaultRate; // unit is parts per million
+        StepFee[] stepFees;
     }
 
     struct Token {
         bool mintable;
         uint8 decimals;
         address vaultToken;
-        mapping(uint256 => FeeRate) fees;
+        // toChain => fee
+        mapping(uint256 => FeeRate) toChainFees;
+        // fromChain => fee
+        mapping(uint256 => FeeRate) fromChainFees;
         // chain_id => decimals
         mapping(uint256 => uint8) tokenDecimals;
         // chain_id => token
@@ -39,8 +48,9 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
     mapping(uint256 => mapping(bytes => address)) public tokenMappingList;
 
     mapping(address => Token) public tokenList;
-    //from chainId => [relay token => fee]
-    mapping(uint256 => mapping(address => FeeRate)) public transferOutFee;
+
+    // //from chainId => [relay token => fee]
+    // mapping(uint256 => mapping(address => TransferOutFeeRate)) public transferOutFee;
 
     modifier checkAddress(address _address) {
         require(_address != address(0), "address is zero");
@@ -53,7 +63,8 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
     }
 
     event RegisterToken(address _token, address _vaultToken, bool _mintable);
-    event SetTokenFee(address _token, uint256 _toChain, uint256 _lowest, uint256 _highest, uint256 _rate);
+    event UpdateStepFee(address _token, uint256 _toChain,StepFee[] _stepFees);
+    event SetTokenFee(address _token, uint256 _toChain, uint256 _lowest, uint256 _highest, uint256 _defaultRate);
     event SetTransferOutTokenFee(address _token, uint256 _toChain, uint256 _lowest, uint256 _highest, uint256 _rate);
 
     function initialize(address _owner) public initializer checkAddress(_owner) {
@@ -91,21 +102,22 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         tokenMappingList[_fromChain][_fromToken] = _token;
     }
 
-    function setTransferOutFee(
+    function setFromChainTokenFee(
         address _token,
         uint256 _fromChain,
         uint256 _lowest,
         uint256 _highest,
-        uint256 _rate
+        uint256 _defaultRate
     ) external onlyOwner checkAddress(_token) {
         Token storage token = tokenList[_token];
         require(token.vaultToken != address(0), "invalid map token");
         require(_highest >= _lowest, "invalid highest and lowest");
-        require(_rate <= MAX_RATE_UNI, "invalid proportion value");
-
-        transferOutFee[_fromChain][_token] = FeeRate(_lowest, _highest, _rate);
-
-        emit SetTransferOutTokenFee(_token, _fromChain, _lowest, _highest, _rate);
+        require(_defaultRate <= MAX_RATE_UNI, "invalid proportion value");
+        FeeRate storage feeRate = token.fromChainFees[_fromChain];
+        feeRate.defaultRate = _defaultRate;
+        feeRate.lowest = _lowest;
+        feeRate.highest = _highest;
+        emit SetTransferOutTokenFee(_token, _fromChain, _lowest, _highest, _defaultRate);
     }
 
     function setTokenFee(
@@ -113,16 +125,42 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         uint256 _toChain,
         uint256 _lowest,
         uint256 _highest,
-        uint256 _rate
+        uint256 _defaultRate
     ) external onlyOwner checkAddress(_token) {
         Token storage token = tokenList[_token];
         require(token.vaultToken != address(0), "invalid map token");
         require(_highest >= _lowest, "invalid highest and lowest");
-        require(_rate <= MAX_RATE_UNI, "invalid proportion value");
+        require(_defaultRate <= MAX_RATE_UNI, "invalid proportion value");
+        FeeRate storage feeRate = token.toChainFees[_toChain];
+        feeRate.defaultRate = _defaultRate;
+        feeRate.lowest = _lowest;
+        feeRate.highest = _highest;
+        emit SetTokenFee(_token, _toChain, _lowest, _highest, _defaultRate);
+    }
 
-        token.fees[_toChain] = FeeRate(_lowest, _highest, _rate);
-
-        emit SetTokenFee(_token, _toChain, _lowest, _highest, _rate);
+    function updateStepFee(
+        address _token,
+        uint256 _chain,
+        bool isFrom,
+        StepFee[] memory _stepFees
+    ) external onlyOwner checkAddress(_token) {
+        uint256 len = _stepFees.length;
+        Token storage token = tokenList[_token];
+        require(token.vaultToken != address(0), "invalid map token");
+        FeeRate storage feeRate = isFrom ? token.fromChainFees[_chain] : token.toChainFees[_chain];
+        delete feeRate.stepFees;
+        uint256 start;
+        for (uint i = 0; i < len; i++) {
+            if(i == 0) {
+                _stepFees[i].start = 0;
+            } else {
+                require(_stepFees[i].start > start,"start must > pre start"); 
+            }
+            require(_stepFees[i].rate <= MAX_RATE_UNI, "invalid proportion value");
+            start = _stepFees[i].start;
+            feeRate.stepFees.push(_stepFees[i]);
+        }
+        emit UpdateStepFee(_token,_chain,_stepFees);
     }
 
     // --------------------------------------------------------
@@ -196,7 +234,7 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
     }
 
     function getTokenFee(address _token, uint256 _amount, uint256 _toChain) external view override returns (uint256) {
-        FeeRate memory feeRate = tokenList[_token].fees[_toChain];
+        FeeRate memory feeRate = tokenList[_token].toChainFees[_toChain];
         return _getFee(feeRate, _amount);
     }
 
@@ -206,22 +244,35 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         uint256 _fromChain,
         uint256 _toChain
     ) external view override returns (uint256) {
-        FeeRate memory feeRate = tokenList[_token].fees[_toChain];
-        uint256 fee = _getFee(feeRate, _amount);
-        FeeRate memory outFeeRate = transferOutFee[_fromChain][_token];
-        uint256 fromChainFee = _getFee(outFeeRate, _amount);
+        FeeRate memory toChainFeeRate = tokenList[_token].toChainFees[_toChain];
+        uint256 fee = _getFee(toChainFeeRate, _amount);
+        FeeRate memory fromChainFeeRate = tokenList[_token].fromChainFees[_fromChain];
+        uint256 fromChainFee = _getFee(fromChainFeeRate, _amount);
         return fee > fromChainFee ? fee : fromChainFee;
     }
 
-    function _getFee(FeeRate memory _feeRate, uint256 _amount) internal view returns (uint256) {
-        uint256 fee = _amount.mul(_feeRate.rate).div(MAX_RATE_UNI);
+   function _getFee(FeeRate memory _feeRate,uint256 _amount) internal pure returns (uint256) {
+        uint256 feeRate = _getFeeRate(_feeRate,_amount);
+        uint256 fee = _amount.mul(feeRate).div(MAX_RATE_UNI);
         if (fee > _feeRate.highest) {
             return _feeRate.highest;
         } else if (fee < _feeRate.lowest) {
             return _feeRate.lowest;
         }
         return fee;
-    }
+   }
+
+   function _getFeeRate(FeeRate memory _feeRate,uint256 _amount) internal pure returns (uint256) {
+        StepFee[] memory steps = _feeRate.stepFees;
+        uint256 len = steps.length;
+        if(len == 0) return _feeRate.defaultRate;
+        uint256 rate;
+        for (uint i = 0; i < len; i++) {
+            rate = steps[i].rate;
+            if(steps[i].start > _amount) break;
+        }
+        return rate;
+   }
 
     function getTargetTokenInfo(
         address _token,
@@ -229,7 +280,7 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
     )
         external
         view
-        returns (bytes memory targetToken, uint8 decimals, FeeRate memory feeRate, FeeRate memory outFeeRate)
+        returns (bytes memory targetToken, uint8 decimals, FeeRate memory toChainFee, FeeRate memory fromChainFee)
     {
         if (_chain == selfChainId) {
             targetToken = Utils.toBytes(_token);
@@ -239,8 +290,8 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
             decimals = tokenList[_token].tokenDecimals[_chain];
         }
 
-        feeRate = tokenList[_token].fees[_chain];
-        outFeeRate = transferOutFee[_chain][_token];
+        toChainFee = tokenList[_token].toChainFees[_chain];
+        fromChainFee = tokenList[_token].fromChainFees[_chain];
     }
 
     function getToChainTokenInfo(
@@ -255,7 +306,7 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
             decimals = tokenList[_token].tokenDecimals[_toChain];
         }
 
-        feeRate = tokenList[_token].fees[_toChain];
+        feeRate = tokenList[_token].toChainFees[_toChain];
     }
 
     function getFeeAmountAndInfo(
@@ -330,15 +381,15 @@ contract TokenRegisterV2 is ITokenRegisterV2, Initializable, UUPSUpgradeable {
         uint256 _toChain,
         uint256 _fromChain
     ) internal view returns (uint256) {
-        FeeRate memory feeRate = tokenList[_token].fees[_toChain];
-        uint256 outAmount = _getBeforeAmount(feeRate, _amount);
-        FeeRate memory fromChainFeeRate = transferOutFee[_fromChain][_token];
-        uint256 fAmount = _getBeforeAmount(fromChainFeeRate, _amount);
-        return outAmount > fAmount ? outAmount : fAmount;
+        FeeRate memory toChainFee = tokenList[_token].toChainFees[_toChain];
+        FeeRate memory fromChainFee = tokenList[_token].fromChainFees[_fromChain];
+        uint256 toChainFeeAmount = _getBeforeAmount(toChainFee, _amount);
+        uint256 fromChainFeeAmount = _getBeforeAmount(fromChainFee, _amount);
+        return toChainFeeAmount > fromChainFeeAmount ? toChainFeeAmount : fromChainFeeAmount;
     }
 
     function _getBeforeAmount(FeeRate memory feeRate, uint256 _amount) internal pure returns (uint256) {
-        uint256 outAmount = _amount.mul(MAX_RATE_UNI).div(MAX_RATE_UNI.sub(feeRate.rate));
+        uint256 outAmount = _amount.mul(MAX_RATE_UNI).div(MAX_RATE_UNI.sub(feeRate.defaultRate));
         if (outAmount > _amount.add(feeRate.highest)) {
             outAmount = _amount.add(feeRate.highest);
         } else if (outAmount < _amount.add(feeRate.lowest)) {

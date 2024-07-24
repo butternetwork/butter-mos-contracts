@@ -518,3 +518,63 @@ task("relay:tokenInfo", "List token infos")
             console.log(`\t vault(${balance}), fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]})`);
         }
     });
+
+
+task("relay:updateToChainStepFee", "Set token fee to from chain")
+    .addParam("token", "relay chain token name")
+    .addOptionalParam("from", "update StepFees, to chain  or from chain", false, types.boolean)
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
+        console.log("deployer address:", deployer.address);
+
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        console.log("token address:", tokenAddr);
+
+        let proxy = await hre.deployments.get("TokenRegisterProxy");
+        console.log("Token manager address:", proxy.address);
+
+        let register = await ethers.getContractAt("TokenRegisterV2", proxy.address);
+
+        let token = await ethers.getContractAt("MintableToken", tokenAddr);
+        let decimals = await token.decimals();
+        console.log(`token ${taskArgs.token} address: ${token.address}, decimals ${decimals}`);
+
+        let feeList = await getFeeList(taskArgs.token);
+        let chainList = Object.keys(feeList);
+
+        for (let index = 0; index < chainList.length; index++) {
+            let chain = await getChain(chainList[i]);
+            let stepFees = taskArgs.from ? chainList[i].fromChainSteps : chainList[i].toChainSteps;
+            await updateStepFee(register,tokenAddr,decimals,chain.chainId,taskArgs.from,stepFees);
+        }
+    });
+
+    async function updateStepFee(register,token,decimals,chain,isFrom,stepFees){
+        let info = await register.getTargetTokenInfo(token,chain);
+        let fee;
+        if(isFrom){
+            fee = info[3];
+        } else {
+            fee = info[2];
+        }
+        if(compareStepFees(stepFees,fee,decimals)){
+            await (await register.updateStepFee(token,chain,isFrom,stepFees)).wait()
+        }
+    }
+
+    function compareStepFees(config,b,decimals) {
+        if(config.length != config.length){
+            return true;
+        }
+        let result = false;
+        for (let index = 0; index < config.length; index++) {
+            if(!ethers.utils.parseUnits(config[index].start, decimals).eq(b[index].start) &&
+               !ethers.utils.parseUnits(config[index].rate, 6).eq(b[index].rate)){
+                result = true;
+               break;
+            }
+        }
+       return result;
+    }
