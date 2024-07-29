@@ -156,7 +156,7 @@ contract BridgeAndRelay is BridgeAbstract {
         } else {
             orderId = _getOrderId(param.from, param.to, param.toChain);
             uint256 mapOutAmount;
-            (mapOutAmount, param.amount) = _collectFee(param.token, _amount, selfChainId, param.toChain);
+            (mapOutAmount, param.amount) = _collectFee(param.token, _amount, selfChainId, param.toChain, param.swapData.length != 0);
             _checkAndBurn(param.token, mapOutAmount);
             bytes memory payload = abi.encode(
                 orderId,
@@ -260,7 +260,7 @@ contract BridgeAndRelay is BridgeAbstract {
         {
             uint256 mapAmount = tokenRegister.getRelayChainAmount(param.token, fromChain, param.amount);
             _checkAndMint(param.token, mapAmount);
-            (mapOutAmount, outAmount) = _collectFee(param.token, mapAmount, fromChain, toChain);
+            (mapOutAmount, outAmount) = _collectFee(param.token, mapAmount, fromChain, toChain, param.swapData.length != 0);
             emit CollectFee(orderId, param.token, (mapAmount - mapOutAmount));
         }
         if (toChain == selfChainId) {
@@ -326,36 +326,51 @@ contract BridgeAndRelay is BridgeAbstract {
         address _token,
         uint256 _mapAmount,
         uint256 _fromChain,
-        uint256 _toChain
+        uint256 _toChain,
+        bool _withSwap
     ) private returns (uint256, uint256) {
-        address token = _token;
-        address vaultToken = tokenRegister.getVaultToken(token);
+        address vaultToken = tokenRegister.getVaultToken(_token);
         require(vaultToken != address(0), "vault token not registered");
-        uint256 fee = tokenRegister.getTransferFee(token, _mapAmount, _fromChain, _toChain);
+        uint256 proportionFee;
         uint256 mapOutAmount = 0;
         uint256 outAmount = 0;
-        if (_mapAmount > fee) {
-            mapOutAmount = _mapAmount - fee;
-            outAmount = tokenRegister.getToChainAmount(token, mapOutAmount, _toChain);
-        } else {
-            fee = _mapAmount;
-        }
-        uint256 otherFee = 0;
-        if (fee > 0) {
-            (uint256 vaultFee, ) = getFee(0, fee);
-            otherFee = fee - vaultFee;
-
-            (uint256 out, address receiver) = getFee(1, fee);
-            if (out > 0 && receiver != address(0)) {
-                _withdraw(token, receiver, out);
+        uint256 excludeVaultFee = 0;
+        {
+            uint256 totalFee;
+            uint256 baseFee;
+            (totalFee ,baseFee, proportionFee) = tokenRegister.getTransferFee(_token, _mapAmount, _fromChain, _toChain, _withSwap);
+            if (_mapAmount >= totalFee) {
+                mapOutAmount = _mapAmount - totalFee;
+                outAmount = tokenRegister.getToChainAmount(_token, mapOutAmount, _toChain);
+            } else if(_mapAmount >= baseFee){
+                proportionFee = _mapAmount - baseFee;
+            } else {
+                baseFee = _mapAmount;
+                proportionFee = 0;
             }
-
-            (uint256 protocolFee, address protocolReceiver) = getFee(2, fee);
-            if (protocolFee > 0 && protocolReceiver != address(0)) {
-                _withdraw(token, protocolReceiver, protocolFee);
+            excludeVaultFee = baseFee;
+            if(baseFee != 0){
+                address baseFeeReceiver = tokenRegister.getBaseFeeReceiver();
+                _withdraw(_token, baseFeeReceiver, baseFee);
             }
         }
-        IVaultTokenV3(vaultToken).transferToken(_fromChain, _mapAmount, _toChain, mapOutAmount, selfChainId, otherFee);
+        if (proportionFee > 0) {
+            uint256 otherFee;
+            address receiver;
+            (otherFee, receiver) = getFee(1, proportionFee);
+            if (otherFee != 0 && receiver != address(0)) {
+                _withdraw(_token, receiver, otherFee);
+                excludeVaultFee += otherFee;
+            }
+            // protocal fee 
+            (otherFee, receiver) = getFee(2, proportionFee);
+            if (otherFee != 0 && receiver != address(0)) {
+                _withdraw(_token, receiver, otherFee);
+                excludeVaultFee += otherFee;
+            }
+        }
+        // left for vault fee
+        IVaultTokenV3(vaultToken).transferToken(_fromChain, _mapAmount, _toChain, mapOutAmount, selfChainId, excludeVaultFee);
         return (mapOutAmount, outAmount);
     }
 }

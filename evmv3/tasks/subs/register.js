@@ -122,7 +122,7 @@ task("register:mapToken", "mapping token")
         // console.log("target token info: ",await register.getTargetTokenInfo(tokenAddr, taskArgs.chain));
     });
 
-task("register:setTransferOutFee", "set transfer outFee")
+task("register:setFromChainFee", "set transfer outFee")
     .addParam("token", "relay chain token address")
     .addParam("chain", "from chain id")
     .addParam("lowest", "lowest fee cast")
@@ -151,12 +151,12 @@ task("register:setTransferOutFee", "set transfer outFee")
         );
         console.log(`\tconfig outFee min(${taskArgs.lowest}), max(${taskArgs.highest}), rate(${taskArgs.rate})`);
 
-        await register.setTransferOutFee(taskArgs.token, taskArgs.chain, min, max, rate);
+        await register.setFromChainFee(taskArgs.token, taskArgs.chain, min, max, rate);
 
         console.log(`set chain ${taskArgs.chain} token ${taskArgs.token} out fee success`);
     });
 
-task("register:setTokenFee", "set token outFee")
+task("register:setToChainTokenFee", "set to chain token outFee")
     .addParam("token", "token address")
     .addParam("chain", "from chain id")
     .addParam("lowest", "lowest fee cast")
@@ -185,11 +185,59 @@ task("register:setTokenFee", "set token outFee")
         );
         console.log(`\tconfig fee min(${min}), max(${max}), rate(${rate})`);
 
-        await register.setTokenFee(taskArgs.token, taskArgs.chain, min, max, rate);
+        await register.setToChainTokenFee(taskArgs.token, taskArgs.chain, min, max, rate);
 
         console.log(`set chain ${taskArgs.chain} token ${taskArgs.token} fee success`);
 
         // await register.setTokenFee(taskArgs.token, taskArgs.from, taskArgs.lowest, taskArgs.highest, taskArgs.rate);
+    });
+
+task("register:setBaseFee", "set to chain token base Fee")
+    .addParam("token", "token address")
+    .addParam("chain", "from chain id")
+    .addParam("withswap", "with swap on target chain")
+    .addParam("noswap", "no swap on target chain")
+    .addParam("decimals", "relay chain token decimals", 18, types.int)
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+
+        let register = await getRegister(hre.network.name);
+        let decimals = taskArgs.decimals;
+        let withswap = ethers.utils.parseUnits(taskArgs.withswap, decimals);
+        let noswap = ethers.utils.parseUnits(taskArgs.noswap, decimals);
+
+        let info = await register.getTargetTokenInfo(taskArgs.token, taskArgs.chain);
+        if (withswap.eq(info[4][0]) && noswap.eq(info[4][1])) {
+            console.log(`chain ${taskArgs.chain} token ${taskArgs.token} base fee no update`);
+            return;
+        }
+        console.log(
+            `${taskArgs.chain} => on-chain base fee withswap(${info[4][0]}), noswap(${info[4][1]})`
+        );
+        console.log(`\tconfig base fee withswap(${withswap}), noswap(${noswap})`);
+
+        await register.setBaseFee(taskArgs.token, taskArgs.chain, withswap, noswap);
+
+        console.log(`set chain ${taskArgs.chain} token ${taskArgs.token} base fee success`);
+
+    });
+
+
+task("register:setBaseFeeReceiver", "set set baseFee Receiver")
+    .addParam("receiver", "base fee receiver")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+
+        let register = await getRegister(hre.network.name);
+        
+        await (await register.setBaseFeeReceiver(taskArgs.receiver)).wait();
+
+        console.log(`set chain ${taskArgs.chain} token ${taskArgs.token} base fee success`);
+
     });
 
 task("register:grantRole", "set token outFee")
