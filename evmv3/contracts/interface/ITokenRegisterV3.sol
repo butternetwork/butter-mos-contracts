@@ -17,13 +17,16 @@ interface ITokenRegisterV3 {
 
     function getVaultToken(address _token) external view returns (address);
 
-    function getTokenFee(address _token, uint256 _amount, uint256 _toChain) external view returns (uint256);
+    // function getTokenFee(address _token, uint256 _amount, uint256 _toChain) external view returns (uint256);
+
+    function getBaseFeeReceiver() external view returns (address);
 
     // get token transfer fee, the larger one of tranfer in or transfer out fee
     function getTransferFee(
         address _token,
         uint256 _amount,
         uint256 _fromChain,
-        uint256 _toChain
-    ) external view returns (uint256);
+        uint256 _toChain,
+        bool _withSwap
+    ) external view returns (uint256 totalFee,uint256 baseFee,uint256 proportionFee);
 }
