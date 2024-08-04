@@ -1,12 +1,5 @@
 // const { types } = require("zksync-web3");
-let {
-    create,
-    readFromFile,
-    writeToFile,
-    getTronContract,
-    fromHex,
-    toHex,
-} = require("../../utils/create.js");
+let { create, readFromFile, writeToFile, getTronContract, fromHex, toHex } = require("../../utils/create.js");
 
 let { verify } = require("../utils/verify.js");
 let { getChain, getToken, getFeeList, getChainList } = require("../../utils/helper");
@@ -35,7 +28,6 @@ async function getBridge(network, abstract) {
     }
     return bridge;
 }
-
 
 task("bridge:deploy", "bridge deploy")
     .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
@@ -119,6 +111,25 @@ task("bridge:upgrade", "upgrade bridge evm contract in proxy")
         await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, true);
     });
 
+task("bridge:setMos", "set omni service")
+    .addParam("mos", "omni service address")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
+        console.log("deployer address is:", deployer.address);
+
+        let bridge = await getBridge(hre.network.name, true);
+
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await bridge.setOmniService(taskArgs.mos).send();
+            console.log("mos", await bridge.mos().call());
+        } else {
+            await (await bridge.setOmniService(taskArgs.mos)).wait();
+            console.log("mos", await bridge.mos());
+        }
+    });
+
 task("bridge:setReceiver", "set native fee receiver")
     .addParam("receiver", "receiver address")
     .setAction(async (taskArgs, hre) => {
@@ -200,8 +211,8 @@ task("bridge:registerChain", "register Chain")
 
         let bridge = await getBridge(hre.network.name, false);
 
-        let chainList = taskArgs.chains.split(',');
-        let addressList = taskArgs.addresses.split(',');
+        let chainList = taskArgs.chains.split(",");
+        let addressList = taskArgs.addresses.split(",");
 
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
         } else {
@@ -230,7 +241,6 @@ task("bridge:setRelay", "set relay")
             console.log("relay address", await bridge.relayContract());
         }
     });
-
 
 task("bridge:registerTokenChains", "register token Chains")
     .addParam("token", "token address")
@@ -292,7 +302,11 @@ task("bridge:updateTokenFeature", "update tokens")
             }
         }
 
-        if (isMintable === taskArgs.mintable && isOmniToken === taskArgs.omnitoken && proxy.toLowerCase() === taskArgs.proxy.toLowerCase()) {
+        if (
+            isMintable === taskArgs.mintable &&
+            isOmniToken === taskArgs.omnitoken &&
+            proxy.toLowerCase() === taskArgs.proxy.toLowerCase()
+        ) {
             console.log(`token [${taskArgs.token}] feature no update`);
             return;
         }
@@ -327,7 +341,7 @@ task("bridge:updateTokenNativeFees", "update token native fees")
         let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
 
         // todo, get decimals from wrapped token
-        let tokenNativeFee = ethers.utils.parseUnits(taskArgs.fee, 18);;
+        let tokenNativeFee = ethers.utils.parseUnits(taskArgs.fee, 18);
         let chainNativeFee = await bridge.nativeFees(tokenAddr, 0);
         if (chainNativeFee.eq(tokenNativeFee)) {
             console.log(`token [${taskArgs.token}] default native fee no update`);
@@ -342,7 +356,6 @@ task("bridge:updateTokenNativeFees", "update token native fees")
         }
         // console.log(`set token [${taskArgs.token}] default native fee [${tokenNativeFee}]`);
     });
-
 
 task("bridge:updateToken", "update token to target chain")
     .addParam("token", "token name")
@@ -360,20 +373,20 @@ task("bridge:updateToken", "update token to target chain")
         let feeList = await getFeeList(taskArgs.token);
         let feeInfo = feeList[chain.chain];
 
-        let isMintable = (feeInfo.mintable === undefined) ? false : feeInfo.mintable;
-        let isOmniToken = (feeInfo.morc20 === undefined) ? false : feeInfo.morc20;
-        let omniProxy = (feeInfo.proxy === undefined) ? ethers.constants.AddressZero : feeInfo.proxy;
+        let isMintable = feeInfo.mintable === undefined ? false : feeInfo.mintable;
+        let isOmniToken = feeInfo.morc20 === undefined ? false : feeInfo.morc20;
+        let omniProxy = feeInfo.proxy === undefined ? ethers.constants.AddressZero : feeInfo.proxy;
         await hre.run("bridge:updateTokenFeature", {
             token: taskArgs.token,
             mintable: isMintable,
             omnitoken: isOmniToken,
-            proxy: omniProxy
+            proxy: omniProxy,
         });
 
-        let nativeFee = (feeInfo.defaultNativeFee === undefined) ? "0.0" : feeInfo.defaultNativeFee;
+        let nativeFee = feeInfo.defaultNativeFee === undefined ? "0.0" : feeInfo.defaultNativeFee;
         await hre.run("bridge:updateTokenNativeFees", {
             token: taskArgs.token,
-            fee: nativeFee.toString()
+            fee: nativeFee.toString(),
         });
 
         let chainList = await getChainList();
@@ -399,12 +412,12 @@ task("bridge:updateToken", "update token to target chain")
         await hre.run("bridge:registerTokenChains", {
             token: taskArgs.token,
             chains: addList.toString(),
-            enable: true
+            enable: true,
         });
         await hre.run("bridge:registerTokenChains", {
             token: taskArgs.token,
             chains: removeList.toString(),
-            enable: false
+            enable: false,
         });
 
         outputAddr = true;
@@ -447,12 +460,11 @@ task("bridge:grantRole", "grant role")
         }
     });
 
-
 task("bridge:transferOut", "Cross-chain transfer token")
     .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
     .addOptionalParam("receiver", "The receiver address", "", types.string)
     .addOptionalParam("chain", "The receiver chain", "22776", types.string)
-    .addParam("value", "transfer out value, unit WEI")
+    .addParam("value", "transfer out value")
     .addOptionalParam("gas", "The gas limit", 0, types.int)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
@@ -493,16 +505,26 @@ task("bridge:transferOut", "Cross-chain transfer token")
             let decimals = await token.decimals();
             value = ethers.utils.parseUnits(taskArgs.value, decimals);
 
-            console.log(`${tokenAddr} approve ${bridge.address} value [${value}] ...`);
-            await (await token.approve(bridge.address, value)).wait();
+            let approved = await token.allowance(deployer.address, bridge.address);
+            console.log("approved ", approved);
+            if (approved.lt(value)) {
+                console.log(`${tokenAddr} approve ${bridge.address} value [${value}] ...`);
+                await (await token.approve(bridge.address, value)).wait();
+            }
         }
         console.log(`transfer [${taskArgs.token}] with value [${fee}] ...`);
         let rst;
         if (taskArgs.gas === 0) {
-            rst = await (await bridge.swapOutToken(deployer.address, tokenAddr, receiver, value, targetChainId, "0x", {value: fee})).wait();
+            rst = await (
+                await bridge.swapOutToken(deployer.address, tokenAddr, receiver, value, targetChainId, "0x", {
+                    value: fee,
+                })
+            ).wait();
         } else {
-            rst = await bridge.swapOutToken(deployer.address, tokenAddr, receiver, value, targetChainId, "0x",
-                {value: fee, gasLimit: taskArgs.gas });
+            rst = await bridge.swapOutToken(deployer.address, tokenAddr, receiver, value, targetChainId, "0x", {
+                value: fee,
+                gasLimit: taskArgs.gas,
+            });
         }
         console.log(rst);
 
@@ -538,9 +560,9 @@ task("bridge:list", "List bridge info")
         }
     });
 
-
 task("bridge:tokenInfo", "list token info")
     .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
+    .addOptionalParam("gas", "The gas limit", 0, types.int)
     .setAction(async (taskArgs, hre) => {
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             await tronList(hre.artifacts, hre.network.name, taskArgs.mos, taskArgs.token);
@@ -579,7 +601,11 @@ task("bridge:tokenInfo", "list token info")
                 let bridgeable = await bridge.tokenMappingList(chainId, tokenAddr);
                 if (bridgeable) {
                     let fee = await bridge.nativeFees(tokenAddr, chainId);
-                    console.log(`${chains[i].chain} (${chainId}) \t native fee (${ethers.utils.formatUnits(fee, "ether")})`);
+                    console.log(
+                        `${chains[i].chain} (${chainId}) \t native fee (${ethers.utils.formatUnits(fee, "ether")})`
+                    );
+
+                    // console.log(`native fee to ${chains[i].chain} (${chainId}) with gas limt [${taskArgs.gas}] when inter transfer:\t`, await bridge.getNativeFee(tokenAddr, taskArgs.gas, chainId));
                 }
             }
             console.log("");

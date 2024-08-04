@@ -51,6 +51,8 @@ abstract contract BridgeAbstract is
         address to;
         bytes swapData;
         uint256 amount;
+        uint256 relayAmount;
+        uint256 outAmount;
     }
 
     struct SwapOutParam {
@@ -72,6 +74,7 @@ abstract contract BridgeAbstract is
     uint256 private nonce;
     mapping(bytes32 => bool) public orderList;
 
+    // | morc address (160bit)  | reserved (94 bit) | morc20 (1 bit) | mintable (1 bit) |
     mapping(address => uint256) public tokenFeatureList;
     mapping(uint256 => mapping(address => bool)) public tokenMappingList;
 
@@ -125,6 +128,7 @@ abstract contract BridgeAbstract is
         __AccessControlEnumerable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
         _grantRole(MANAGER_ROLE, _defaultAdmin);
+        _grantRole(UPGRADER_ROLE, _defaultAdmin);
     }
 
     modifier checkAddress(address _address) {
@@ -315,7 +319,7 @@ abstract contract BridgeAbstract is
         if (_isSwap) nativeFee = _chargeNativeFee(token, _amount, _toChain);
         value += nativeFee;
 
-        if (_toChain != selfChainId) {
+        if (_toChain != selfChainId) { // not deposit
             messageFee = getMessageFee(token, _gasLimit, _toChain);
             value += messageFee;
         }

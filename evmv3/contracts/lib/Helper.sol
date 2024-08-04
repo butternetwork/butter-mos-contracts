@@ -36,12 +36,12 @@ library Helper {
 
     function _safeWithdraw(address _wToken, uint _value) internal {
         (bool success, bytes memory data) = _wToken.call(abi.encodeWithSelector(0x2e1a7d4d, _value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))),"wToken withdraw failed");
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "wToken withdraw failed");
     }
 
     function _safeDeposit(address _wToken, uint _value) internal {
         (bool success, bytes memory data) = _wToken.call{value: _value}(abi.encodeWithSelector(0xd0e30db0));
-        require(success && (data.length == 0 || abi.decode(data, (bool))),"wToken deposit failed");
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "wToken deposit failed");
     }
 
     function _getFirst4Bytes(bytes memory data) internal pure returns (bytes4 outBytes4) {

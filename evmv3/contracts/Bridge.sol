@@ -46,7 +46,7 @@ contract Bridge is BridgeAbstract {
     }
 
     function swapOutToken(
-        address _sender, // initiator address
+        address _initiator, // initiator address
         address _token, // src token
         bytes memory _to,
         uint256 _amount,
@@ -55,7 +55,7 @@ contract Bridge is BridgeAbstract {
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         SwapOutParam memory param;
-        param.from = _sender;
+        param.from = _initiator;
         param.to = _to;
         param.toChain = _toChain;
         param.amount = _amount;

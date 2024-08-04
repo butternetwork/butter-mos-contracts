@@ -1,9 +1,4 @@
-
-let {
-    create,
-    readFromFile,
-    writeToFile,
-} = require("../../utils/create.js");
+let { create, readFromFile, writeToFile } = require("../../utils/create.js");
 let { getChain, getToken } = require("../../utils/helper");
 
 task("vault:deploy", "Deploy the vault token")
@@ -21,12 +16,16 @@ task("vault:deploy", "Deploy the vault token")
         let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
         console.log("token address:", tokenAddr);
 
-        let vaultAddr = await create(hre, deployer, "VaultTokenV3",
+        let vaultAddr = await create(
+            hre,
+            deployer,
+            "VaultTokenV3",
             ["address", "string", "string"],
             [tokenAddr, taskArgs.name, taskArgs.symbol],
-            "");
+            ""
+        );
 
-        console.log("vault addr", vaultAddr)
+        console.log("vault addr", vaultAddr);
         let deployment = await readFromFile(hre.network.name);
         if (!deployment[hre.network.name]["vault"]) {
             deployment[hre.network.name]["vault"] = {};

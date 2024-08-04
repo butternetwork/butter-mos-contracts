@@ -1,15 +1,14 @@
 let fs = require("fs");
 let path = require("path");
 
-
-async function  stringToHex(str) {
+async function stringToHex(str) {
     return str
         .split("")
         .map(function (c) {
             return ("0" + c.charCodeAt(0).toString(16)).slice(-2);
         })
         .join("");
-};
+}
 
 function getRole(role) {
     if (role.substr(0, 2) === "0x") {
@@ -27,20 +26,39 @@ function getRole(role) {
     return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(roleName));
 }
 
-async function getFeeList(token) {
+async function getFeeList(chain) {
     let p = path.join(__dirname, "../constants/fee.json");
     let tokenFees;
     if (!fs.existsSync(p)) {
         throw "not fee ..";
-    } else {
-        let rawdata = fs.readFileSync(p);
-        tokenFees = JSON.parse(rawdata);
-        if (!tokenFees[token]) {
-            throw "not fee ..";
-        }
+    }
+    let rawdata = fs.readFileSync(p);
+    tokenFees = JSON.parse(rawdata);
+    if (!tokenFees[chain]) {
+        throw "not fee ..";
     }
 
-    return tokenFees[token];
+    return tokenFees[chain];
+}
+
+async function getFeeInfo(chain, token) {
+    let p = path.join(__dirname, "../constants/fee.json");
+    let tokenFees;
+    if (!fs.existsSync(p)) {
+        throw "not fee ..";
+    }
+
+    let rawdata = fs.readFileSync(p);
+    tokenFees = JSON.parse(rawdata);
+    if (!tokenFees[chain]) {
+        throw "not target chain fee ..";
+    }
+
+    if (!tokenFees[chain][token]) {
+        throw "not token fee ..";
+    }
+
+    return tokenFees[chain][token];
 }
 
 async function getChain(network) {
@@ -134,6 +152,7 @@ module.exports = {
     getToken,
     getRole,
     getTokenList,
+    getFeeInfo,
     getChainList,
     stringToHex,
     getFeeList,

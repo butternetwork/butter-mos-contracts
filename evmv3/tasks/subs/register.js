@@ -439,3 +439,41 @@ task("register:grantRole", "set token outFee")
             console.log(`revoke ${taskArgs.account} role ${role}`);
         }
     });
+
+
+task("register:list", "List token infos")
+    .addOptionalParam("token", "The token name", "wtoken", types.string)
+    .setAction(async (taskArgs, hre) => {
+        let register = await getRegister(hre.network.name);
+        console.log("Token register:", register.address);
+
+        console.log(`\ntoken: ${taskArgs.token}`);
+        let chainId = hre.network.config.chainId;
+        let tokenAddr = await getToken(chainId, taskArgs.token);
+        console.log(`token address: ${tokenAddr}`);
+
+        let tokenInfo = await register.getTargetToken(chainId, chainId, tokenAddr);
+        console.log(`token deciamals: ${tokenInfo[2]}`);
+        console.log(`token mintable: ${tokenInfo[3]}`);
+
+        let token = await register.tokenList(tokenAddr);
+        console.log(`vault address: ${token.vaultToken}`);
+
+        let vault = await ethers.getContractAt("VaultTokenV3", token.vaultToken);
+        let totalVault = await vault.totalVault();
+        console.log(`total token:\t ${totalVault}`);
+        let totalSupply = await vault.totalSupply();
+        console.log(`total vault supply: ${totalSupply}`);
+
+        let chainList = await getChainList();
+        console.log(`chains:`);
+        for (let i = 0; i < chainList.length; i++) {
+            let info = await register.getTargetFeeInfo(tokenAddr, chainList[i].chainId);
+
+            console.log(`${chainList[i].chain}(${chainList[i].chainId})\t => ${info[0]}`);
+            console.log(`\t base fee bridge(${ethers.utils.formatUnits(info[1][1], "ether")}) swap(${ethers.utils.formatUnits(info[1][0], "ether")})`);
+            console.log(`\t in fee min(${ethers.utils.formatUnits(info[2][0], "ether")}), max(${ethers.utils.formatUnits(info[2][1], "ether")}), rate(${info[2][2]})`);
+
+            console.log(`\t out fee min(${ethers.utils.formatUnits(info[3][0], "ether")}), max(${ethers.utils.formatUnits(info[3][1], "ether")}), rate(${info[3][2]})`);
+        }
+    });

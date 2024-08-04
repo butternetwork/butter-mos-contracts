@@ -164,7 +164,7 @@ task("relay:updateToken", "update token bridge and fee to target chain")
         // console.log("deployer address:", deployer.address);
 
         await hre.run("bridge:updateToken", {
-            token: taskArgs.token
+            token: taskArgs.token,
         });
 
         let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
@@ -184,7 +184,7 @@ task("relay:updateToken", "update token bridge and fee to target chain")
                 token: tokenAddr,
                 chain: chain.chainId,
                 target: targetToken,
-                decimals: chainFee.decimals
+                decimals: chainFee.decimals,
             });
 
             await hre.run("register:setTokenFee", {
@@ -193,12 +193,12 @@ task("relay:updateToken", "update token bridge and fee to target chain")
                 lowest: chainFee.fee.min,
                 highest: chainFee.fee.max,
                 rate: chainFee.fee.rate,
-                decimals: decimals
+                decimals: decimals,
             });
 
             let transferOutFee = chainFee.outFee;
             if (transferOutFee === undefined) {
-                transferOutFee = {min: "0", max: "0", rate: "0"}
+                transferOutFee = { min: "0", max: "0", rate: "0" };
             }
             await hre.run("register:setTransferOutFee", {
                 token: tokenAddr,
@@ -206,7 +206,7 @@ task("relay:updateToken", "update token bridge and fee to target chain")
                 lowest: transferOutFee.min,
                 highest: transferOutFee.max,
                 rate: transferOutFee.rate,
-                decimals: decimals
+                decimals: decimals,
             });
         }
 
@@ -271,7 +271,7 @@ task("relay:tokenInfo", "List token infos")
         }
         tokenAddr = await getToken(hre.network.config.chainId, tokenAddr);
 
-        await hre.run("bridge:tokenInfo", {token: taskArgs.token});
+        await hre.run("bridge:tokenInfo", { token: taskArgs.token });
 
         let token = await manager.tokenList(tokenAddr);
         console.log(`token decimals:\t ${token.decimals}`);

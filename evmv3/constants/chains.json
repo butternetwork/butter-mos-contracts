@@ -4,42 +4,42 @@
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "22776",
         "wToken": "0x13cb04d4a5dfb6398fc5ab005a6c84337256ee23",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Eth",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "1",
         "wToken": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Bsc",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "56",
         "wToken": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Polygon",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "137",
         "wToken": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Conflux",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "1030",
         "wToken": "0x14b2d3bc65e74dae1030eafd8ac30c533c976a9b",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Klaytn",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "8217",
         "wToken": "0x19aac5f612f524b754ca7e7c41cbfa2e981a4432",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Near",
@@ -53,28 +53,28 @@
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "4200",
         "wToken": "0xF6D226f9Dc15d9bB51182815b320D3fBE324e1bA",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Blast",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "81457",
         "wToken": "0x4300000000000000000000000000000000000004",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Base",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "8453",
         "wToken": "0x4200000000000000000000000000000000000006",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Ainn",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "2649",
         "wToken": "0x1470a4831F76954686BfB4dE8180F7469EA8dE6F",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Tron",
@@ -88,55 +88,41 @@
         "bridge": "0xBEf06a32166C4B819fF04cCfa887733B8bb67eB5",
         "chainId": "324",
         "wToken": "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
-    },
-    {
-        "chain": "B2",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
-        "chainId": "223",
-        "wToken": "0x4200000000000000000000000000000000000006",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Optimism",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "10",
         "wToken": "0x4200000000000000000000000000000000000006",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Arbitrum",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "42161",
         "wToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Linea",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "59144",
         "wToken": "0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Scroll",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "534352",
         "wToken": "0x5300000000000000000000000000000000000004",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     },
     {
         "chain": "Mantle",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "5000",
         "wToken": "0x78c1b0C915c4FAA5FffA6CAbf0219DA63d7f4cb8",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
-    },
-    {
-        "chain": "Makalu",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
-        "chainId": "212",
-        "wToken": "0x2eD27dF9B4c903aB53666CcA59AFB431F7D15e91",
-        "mos": "0x8C3cCc219721B206DA4A2070fD96E4911a48CB4f"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     }
 ]
