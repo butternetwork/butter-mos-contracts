@@ -177,11 +177,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         address _token,
         uint256 _toChain
     ) external view override returns (bytes memory _toChainToken) {
-        if (_toChain == selfChainId) {
-            _toChainToken = Utils.toBytes(_token);
-        } else {
-            _toChainToken = tokenList[_token].mappingList[_toChain];
-        }
+        return _getToChainToken(_token, _toChain);
     }
 
     function getToChainAmount(
@@ -189,33 +185,14 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _amount,
         uint256 _toChain
     ) external view override returns (uint256) {
-        if (_toChain == selfChainId) {
-            return _amount;
-        }
-        Token storage token = tokenList[_token];
-        require(token.tokenAddress != address(0), "invalid relay token");
-
-        uint256 decimalsFrom = token.decimals[selfChainId];
-        require(decimalsFrom > 0, "token decimals not register");
-
-        uint256 decimalsTo = token.decimals[_toChain];
-        require(decimalsTo > 0, "from token decimals not register");
-
-        if (decimalsFrom == decimalsTo) {
-            return _amount;
-        }
-        return (_amount * (10 ** decimalsTo)) / (10 ** decimalsFrom);
+        return _getTargetAmount(_token, selfChainId, _toChain, _amount);
     }
 
     function getRelayChainToken(
         uint256 _fromChain,
         bytes memory _fromToken
     ) external view override returns (address token) {
-        if (_fromChain == selfChainId) {
-            token = Utils.fromBytes(_fromToken);
-        } else {
-            token = tokenMappingList[_fromChain][_fromToken];
-        }
+        return _getRelayChainToken(_fromChain, _fromToken);
     }
 
     function getRelayChainAmount(
@@ -223,40 +200,22 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _fromChain,
         uint256 _amount
     ) external view override returns (uint256) {
-        if (_fromChain == selfChainId) {
-            return _amount;
-        }
-        Token storage token = tokenList[_token];
-        require(token.tokenAddress != address(0), "invalid relay token");
-
-        uint256 decimalsFrom = token.decimals[_fromChain];
-        uint256 decimalsTo = token.decimals[selfChainId];
-        if (decimalsFrom == decimalsTo) {
-            return _amount;
-        }
-        return (_amount * (10 ** decimalsTo)) / (10 ** decimalsFrom);
+        return _getTargetAmount(_token, _fromChain, selfChainId, _amount);
     }
 
     function getTargetToken(
         uint256 _fromChain,
         uint256 _toChain,
         bytes memory _fromToken
-    ) external view returns (bool bridgeable, bytes memory toToken, uint8 decimals, bool mintable) {
-        address tokenAddr;
-        if (_fromChain == selfChainId) {
-            tokenAddr = Utils.fromBytes(_fromToken);
-        } else {
-            tokenAddr = tokenMappingList[_fromChain][_fromToken];
-        }
+    ) external view returns (bytes memory toToken, uint8 decimals, bool mintable) {
+        address tokenAddr = _getRelayChainToken(_fromChain, _fromToken);
+
         Token storage token = tokenList[tokenAddr];
-        if (token.tokenAddress == address(0)) {
-            bridgeable = false;
-        } else {
-            bridgeable = true;
-            toToken = token.mappingList[_toChain];
-            decimals = token.decimals[_toChain];
-            mintable = token.mintable[_toChain];
-        }
+        require(token.tokenAddress != address(0), "invalid relay token");
+
+        toToken = token.mappingList[_toChain];
+        decimals = token.decimals[_toChain];
+        mintable = token.mintable[_toChain];
     }
 
     function getTargetAmount(
@@ -264,25 +223,10 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _toChain,
         bytes memory _fromToken,
         uint256 _amount
-    ) external view returns (bool, uint256) {
-        address tokenAddr;
-        if (_fromChain == selfChainId) {
-            tokenAddr = Utils.fromBytes(_fromToken);
-        } else {
-            tokenAddr = tokenMappingList[_fromChain][_fromToken];
-        }
-        Token storage token = tokenList[tokenAddr];
-        require(token.tokenAddress != address(0), "invalid relay token");
-        if (token.tokenAddress == address(0)) {
-            return (false, 0);
-        }
+    ) external view returns (uint256 toAmount) {
+        address tokenAddr = _getRelayChainToken(_fromChain, _fromToken);
 
-        uint256 decimalsFrom = token.decimals[_fromChain];
-        uint256 decimalsTo = token.decimals[_toChain];
-        if (decimalsFrom == decimalsTo) {
-            return (true, _amount);
-        }
-        return (true, (_amount * (10 ** decimalsTo)) / (10 ** decimalsFrom));
+        toAmount = _getTargetAmount(tokenAddr, _fromChain, _toChain, _amount);
     }
 
     function checkMintable(address _token) external view override returns (bool) {
@@ -303,10 +247,27 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         return baseFeeReceiver;
     }
 
-    // function getTokenFee(address _token, uint256 _amount, uint256 _toChain) external view override returns (uint256) {
-    //     FeeRate memory feeRate = tokenList[_token].fromChainFees[_toChain];
-    //     return _getFee(feeRate, _amount);
-    // }
+    function getTargetFeeInfo(
+        address _token,
+        uint256 _chain
+    )
+    external
+    view
+    returns (
+        bool bridgeable,
+        BaseFee memory baseFee,
+        FeeRate memory toChainFeeRate,
+        FeeRate memory fromChainFeeRate
+    )
+    {
+        Token storage token = tokenList[_token];
+        require(token.tokenAddress != address(0), "invalid relay token");
+
+        bridgeable = token.bridgeable[_chain];
+        toChainFeeRate = token.toChainFees[_chain];
+        fromChainFeeRate = token.fromChainFees[_chain];
+        baseFee = token.baseFees[_chain];
+    }
 
     function getTransferFee(
         address _token,
@@ -314,11 +275,11 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _fromChain,
         uint256 _toChain
     ) external view override returns (uint256 totalFee) {
-        (totalFee, ,) = _getBridgeFee(_token, _amount, _fromChain, _toChain, true);
+        (totalFee, ,) = _getTransferFee(_token, _amount, _fromChain, _toChain, true);
     }
 
     // get bridge fee info based on the relay chain token and amount
-    function getBridgeFee(
+    function getTransferFeeV2(
         address _token,
         uint256 _amount,
         uint256 _fromChain,
@@ -326,10 +287,10 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         bool _withSwap
     ) external view override returns (address baseReceiver, uint256 totalFee, uint256 baseFee, uint256 proportionFee) {
         baseReceiver = baseFeeReceiver;
-        (totalFee, baseFee, proportionFee) = _getBridgeFee(_token, _amount, _fromChain, _toChain, _withSwap);
+        (totalFee, baseFee, proportionFee) = _getTransferFee(_token, _amount, _fromChain, _toChain, _withSwap);
     }
 
-    function _getBridgeFee(
+    function _getTransferFee(
         address _relayToken,
         uint256 _relayAmount,
         uint256 _fromChain,
@@ -362,77 +323,6 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     }
 
 
-    function getTargetFeeInfo(
-        address _token,
-        uint256 _chain
-    )
-        external
-        view
-        returns (
-            bool bridgeable,
-            BaseFee memory baseFee,
-            FeeRate memory toChainFeeRate,
-            FeeRate memory fromChainFeeRate
-        )
-    {
-        Token storage token = tokenList[_token];
-        require(token.tokenAddress != address(0), "invalid relay token");
-
-        bridgeable = token.bridgeable[_chain];
-        toChainFeeRate = token.toChainFees[_chain];
-        fromChainFeeRate = token.fromChainFees[_chain];
-        baseFee = token.baseFees[_chain];
-    }
-
-
-    /*
-    function getToChainTokenInfo(
-        address _token,
-        uint256 _toChain
-    )
-        external
-        view
-        returns (bytes memory toChainToken, uint8 decimals, FeeRate memory toChainFeeRate, BaseFee memory baseFees)
-    {
-        if (_toChain == selfChainId) {
-            toChainToken = Utils.toBytes(_token);
-            decimals = tokenList[_token].decimals;
-        } else {
-            toChainToken = tokenList[_token].mappingTokens[_toChain];
-            decimals = tokenList[_token].tokenDecimals[_toChain];
-        }
-
-        toChainFeeRate = tokenList[_token].toChainFees[_toChain];
-        baseFees = tokenList[_token].baseFees[_toChain];
-    } */
-
-    /*
-    function getFeeAmountAndInfo(
-        uint256 _fromChain,
-        bytes memory _fromToken,
-        uint256 _fromAmount,
-        uint256 _toChain,
-        bool _withSwap
-    )
-        external
-        view
-        returns (
-            uint256 _feeAmount,
-            FeeRate memory _toChainFeeRate,
-            BaseFee memory _baseFees,
-            address _relayToken,
-            uint8 _relayTokenDecimals,
-            bytes memory _toToken,
-            uint8 _toTokenDecimals
-        )
-    {
-        (_relayToken, , _feeAmount) = this.getRelayFee(_fromChain, _fromToken, _fromAmount, _toChain, _withSwap);
-
-        (_toToken, _toTokenDecimals, _toChainFeeRate, _baseFees) = this.getToChainTokenInfo(_relayToken, _toChain);
-
-        _relayTokenDecimals = tokenList[_relayToken].decimals;
-    } */
-
     function getFeeAmountAndVaultBalance(
         uint256 _srcChain,
         bytes memory _srcToken,
@@ -446,55 +336,47 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         address relayToken;
         uint256 feeAmount;
 
-        (relayToken, _relayChainAmount, feeAmount) = this.getRelayFee(
-            _srcChain,
-            _srcToken,
-            _srcAmount,
-            _targetChain,
-            true
-        );
-        relayToken = this.getRelayChainToken(_srcChain, _srcToken);
-        _relayChainAmount = this.getRelayChainAmount(relayToken, _srcChain, _srcAmount);
-        (feeAmount, , ) = _getBridgeFee(relayToken, _relayChainAmount, _srcChain, _targetChain, true);
+        relayToken = _getRelayChainToken(_srcChain, _srcToken);
+        _relayChainAmount = _getTargetAmount(relayToken, _srcChain, selfChainId, _srcAmount);
 
-        _srcFeeAmount = this.getToChainAmount(relayToken, feeAmount, _srcChain);
+        (feeAmount, , ) = _getTransferFee(relayToken, _relayChainAmount, _srcChain, _targetChain, true);
 
+        _srcFeeAmount = _getTargetAmount(relayToken, selfChainId, _srcChain, feeAmount);
         _vaultBalance = getVaultBalance(relayToken, _targetChain);
-
-        _toChainToken = this.getToChainToken(relayToken, _targetChain);
+        _toChainToken = _getToChainToken(relayToken, _targetChain);
     }
 
-    function getFeeAmountAndVaultBalanceV3(
-        uint256 _srcChain,
-        bytes memory _srcToken,
-        uint256 _srcAmount,
-        uint256 _targetChain,
+    function getBridgeFeeInfo(
+        uint256 _fromChain,
+        bytes memory _fromToken,
+        uint256 _fromAmount,
+        uint256 _toChain,
         bool _withSwap
     )
         external
         view
         override
-        returns (uint256 _srcFeeAmount, uint256 _relayChainAmount, int256 _vaultBalance, bytes memory _toChainToken)
+        returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault)
     {
         address relayToken;
         uint256 feeAmount;
+        uint256 relayAmount;
 
-        (relayToken, _relayChainAmount, feeAmount) = this.getRelayFee(
-            _srcChain,
-            _srcToken,
-            _srcAmount,
-            _targetChain,
-            _withSwap
-        );
-        relayToken = this.getRelayChainToken(_srcChain, _srcToken);
-        _relayChainAmount = this.getRelayChainAmount(relayToken, _srcChain, _srcAmount);
-        (feeAmount, , ) = _getBridgeFee(relayToken, _relayChainAmount, _srcChain, _targetChain, _withSwap);
+        relayToken = _getRelayChainToken(_fromChain, _fromToken);
+        relayAmount = _getTargetAmount(relayToken, _fromChain, selfChainId, _fromAmount);
 
-        _srcFeeAmount = this.getToChainAmount(relayToken, feeAmount, _srcChain);
+        (feeAmount, , ) = _getTransferFee(relayToken, relayAmount, _fromChain, _toChain, _withSwap);
 
-        _vaultBalance = getVaultBalance(relayToken, _targetChain);
+        fromChainFee = _getTargetAmount(relayToken, selfChainId, _fromChain, feeAmount);
+        toChainAmount = _getTargetAmount(relayToken, selfChainId, _toChain, relayAmount - feeAmount);
 
-        _toChainToken = this.getToChainToken(relayToken, _targetChain);
+        Token storage token = tokenList[relayToken];
+        if (token.mintable[_toChain]) {
+            toChainVault = type(uint256).max;
+        } else {
+            int256 vaultBalance = getVaultBalance(relayToken, _toChain);
+            toChainVault = uint256(vaultBalance);
+        }
     }
 
     // get source chain token amount and the fee amount based the target chain token amount
@@ -565,19 +447,53 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
     // -----------------------------------------------------
 
-    function getRelayFee(
+    function _getRelayChainToken(
         uint256 _fromChain,
-        bytes memory _fromToken,
-        uint256 _fromAmount,
-        uint256 _toChain,
-        bool withSwap
-    ) external view returns (address _relayToken, uint256 _relayChainAmount, uint256 _feeAmount) {
-        _relayToken = this.getRelayChainToken(_fromChain, _fromToken);
-
-        _relayChainAmount = this.getRelayChainAmount(_relayToken, _fromChain, _fromAmount);
-
-        (_feeAmount, , ) = _getBridgeFee(_relayToken, _relayChainAmount, _fromChain, _toChain, withSwap);
+        bytes memory _fromToken
+    ) internal view returns (address token) {
+        if (_fromChain == selfChainId) {
+            token = Utils.fromBytes(_fromToken);
+        } else {
+            token = tokenMappingList[_fromChain][_fromToken];
+        }
+        require(token != address(0), "token not registered");
     }
+
+    function _getToChainToken(
+        address _token,
+        uint256 _toChain
+    ) internal view returns (bytes memory token) {
+        if (_toChain == selfChainId) {
+            token = Utils.toBytes(_token);
+        } else {
+            token = tokenList[_token].mappingList[_toChain];
+        }
+    }
+
+    function _getTargetAmount(
+        address _token,
+        uint256 _fromChain,
+        uint256 _toChain,
+        uint256 _amount
+    ) internal view returns (uint256) {
+        if (_toChain == selfChainId) {
+            return _amount;
+        }
+        Token storage token = tokenList[_token];
+        require(token.tokenAddress != address(0), "invalid relay token");
+
+        uint256 decimalsFrom = token.decimals[_fromChain];
+        require(decimalsFrom > 0, "token decimals not register");
+
+        uint256 decimalsTo = token.decimals[_toChain];
+        require(decimalsTo > 0, "from token decimals not register");
+
+        if (decimalsFrom == decimalsTo) {
+            return _amount;
+        }
+        return (_amount * (10 ** decimalsTo)) / (10 ** decimalsFrom);
+    }
+
 
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {

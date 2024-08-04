@@ -43,7 +43,7 @@ contract BridgeAndRelay is BridgeAbstract {
     mapping(uint256 => Rate) public distributeRate;
 
     uint256 public adaptorChainId;
-    address public adaptor;         // near adaptor
+    address public adaptor; // near adaptor
 
     event SetTokenRegister(address tokenRegister);
     event RegisterChain(uint256 chainId, bytes bridge, ChainType chainType);
@@ -70,7 +70,11 @@ contract BridgeAndRelay is BridgeAbstract {
         emit SetTokenRegister(_register);
     }
 
-    function registerChain(uint256[] calldata _chainIds, bytes[] calldata _addresses, ChainType _type) external onlyRole(MANAGER_ROLE) {
+    function registerChain(
+        uint256[] calldata _chainIds,
+        bytes[] calldata _addresses,
+        ChainType _type
+    ) external onlyRole(MANAGER_ROLE) {
         uint256 len = _chainIds.length;
         require(len == _addresses.length, "length mismatching");
         for (uint256 i = 0; i < len; i++) {
@@ -116,7 +120,7 @@ contract BridgeAndRelay is BridgeAbstract {
     }
 
     function swapOutToken(
-        address _sender, // initiator address
+        address _initiator, // initiator address
         address _token, // src token
         bytes memory _to,
         uint256 _amount,
@@ -127,7 +131,7 @@ contract BridgeAndRelay is BridgeAbstract {
         require(!_checkBytes(bridges[_toChain], bytes("")), "bridge not registered");
 
         SwapOutParam memory param;
-        param.from = _sender;
+        param.from = _initiator;
         param.to = _to;
         param.toChain = _toChain;
         param.token = Helper._isNative(_token) ? wToken : _token;
@@ -156,7 +160,13 @@ contract BridgeAndRelay is BridgeAbstract {
         } else {
             orderId = _getOrderId(param.from, param.to, param.toChain);
             uint256 mapOutAmount;
-            (mapOutAmount, param.amount) = _collectFee(param.token, _amount, selfChainId, param.toChain, param.swapData.length != 0);
+            (mapOutAmount, param.amount) = _collectFee(
+                param.token,
+                _amount,
+                selfChainId,
+                param.toChain,
+                param.swapData.length != 0
+            );
             _checkAndBurn(param.token, mapOutAmount);
             bytes memory payload = abi.encode(
                 orderId,
@@ -175,11 +185,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 value: 0
             });
             if (param.toChain == adaptorChainId) {
-                IAdapter(adaptor).transferOut{value: messageFee}(
-                    param.toChain,
-                    abi.encode(messageData),
-                    selfChainId
-                );
+                IAdapter(adaptor).transferOut{value: messageFee}(param.toChain, abi.encode(messageData), selfChainId);
             } else {
                 mos.transferOut{value: messageFee}(param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
             }
@@ -223,6 +229,18 @@ contract BridgeAndRelay is BridgeAbstract {
         return (((_amount * rate.rate) / 1000000), rate.receiver);
     }
 
+    function getBridgeTokenInfo(uint256 _fromChain, uint256 _toChain, bytes memory _fromToken) external view returns (bytes memory toChainToken, uint8 decimals, bool mintable) {
+        return tokenRegister.getTargetToken(_fromChain, _toChain, _fromToken);
+    }
+
+    function getBridgeFeeInfo(uint256 _fromChain, uint256 _toChain,
+        bytes memory _fromToken,
+        uint256 _fromAmount,
+        bool _bridgeOnly
+        ) external view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 vaultBalance) {
+        return tokenRegister.getBridgeFeeInfo(_fromChain, _fromToken, _fromAmount, _toChain, !_bridgeOnly);
+    }
+
     function _deposit(
         address _token,
         bytes memory _from,
@@ -260,7 +278,13 @@ contract BridgeAndRelay is BridgeAbstract {
         {
             uint256 mapAmount = tokenRegister.getRelayChainAmount(param.token, fromChain, param.amount);
             _checkAndMint(param.token, mapAmount);
-            (mapOutAmount, outAmount) = _collectFee(param.token, mapAmount, fromChain, toChain, param.swapData.length != 0);
+            (mapOutAmount, outAmount) = _collectFee(
+                param.token,
+                mapAmount,
+                fromChain,
+                toChain,
+                param.swapData.length != 0
+            );
             emit CollectFee(orderId, param.token, (mapAmount - mapOutAmount));
         }
         if (toChain == selfChainId) {
@@ -328,28 +352,33 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _fromChain,
         uint256 _toChain,
         bool _withSwap
-    ) private returns (uint256, uint256) {
+    ) private returns (uint256 relayOutAmount, uint256 outAmount) {
         address vaultToken = tokenRegister.getVaultToken(_token);
         require(vaultToken != address(0), "vault token not registered");
         uint256 proportionFee;
-        uint256 mapOutAmount = 0;
-        uint256 outAmount = 0;
         uint256 excludeVaultFee = 0;
         {
             uint256 totalFee;
             uint256 baseFee;
-            (totalFee ,baseFee, proportionFee) = tokenRegister.getTransferFee(_token, _mapAmount, _fromChain, _toChain, _withSwap);
+            // address baseFeeReceiver;
+            (, totalFee, baseFee, proportionFee) = tokenRegister.getTransferFeeV2(
+                _token,
+                _mapAmount,
+                _fromChain,
+                _toChain,
+                _withSwap
+            );
             if (_mapAmount >= totalFee) {
-                mapOutAmount = _mapAmount - totalFee;
-                outAmount = tokenRegister.getToChainAmount(_token, mapOutAmount, _toChain);
-            } else if(_mapAmount >= baseFee){
+                relayOutAmount = _mapAmount - totalFee;
+                outAmount = tokenRegister.getToChainAmount(_token, relayOutAmount, _toChain);
+            } else if (_mapAmount >= baseFee) {
                 proportionFee = _mapAmount - baseFee;
             } else {
                 baseFee = _mapAmount;
                 proportionFee = 0;
             }
             excludeVaultFee = baseFee;
-            if(baseFee != 0){
+            if (baseFee != 0) {
                 address baseFeeReceiver = tokenRegister.getBaseFeeReceiver();
                 _withdraw(_token, baseFeeReceiver, baseFee);
             }
@@ -362,7 +391,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 _withdraw(_token, receiver, otherFee);
                 excludeVaultFee += otherFee;
             }
-            // protocal fee 
+            // protocal fee
             (otherFee, receiver) = getFee(2, proportionFee);
             if (otherFee != 0 && receiver != address(0)) {
                 _withdraw(_token, receiver, otherFee);
@@ -370,7 +399,14 @@ contract BridgeAndRelay is BridgeAbstract {
             }
         }
         // left for vault fee
-        IVaultTokenV3(vaultToken).transferToken(_fromChain, _mapAmount, _toChain, mapOutAmount, selfChainId, excludeVaultFee);
-        return (mapOutAmount, outAmount);
+        IVaultTokenV3(vaultToken).transferToken(
+            _fromChain,
+            _mapAmount,
+            _toChain,
+            relayOutAmount,
+            selfChainId,
+            excludeVaultFee
+        );
+        return (relayOutAmount, outAmount);
     }
 }
