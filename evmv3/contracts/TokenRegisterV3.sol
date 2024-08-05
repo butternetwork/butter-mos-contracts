@@ -113,7 +113,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         require(token.tokenAddress != address(0), "invalid relay token");
         for (uint256 i = 0; i < _toChains.length; i++) {
             uint256 toChain = _toChains[i];
-            token.bridgeable[toChain]= _enable;
+            token.bridgeable[toChain] = _enable;
             emit RegisterTokenChain(_token, toChain, _enable);
         }
     }
@@ -251,14 +251,14 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         address _token,
         uint256 _chain
     )
-    external
-    view
-    returns (
-        bool bridgeable,
-        BaseFee memory baseFee,
-        FeeRate memory toChainFeeRate,
-        FeeRate memory fromChainFeeRate
-    )
+        external
+        view
+        returns (
+            bool bridgeable,
+            BaseFee memory baseFee,
+            FeeRate memory toChainFeeRate,
+            FeeRate memory fromChainFeeRate
+        )
     {
         Token storage token = tokenList[_token];
         require(token.tokenAddress != address(0), "invalid relay token");
@@ -275,7 +275,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _fromChain,
         uint256 _toChain
     ) external view override returns (uint256 totalFee) {
-        (totalFee, ,) = _getTransferFee(_token, _amount, _fromChain, _toChain, true);
+        (totalFee, , ) = _getTransferFee(_token, _amount, _fromChain, _toChain, true);
     }
 
     // get bridge fee info based on the relay chain token and amount
@@ -285,9 +285,8 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _fromChain,
         uint256 _toChain,
         bool _withSwap
-    ) external view override returns (address baseReceiver, uint256 totalFee, uint256 baseFee, uint256 proportionFee) {
-        baseReceiver = baseFeeReceiver;
-        (totalFee, baseFee, proportionFee) = _getTransferFee(_token, _amount, _fromChain, _toChain, _withSwap);
+    ) external view override returns (uint256 totalFee, uint256 baseFee, uint256 proportionFee) {
+        return _getTransferFee(_token, _amount, _fromChain, _toChain, _withSwap);
     }
 
     function _getTransferFee(
@@ -322,7 +321,6 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         return fee;
     }
 
-
     function getFeeAmountAndVaultBalance(
         uint256 _srcChain,
         bytes memory _srcToken,
@@ -352,12 +350,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _fromAmount,
         uint256 _toChain,
         bool _withSwap
-    )
-        external
-        view
-        override
-        returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault)
-    {
+    ) external view override returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault) {
         address relayToken;
         uint256 feeAmount;
         uint256 relayAmount;
@@ -447,10 +440,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
     // -----------------------------------------------------
 
-    function _getRelayChainToken(
-        uint256 _fromChain,
-        bytes memory _fromToken
-    ) internal view returns (address token) {
+    function _getRelayChainToken(uint256 _fromChain, bytes memory _fromToken) internal view returns (address token) {
         if (_fromChain == selfChainId) {
             token = Utils.fromBytes(_fromToken);
         } else {
@@ -459,10 +449,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         require(token != address(0), "token not registered");
     }
 
-    function _getToChainToken(
-        address _token,
-        uint256 _toChain
-    ) internal view returns (bytes memory token) {
+    function _getToChainToken(address _token, uint256 _toChain) internal view returns (bytes memory token) {
         if (_toChain == selfChainId) {
             token = Utils.toBytes(_token);
         } else {
@@ -493,7 +480,6 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         }
         return (_amount * (10 ** decimalsTo)) / (10 ** decimalsFrom);
     }
-
 
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {

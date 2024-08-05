@@ -51,7 +51,7 @@ interface ITokenRegisterV3 {
         uint256 _fromChain,
         uint256 _toChain,
         bool _withSwap
-    ) external view returns (address baseReceiver, uint256 totalFee, uint256 baseFee, uint256 proportionFee);
+    ) external view returns (uint256 totalFee, uint256 baseFee, uint256 proportionFee);
 
     function getBridgeFeeInfo(
         uint256 _fromChain,
@@ -59,9 +59,5 @@ interface ITokenRegisterV3 {
         uint256 _fromAmount,
         uint256 _toChain,
         bool _withSwap
-    )
-    external
-    view
-    returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault);
-
+    ) external view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault);
 }

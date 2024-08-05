@@ -23,6 +23,7 @@ interface IButterBridgeV3 {
 
     event Relay(bytes32 orderId1, bytes32 orderId2);
 
+    // todo: add native fee and base fee
     event CollectFee(bytes32 indexed orderId, address indexed token, uint256 value);
 
     event SwapOut(

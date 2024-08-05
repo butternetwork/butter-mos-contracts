@@ -43,27 +43,21 @@ abstract contract BridgeAbstract is
         DEPOSIT,
         INTER_TRANSFER
     }
-    struct SwapInParam {
-        bytes from;
-        uint256 fromChain;
+
+    struct SwapParam {
         bytes32 orderId;
         address token;
-        address to;
-        bytes swapData;
+        address from;
+        uint256 fromChain;
+        uint256 toChain;
         uint256 amount;
         uint256 relayAmount;
-        uint256 outAmount;
-    }
-
-    struct SwapOutParam {
-        address from;
-        bytes to;
-        address token;
-        uint256 amount;
-        uint256 toChain;
-        bytes swapData;
-        bytes refundAddress;
+        uint256 relayOutAmount;
+        uint256 toAmount;
+        uint256 baseFee;
         uint256 gasLimit;
+        bytes fromBytes;
+        bytes toBytes;
     }
 
     IMOSV3 public mos;
@@ -228,7 +222,8 @@ abstract contract BridgeAbstract is
     function depositToken(address _token, address to, uint256 _amount) external payable virtual {}
 
     function _interTransferAndCall(
-        SwapOutParam memory param,
+        SwapParam memory param,
+        BridgeParam memory bridge,
         bytes memory target,
         uint256 messageFee
     ) internal returns (bytes32 orderId) {
@@ -236,19 +231,19 @@ abstract contract BridgeAbstract is
         if (proxy != param.token) {
             IERC20Upgradeable(param.token).safeIncreaseAllowance(proxy, param.amount);
         }
-        orderId = _getOrderId(param.from, param.to, param.toChain);
-        if (_checkBytes(param.refundAddress, bytes(""))) {
-            param.refundAddress = param.to;
+        orderId = _getOrderId(param.from, param.toBytes, param.toChain);
+        if (_checkBytes(bridge.refundAddress, bytes(""))) {
+            bridge.refundAddress = param.toBytes;
         }
         // bridge
-        bytes memory messageData = abi.encode(orderId, param.to, param.swapData);
+        bytes memory messageData = abi.encode(orderId, param.toBytes, bridge.swapData);
         IMORC20(proxy).interTransferAndCall{value: messageFee}(
             address(this),
             param.toChain,
             target,
             param.amount,
             param.gasLimit,
-            param.refundAddress,
+            bridge.refundAddress,
             messageData
         );
     }
@@ -269,18 +264,18 @@ abstract contract BridgeAbstract is
         bytes calldata _message
     ) external override checkOrder(_orderId) returns (bool) {
         address morc20 = msg.sender;
-        SwapInParam memory param;
+        SwapParam memory param;
+        bytes memory swapData;
         param.token = IMORC20(morc20).token();
         require(getOmniProxy(param.token) == morc20, "unregistered morc20 token");
         require(Helper._getBalance(param.token, address(this)) >= _amount, "received too low");
-        param.from = from;
+        param.fromBytes = from;
         param.fromChain = _fromChain;
         param.amount = _amount;
-        bytes memory to;
-        (param.orderId, to, param.swapData) = abi.decode(_message, (bytes32, bytes, bytes));
-        param.to = _fromBytes(to);
+        (param.orderId, param.toBytes, swapData) = abi.decode(_message, (bytes32, bytes, bytes));
+        //param.to = _fromBytes(param.toBytes);
         // TODO: check orderId
-        _swapIn(param);
+        _swapIn(param, swapData);
         return true;
     }
 
@@ -293,8 +288,43 @@ abstract contract BridgeAbstract is
             gasLimit += _getBaseGas(_toChain, OutType.SWAP);
         }
         uint256 fee = getMessageFee(token, gasLimit, _toChain);
-        fee += _getTokenNativeFee(token, _toChain);
+        if (nativeFeeReceiver != Helper.ZERO_ADDRESS) {
+            fee += _getTokenNativeFee(token, _toChain);
+        }
         return fee;
+    }
+
+    function _swapOut(
+        address _initiator, // initiator address
+        address _token, // src token
+        bytes memory _to,
+        uint256 _amount,
+        uint256 _toChain, // target chain id
+        bytes calldata _swapData
+    ) internal returns (SwapParam memory param, BridgeParam memory bridge, uint256 messageFee) {
+        require(_toChain != selfChainId, "Cannot swap to self chain");
+        param.from = _initiator;
+        param.toBytes = _to;
+        param.toChain = _toChain;
+        param.amount = _amount;
+        param.token = Helper._isNative(_token) ? wToken : _token;
+
+        _checkBridgeable(param.token, param.toChain);
+        _checkLimit(param.amount, param.toChain, param.token);
+
+        if (isOmniToken(param.token)) {
+            param.gasLimit = _getBaseGas(_toChain, OutType.INTER_TRANSFER);
+        } else {
+            param.gasLimit = _getBaseGas(_toChain, OutType.SWAP);
+        }
+        if (_swapData.length != 0) {
+            bridge = abi.decode(_swapData, (BridgeParam));
+            param.gasLimit += bridge.gasLimit;
+        }
+        uint256 messageFee;
+        (, , messageFee) = _tokenIn(param.toChain, param.amount, _token, param.gasLimit, true);
+
+        return (param, bridge, messageFee);
     }
 
     function _tokenIn(
@@ -319,26 +349,28 @@ abstract contract BridgeAbstract is
         if (_isSwap) nativeFee = _chargeNativeFee(token, _amount, _toChain);
         value += nativeFee;
 
-        if (_toChain != selfChainId) { // not deposit
+        if (_toChain != selfChainId) {
+            // not deposit
             messageFee = getMessageFee(token, _gasLimit, _toChain);
             value += messageFee;
         }
         require(value <= msg.value, "value or fee mismatching");
     }
 
-    function _swapIn(SwapInParam memory param) internal {
+    function _swapIn(SwapParam memory param, bytes memory swapData) internal {
         // if swap params is not empty, then we need to do swap on current chain
         address outToken = param.token;
-        if (param.swapData.length > 0 && param.to.isContract()) {
-            Helper._transfer(selfChainId, param.token, param.to, param.amount);
+        address to = _fromBytes(param.toBytes);
+        if (swapData.length > 0 && to.isContract()) {
+            Helper._transfer(selfChainId, param.token, to, param.amount);
             try
-                IButterReceiver(param.to).onReceived(
+                IButterReceiver(to).onReceived(
                     param.orderId,
                     param.token,
                     param.amount,
                     param.fromChain,
-                    param.from,
-                    param.swapData
+                    param.fromBytes,
+                    swapData
                 )
             {
                 // do nothing
@@ -347,10 +379,10 @@ abstract contract BridgeAbstract is
             }
         } else {
             // transfer token if swap did not happen
-            _withdraw(param.token, param.to, param.amount);
+            _withdraw(param.token, to, param.amount);
             if (param.token == wToken) outToken = Helper.ZERO_ADDRESS;
         }
-        emit SwapIn(param.orderId, param.fromChain, param.token, param.amount, param.to, outToken, param.from);
+        emit SwapIn(param.orderId, param.fromChain, param.token, param.amount, to, outToken, param.fromBytes);
     }
 
     function _withdraw(address _token, address _receiver, uint256 _amount) internal {
@@ -423,8 +455,11 @@ abstract contract BridgeAbstract is
     }
 
     function _chargeNativeFee(address _token, uint256 _amount, uint256 _toChain) internal virtual returns (uint256) {
+        if (nativeFeeReceiver == Helper.ZERO_ADDRESS) {
+            return 0;
+        }
         uint256 fee = _getTokenNativeFee(_token, _toChain);
-        if (fee != 0 && nativeFeeReceiver != Helper.ZERO_ADDRESS) {
+        if (fee != 0) {
             Helper._transfer(selfChainId, Helper.ZERO_ADDRESS, nativeFeeReceiver, fee);
             emit ChargeNativeFee(_token, _amount, fee, selfChainId, _toChain);
             return fee;

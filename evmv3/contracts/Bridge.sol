@@ -54,9 +54,10 @@ contract Bridge is BridgeAbstract {
         bytes calldata _swapData
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
-        SwapOutParam memory param;
+        BridgeParam memory bridge;
+        SwapParam memory param;
         param.from = _initiator;
-        param.to = _to;
+        param.toBytes = _to;
         param.toChain = _toChain;
         param.amount = _amount;
         param.token = Helper._isNative(_token) ? wToken : _token;
@@ -70,24 +71,24 @@ contract Bridge is BridgeAbstract {
             param.gasLimit = _getBaseGas(_toChain, OutType.SWAP);
         }
         if (_swapData.length != 0) {
-            BridgeParam memory bridge = abi.decode(_swapData, (BridgeParam));
+            bridge = abi.decode(_swapData, (BridgeParam));
             param.gasLimit += bridge.gasLimit;
-            param.refundAddress = bridge.refundAddress;
-            param.swapData = bridge.swapData;
         }
         uint256 messageFee;
         (, , messageFee) = _tokenIn(param.toChain, param.amount, _token, param.gasLimit, true);
-        _checkAndBurn(param.token, _amount);
+
         if (isOmniToken(param.token)) {
-            orderId = _interTransferAndCall(param, bridges[_toChain], messageFee);
+            orderId = _interTransferAndCall(param, bridge, bridges[_toChain], messageFee);
         } else {
+            _checkAndBurn(param.token, param.amount);
+
             bytes memory payload = abi.encode(
                 param.gasLimit,
                 abi.encodePacked(param.token),
                 param.amount,
                 abi.encodePacked(param.from),
-                param.to,
-                param.swapData
+                param.toBytes,
+                bridge.swapData
             );
             payload = abi.encode(OutType.SWAP, payload);
             IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
@@ -107,7 +108,7 @@ contract Bridge is BridgeAbstract {
             param.amount,
             param.from,
             msg.sender,
-            param.to,
+            param.toBytes,
             abi.encodePacked(param.token),
             param.gasLimit,
             messageFee
@@ -152,20 +153,20 @@ contract Bridge is BridgeAbstract {
         require(msg.sender == address(mos), "only mos");
         require(_toChain == selfChainId, "invalid to chain");
         require(_fromBytes(_fromAddress) == relayContract, "invalid from");
-        SwapInParam memory param;
+        SwapParam memory param;
         param.fromChain = _fromChain;
         param.orderId = _orderId;
         bytes memory token;
-        bytes memory to;
-        (param.orderId, token, param.amount, to, param.from, param.swapData) = abi.decode(
+        bytes memory swapData;
+        (param.orderId, token, param.amount, param.toBytes, param.fromBytes, swapData) = abi.decode(
             _message,
             (bytes32, bytes, uint256, bytes, bytes, bytes)
         );
         // TODO: check param.orderId
         param.token = _fromBytes(token);
-        param.to = _fromBytes(to);
+        //param.to = _fromBytes(param.toBytes);
         _checkAndMint(param.token, param.amount);
-        _swapIn(param);
+        _swapIn(param, swapData);
         return bytes("");
     }
 
