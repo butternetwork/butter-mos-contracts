@@ -526,7 +526,7 @@ task("bridge:transferOut", "Cross-chain transfer token")
                 gasLimit: taskArgs.gas,
             });
         }
-        console.log(rst);
+        // console.log(rst);
 
         console.log(`transfer token ${taskArgs.token} ${taskArgs.value} to ${receiver} successful`);
     });

@@ -293,7 +293,7 @@ task("relay:tokenInfo", "List token infos")
         }
         console.log(`chains:`);
         for (let i = 0; i < chains.length; i++) {
-            let info = await manager.getToChainTokenInfo(tokenAddr, chains[i]);
+            let info = await manager.getTargetFeeInfo(tokenAddr, chains[i]);
             console.log(`${chains[i]}\t => ${info[0]} (${info[1]}), `);
 
             let balance = await vault.vaultBalance(chains[i]);

@@ -50,7 +50,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     address private baseFeeReceiver;
 
     modifier checkAddress(address _address) {
-        require(_address != address(0), "address is zero");
+        require(_address != address(0), "register: address is zero");
         _;
     }
 
@@ -78,7 +78,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     ) external onlyRole(MANAGER_ROLE) checkAddress(_token) checkAddress(_vaultToken) {
         Token storage token = tokenList[_token];
         address tokenAddress = IVaultTokenV3(_vaultToken).getTokenAddress();
-        require(_token == tokenAddress, "invalid relay token");
+        require(_token == tokenAddress, "register: invalid relay token");
 
         token.tokenAddress = _token;
         token.vaultToken = _vaultToken;
@@ -95,9 +95,9 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint8 _decimals,
         bool _mintable
     ) external onlyRole(MANAGER_ROLE) checkAddress(_token) {
-        require(!Utils.checkBytes(_fromToken, bytes("")), "invalid from token");
+        require(!Utils.checkBytes(_fromToken, bytes("")), "register: invalid from token");
         Token storage token = tokenList[_token];
-        require(token.tokenAddress != address(0), "invalid relay token");
+        require(token.tokenAddress != address(0), "register: invalid relay token");
         token.decimals[_fromChain] = _decimals;
         token.mappingList[_fromChain] = _fromToken;
         token.mintable[_fromChain] = _mintable;
@@ -110,7 +110,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         bool _enable
     ) external onlyRole(MANAGER_ROLE) {
         Token storage token = tokenList[_token];
-        require(token.tokenAddress != address(0), "invalid relay token");
+        require(token.tokenAddress != address(0), "register: invalid relay token");
         for (uint256 i = 0; i < _toChains.length; i++) {
             uint256 toChain = _toChains[i];
             token.bridgeable[toChain] = _enable;
@@ -133,9 +133,9 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _rate
     ) external onlyRole(MANAGER_ROLE) checkAddress(_token) {
         Token storage token = tokenList[_token];
-        require(token.tokenAddress != address(0), "invalid relay token");
-        require(_highest >= _lowest, "invalid highest and lowest");
-        require(_rate <= MAX_RATE_UNI, "invalid proportion value");
+        require(token.tokenAddress != address(0), "register: invalid relay token");
+        require(_highest >= _lowest, "register: invalid highest and lowest");
+        require(_rate <= MAX_RATE_UNI, "register: invalid proportion value");
         token.fromChainFees[_fromChain] = FeeRate(_lowest, _highest, _rate);
         emit SetFromChainTokenFee(_token, _fromChain, _lowest, _highest, _rate);
     }
@@ -148,9 +148,9 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _rate
     ) external onlyRole(MANAGER_ROLE) checkAddress(_token) {
         Token storage token = tokenList[_token];
-        require(token.tokenAddress != address(0), "invalid relay token");
-        require(_highest >= _lowest, "invalid highest and lowest");
-        require(_rate <= MAX_RATE_UNI, "invalid proportion value");
+        require(token.tokenAddress != address(0), "register: invalid relay token");
+        require(_highest >= _lowest, "register: invalid highest and lowest");
+        require(_rate <= MAX_RATE_UNI, "register: invalid proportion value");
 
         token.toChainFees[_toChain] = FeeRate(_lowest, _highest, _rate);
 
@@ -164,7 +164,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _noSwap
     ) external onlyRole(MANAGER_ROLE) checkAddress(_token) {
         Token storage token = tokenList[_token];
-        require(token.tokenAddress != address(0), "invalid relay token");
+        require(token.tokenAddress != address(0), "register: invalid relay token");
 
         token.baseFees[_toChain] = BaseFee(_withSwap, _noSwap);
 
@@ -211,7 +211,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         address tokenAddr = _getRelayChainToken(_fromChain, _fromToken);
 
         Token storage token = tokenList[tokenAddr];
-        require(token.tokenAddress != address(0), "invalid relay token");
+        require(token.tokenAddress != address(0), "register: invalid relay token");
 
         toToken = token.mappingList[_toChain];
         decimals = token.decimals[_toChain];
@@ -231,14 +231,14 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
     function checkMintable(address _token) external view override returns (bool) {
         Token storage token = tokenList[_token];
-        require(token.tokenAddress != address(0), "invalid relay token");
+        require(token.tokenAddress != address(0), "register: invalid relay token");
 
         return token.mintable[selfChainId];
     }
 
     function getVaultToken(address _token) external view override returns (address) {
         Token storage token = tokenList[_token];
-        require(token.tokenAddress != address(0), "invalid relay token");
+        require(token.tokenAddress != address(0), "register: invalid relay token");
 
         return tokenList[_token].vaultToken;
     }
@@ -261,7 +261,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         )
     {
         Token storage token = tokenList[_token];
-        require(token.tokenAddress != address(0), "invalid relay token");
+        require(token.tokenAddress != address(0), "register: invalid relay token");
 
         bridgeable = token.bridgeable[_chain];
         toChainFeeRate = token.toChainFees[_chain];
@@ -297,7 +297,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         bool _withSwap
     ) internal view returns (uint256 totalFee, uint256 baseFee, uint256 proportionFee) {
         Token storage token = tokenList[_relayToken];
-        require(token.tokenAddress != address(0), "invalid relay token");
+        require(token.tokenAddress != address(0), "register: invalid relay token");
 
         FeeRate memory toChainFeeRate = token.toChainFees[_toChain];
         uint256 toChainFee = _getFee(toChainFeeRate, _relayAmount);
@@ -361,7 +361,10 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         (feeAmount, , ) = _getTransferFee(relayToken, relayAmount, _fromChain, _toChain, _withSwap);
 
         fromChainFee = _getTargetAmount(relayToken, selfChainId, _fromChain, feeAmount);
-        toChainAmount = _getTargetAmount(relayToken, selfChainId, _toChain, relayAmount - feeAmount);
+
+        if (relayAmount >= feeAmount) {
+            toChainAmount = _getTargetAmount(relayToken, selfChainId, _toChain, relayAmount - feeAmount);
+        }
 
         Token storage token = tokenList[relayToken];
         if (token.mintable[_toChain]) {
@@ -428,7 +431,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
             _vaultBalance = abi.decode(data, (int256));
             if (_vaultBalance > 0) {
                 uint256 tem = this.getToChainAmount(_token, uint256(_vaultBalance), _chainId);
-                require(tem <= uint256(type(int256).max), "value doesn't fit in an int256");
+                require(tem <= uint256(type(int256).max), "register: value doesn't fit in an int256");
                 _vaultBalance = int256(tem);
             } else {
                 _vaultBalance = 0;
@@ -446,7 +449,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         } else {
             token = tokenMappingList[_fromChain][_fromToken];
         }
-        require(token != address(0), "token not registered");
+        require(token != address(0), "register: token not registered");
     }
 
     function _getToChainToken(address _token, uint256 _toChain) internal view returns (bytes memory token) {
@@ -463,17 +466,17 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _toChain,
         uint256 _amount
     ) internal view returns (uint256) {
-        if (_toChain == selfChainId) {
+        if (_toChain == _fromChain) {
             return _amount;
         }
         Token storage token = tokenList[_token];
-        require(token.tokenAddress != address(0), "invalid relay token");
+        require(token.tokenAddress != address(0), "register: invalid relay token");
 
         uint256 decimalsFrom = token.decimals[_fromChain];
-        require(decimalsFrom > 0, "token decimals not register");
+        require(decimalsFrom > 0, "register: token decimals not register");
 
         uint256 decimalsTo = token.decimals[_toChain];
-        require(decimalsTo > 0, "from token decimals not register");
+        require(decimalsTo > 0, "register: from token decimals not register");
 
         if (decimalsFrom == decimalsTo) {
             return _amount;
@@ -483,7 +486,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {
-        require(hasRole(UPGRADER_ROLE, msg.sender), "TokenRegister: only upgrader can upgrade");
+        require(hasRole(UPGRADER_ROLE, msg.sender), "register: only upgrader can upgrade");
     }
 
     function getImplementation() external view returns (address) {

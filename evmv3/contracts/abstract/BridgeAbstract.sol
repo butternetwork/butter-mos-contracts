@@ -294,7 +294,7 @@ abstract contract BridgeAbstract is
         return fee;
     }
 
-    function _swapOut(
+    function _swapOutInit(
         address _initiator, // initiator address
         address _token, // src token
         bytes memory _to,
@@ -321,7 +321,7 @@ abstract contract BridgeAbstract is
             bridge = abi.decode(_swapData, (BridgeParam));
             param.gasLimit += bridge.gasLimit;
         }
-        uint256 messageFee;
+
         (, , messageFee) = _tokenIn(param.toChain, param.amount, _token, param.gasLimit, true);
 
         return (param, bridge, messageFee);
@@ -358,10 +358,10 @@ abstract contract BridgeAbstract is
     }
 
     function _swapIn(SwapParam memory param, bytes memory swapData) internal {
-        // if swap params is not empty, then we need to do swap on current chain
         address outToken = param.token;
         address to = _fromBytes(param.toBytes);
         if (swapData.length > 0 && to.isContract()) {
+            // if swap params is not empty, then we need to do swap on current chain
             Helper._transfer(selfChainId, param.token, to, param.amount);
             try
                 IButterReceiver(to).onReceived(
@@ -375,7 +375,7 @@ abstract contract BridgeAbstract is
             {
                 // do nothing
             } catch {
-                // do nothing
+                // todo
             }
         } else {
             // transfer token if swap did not happen

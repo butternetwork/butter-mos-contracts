@@ -41,38 +41,32 @@ module.exports = {
       url: `https://mainnet.infura.io/v3/` + process.env.INFURA_KEY,
       chainId: 1,
       zksync: false,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Mapo: {
       chainId: 22776,
       url: "https://rpc.maplabs.io",
-      zksync: false,
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      gasMultiplier: 3,
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Matic: {
       url: `https://rpc.ankr.com/polygon`,
       chainId: 137,
-      zksync: false,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Bsc: {
-      url: `https://bsc-dataseed1.defibit.io`,
+      url: `https://bscrpc.com`,
       chainId: 56,
-      zksync: false,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Klaytn: {
       url: `https://public-en-cypress.klaytn.net`,
       chainId: 8217,
-      zksync: false,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Conflux: {
       url: `https://evm.confluxrpc.com`,
       chainId: 1030,
-      zksync: false,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Merlin: {

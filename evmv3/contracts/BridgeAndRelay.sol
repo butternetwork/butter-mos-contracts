@@ -127,33 +127,17 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _toChain, // target chain id
         bytes calldata _bridgeData
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
-        require(_toChain != selfChainId, "Cannot swap to self chain");
         require(!_checkBytes(bridges[_toChain], bytes("")), "bridge not registered");
+
+        bytes memory toToken = tokenRegister.getToChainToken(_token, _toChain);
+        require(!_checkBytes(toToken, bytes("")), "token not registered");
 
         BridgeParam memory bridge;
         SwapParam memory param;
-        param.from = _initiator;
-        param.toBytes = _to;
-        param.toChain = _toChain;
-        param.token = Helper._isNative(_token) ? wToken : _token;
-        param.amount = _amount;
-
-        _checkBridgeable(param.token, param.toChain);
-        _checkLimit(_amount, param.toChain, param.token);
-
-        if (isOmniToken(param.token)) {
-            param.gasLimit = _getBaseGas(_toChain, OutType.INTER_TRANSFER);
-        } else {
-            param.gasLimit = _getBaseGas(_toChain, OutType.SWAP);
-        }
-        if (_bridgeData.length != 0) {
-            bridge = abi.decode(_bridgeData, (BridgeParam));
-            param.gasLimit += bridge.gasLimit;
-        }
         uint256 messageFee;
-        (, , messageFee) = _tokenIn(param.toChain, param.amount, _token, param.gasLimit, true);
-        bytes memory toToken = tokenRegister.getToChainToken(param.token, param.toChain);
-        require(!_checkBytes(toToken, bytes("")), "token not registered");
+
+        (param, bridge, messageFee) = _swapOutInit(_initiator, _token, _to, _amount, _toChain, _bridgeData);
+
         if (isOmniToken(param.token)) {
             // param.amount = _amount;
             orderId = _interTransferAndCall(param, bridge, bridges[param.toChain], messageFee);
@@ -281,7 +265,7 @@ contract BridgeAndRelay is BridgeAbstract {
         param.token = tokenRegister.getRelayChainToken(param.fromChain, token);
         require(param.token != address(0), "relay token not registered");
         {
-            param.relayAmount = tokenRegister.getRelayChainAmount(param.token, fromChain, param.amount);
+            param.relayAmount = tokenRegister.getRelayChainAmount(param.token, param.fromChain, param.amount);
             _checkAndMint(param.token, param.relayAmount);
             (param.relayOutAmount, param.toAmount, param.baseFee) = _collectFee(
                 param.token,
@@ -293,7 +277,6 @@ contract BridgeAndRelay is BridgeAbstract {
             emit CollectFee(param.orderId, param.token, (param.relayAmount - param.relayOutAmount));
         }
         if (toChain == selfChainId) {
-            //param.to = _fromBytes(param.toBytes);
             param.amount = param.relayOutAmount;
             _swapIn(param, swapData);
             return bytes("");
@@ -308,14 +291,7 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes memory toToken = tokenRegister.getToChainToken(param.token, param.toChain);
         require(!_checkBytes(toToken, bytes("")), "Out token not registered");
         _checkAndBurn(param.token, param.relayOutAmount);
-        bytes memory m = abi.encode(
-            param.orderId,
-            toToken,
-            param.toAmount,
-            param.toBytes,
-            param.fromBytes,
-            swapData
-        );
+        bytes memory m = abi.encode(param.orderId, toToken, param.toAmount, param.toBytes, param.fromBytes, swapData);
         messageData = IMOSV3.MessageData({
             relay: true,
             msgType: IMOSV3.MessageType.MESSAGE,
@@ -324,22 +300,28 @@ contract BridgeAndRelay is BridgeAbstract {
             gasLimit: param.gasLimit,
             value: 0
         });
-        emit Relay(param.orderId, param.orderId);
 
         bytes memory payLoad = abi.encode(messageData);
         if (param.toChain == adaptorChainId) {
             // other chain -> mapo -> near
             // todo
             IAdapter(adaptor).transferOut(param.toChain, payLoad, param.fromChain);
+            // todo: return messageData for MOS processing
+
+            emit Relay(param.orderId, param.orderId);
             return bytes("");
         }
+
         if (param.fromChain == adaptorChainId) {
             // near -> mapo -> other chain
             //(uint256 msgFee, ) = mos.getMessageFee(toChain, address(0), gasLimit);
             bytes32 v3OrderId = mos.transferOut{value: msg.value}(param.toChain, payLoad, address(0));
             emit Relay(param.orderId, v3OrderId);
+
+            return payLoad;
         }
 
+        emit Relay(param.orderId, param.orderId);
         return payLoad;
     }
 

@@ -51,31 +51,12 @@ contract Bridge is BridgeAbstract {
         bytes memory _to,
         uint256 _amount,
         uint256 _toChain, // target chain id
-        bytes calldata _swapData
+        bytes calldata _bridgeData
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
-        require(_toChain != selfChainId, "Cannot swap to self chain");
         BridgeParam memory bridge;
         SwapParam memory param;
-        param.from = _initiator;
-        param.toBytes = _to;
-        param.toChain = _toChain;
-        param.amount = _amount;
-        param.token = Helper._isNative(_token) ? wToken : _token;
-
-        _checkBridgeable(param.token, param.toChain);
-        _checkLimit(param.amount, param.toChain, param.token);
-
-        if (isOmniToken(param.token)) {
-            param.gasLimit = _getBaseGas(_toChain, OutType.INTER_TRANSFER);
-        } else {
-            param.gasLimit = _getBaseGas(_toChain, OutType.SWAP);
-        }
-        if (_swapData.length != 0) {
-            bridge = abi.decode(_swapData, (BridgeParam));
-            param.gasLimit += bridge.gasLimit;
-        }
         uint256 messageFee;
-        (, , messageFee) = _tokenIn(param.toChain, param.amount, _token, param.gasLimit, true);
+        (param, bridge, messageFee) = _swapOutInit(_initiator, _token, _to, _amount, _toChain, _bridgeData);
 
         if (isOmniToken(param.token)) {
             orderId = _interTransferAndCall(param, bridge, bridges[_toChain], messageFee);
@@ -155,7 +136,6 @@ contract Bridge is BridgeAbstract {
         require(_fromBytes(_fromAddress) == relayContract, "invalid from");
         SwapParam memory param;
         param.fromChain = _fromChain;
-        param.orderId = _orderId;
         bytes memory token;
         bytes memory swapData;
         (param.orderId, token, param.amount, param.toBytes, param.fromBytes, swapData) = abi.decode(
@@ -164,7 +144,6 @@ contract Bridge is BridgeAbstract {
         );
         // TODO: check param.orderId
         param.token = _fromBytes(token);
-        //param.to = _fromBytes(param.toBytes);
         _checkAndMint(param.token, param.amount);
         _swapIn(param, swapData);
         return bytes("");
