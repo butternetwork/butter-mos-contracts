@@ -2,9 +2,18 @@ let { create, toHex, fromHex, readFromFile, writeToFile } = require("../../utils
 const { getToken, stringToHex, getFeeList, getChain, getChainList, getFeeInfo } = require("../../utils/helper");
 const { task } = require("hardhat/config");
 
-async function getRegister(network) {
+let outputAddr = true;
+
+async function getRegister(network, v2) {
     let deployment = await readFromFile(network);
-    let addr = deployment[network]["registerProxy"];
+
+    let addr;
+    if (v2) {
+        addr = deployment[network]["registerV2"];
+    } else {
+        addr = deployment[network]["registerV3"];
+    }
+
     if (!addr) {
         throw "register not deployed.";
     }
@@ -36,6 +45,7 @@ task("register:deploy", "mos relay deploy").setAction(async (taskArgs, hre) => {
 task("register:upgrade", "upgrade bridge evm contract in proxy")
     .addOptionalParam("impl", "implementation address", "", types.string)
     .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const { deploy } = hre.deployments;
         const accounts = await ethers.getSigners();
@@ -47,9 +57,7 @@ task("register:upgrade", "upgrade bridge evm contract in proxy")
             implAddr = await create(hre, deployer, "TokenRegisterV3", [], [], "");
         }
 
-        let TokenRegisterV2 = await ethers.getContractFactory("TokenRegisterV3");
-        let deployment = await readFromFile(hre.network.name);
-        let register = TokenRegisterV2.attach(deployment[hre.network.name]["registerProxy"]);
+        let register = await getRegister(hre.network.name, taskArgs.v2);
 
         console.log("pre impl", await register.getImplementation());
         await (await register.upgradeTo(implAddr)).wait();
@@ -60,6 +68,7 @@ task("register:registerToken", "register token")
     .addParam("token", "token address")
     .addParam("mintable", "token mintable", false, types.boolean)
     .addParam("vault", "vault address", "", types.string)
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
@@ -71,14 +80,19 @@ task("register:registerToken", "register token")
         let vaultAddr = taskArgs.vault;
         if (vaultAddr === "") {
             let deployment = await readFromFile(hre.network.name);
-            vaultAddr = deployment[hre.network.name]["vault"][taskArgs.token];
+            if (taskArgs.v2) {
+                vaultAddr = deployment[hre.network.name]["vaultV2"][taskArgs.token];
+            } else {
+                vaultAddr = deployment[hre.network.name]["vault"][taskArgs.token];
+            }
+
             if (!vaultAddr) {
                 throw "vault not deployed.";
             }
         }
         console.log("token vault address", vaultAddr);
 
-        let register = await getRegister(hre.network.name);
+        let register = await getRegister(hre.network.name, taskArgs.v2);
 
         await register.registerToken(tokenAddr, vaultAddr, taskArgs.mintable);
         console.log("token", await register.tokenList(tokenAddr));
@@ -90,24 +104,28 @@ task("register:mapToken", "mapping token")
     .addParam("target", "target token")
     .addParam("decimals", "target token decimals", 18, types.int)
     .addParam("mintable", "token mintable", false, types.boolean)
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .addOptionalParam("update", "update token config", "false", types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
         // console.log("deployer address:", deployer.address);
 
-        let register = await getRegister(hre.network.name);
+        let register = await getRegister(hre.network.name, taskArgs.v2);
 
         let tokenAddr = taskArgs.token;
         // get mapped token
         let targetToken = taskArgs.target;
-        if (taskArgs.chain === 728126428 || taskArgs.chain === 3448148188) {
+        console.log("target token: ", targetToken);
+        if (taskArgs.chain === "728126428" || taskArgs.chain === "3448148188") {
             targetToken = await toHex(targetToken, "Tron");
         } else if (targetToken.substr(0, 2) !== "0x") {
             let hex = await stringToHex(targetToken);
             targetToken = "0x" + hex;
         }
         targetToken = targetToken.toLowerCase();
+
+        console.log("target token: ", targetToken);
 
         let info = await register.getTargetToken(hre.network.config.chainId, taskArgs.chain, tokenAddr);
         // console.log(`target ${taskArgs.chain}, ${info[0]}, ${info[1]}`)
@@ -120,7 +138,7 @@ task("register:mapToken", "mapping token")
         console.log(`\tchain token(${targetToken}), decimals(${taskArgs.decimals}), mintable(${taskArgs.mintable})`);
 
         if (taskArgs.update) {
-            await register.mapToken(tokenAddr, taskArgs.chain, targetToken, taskArgs.decimals, taskArgs.mintable);
+            await register.mapToken(tokenAddr, taskArgs.chain, targetToken, taskArgs.decimals, taskArgs.mintable, {gasLimit: 500000});
             console.log(`register chain [${taskArgs.chain}] token [${taskArgs.token}] success`);
         }
     });
@@ -129,13 +147,14 @@ task("register:registerTokenChains", "register token Chains")
     .addParam("token", "token address")
     .addParam("chains", "chains list")
     .addParam("enable", "enable bridge", "", types.boolean)
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .addOptionalParam("update", "update token config", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
         let chainList = taskArgs.chains.split(",");
 
-        let register = await getRegister(hre.network.name);
+        let register = await getRegister(hre.network.name, taskArgs.v2);
 
         let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
 
@@ -156,7 +175,7 @@ task("register:registerTokenChains", "register token Chains")
             if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
                 await register.registerTokenChains(tokenAddr, updateList, taskArgs.enable).send();
             } else {
-                await (await register.registerTokenChains(tokenAddr, updateList, taskArgs.enable)).wait();
+                await (await register.registerTokenChains(tokenAddr, updateList, taskArgs.enable, {gasLimit: 500000})).wait();
             }
             console.log(`set token [${taskArgs.token}] chains [${chainList}] bridgeable [${taskArgs.enable}]`);
         }
@@ -169,13 +188,14 @@ task("register:setFromChainFee", "set transfer outFee")
     .addParam("highest", "highest fee cast")
     .addParam("rate", "fee rate")
     .addParam("decimals", "relay chain token decimals", 18, types.int)
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .addOptionalParam("update", "update token config", "false", types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
         // console.log("deployer address:", deployer.address);
 
-        let register = await getRegister(hre.network.name);
+        let register = await getRegister(hre.network.name, taskArgs.v2);
 
         let decimals = taskArgs.decimals;
         let min = ethers.utils.parseUnits(taskArgs.lowest, decimals);
@@ -193,7 +213,7 @@ task("register:setFromChainFee", "set transfer outFee")
         console.log(`\tconfig outFee min(${taskArgs.lowest}), max(${taskArgs.highest}), rate(${taskArgs.rate})`);
 
         if (taskArgs.update) {
-            await register.setFromChainFee(taskArgs.token, taskArgs.chain, min, max, rate);
+            await register.setFromChainFee(taskArgs.token, taskArgs.chain, min, max, rate, {gasLimit: 500000});
         }
 
         console.log(`set chain [${taskArgs.chain}] token [${taskArgs.token}] from chain fee success`);
@@ -206,13 +226,14 @@ task("register:setToChainFee", "set to chain token outFee")
     .addParam("highest", "highest fee cast")
     .addParam("rate", "fee rate")
     .addParam("decimals", "relay chain token decimals", 18, types.int)
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .addOptionalParam("update", "update token config", "false", types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
         // console.log("deployer address:", deployer.address);
 
-        let register = await getRegister(hre.network.name);
+        let register = await getRegister(hre.network.name, taskArgs.v2);
 
         let decimals = taskArgs.decimals;
         let min = ethers.utils.parseUnits(taskArgs.lowest, decimals);
@@ -227,7 +248,7 @@ task("register:setToChainFee", "set to chain token outFee")
         console.log(`${taskArgs.chain} => on-chain fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]}) `);
         console.log(`\tconfig fee min(${min}), max(${max}), rate(${rate})`);
         if (taskArgs.update) {
-            await register.setToChainTokenFee(taskArgs.token, taskArgs.chain, min, max, rate);
+            await register.setToChainTokenFee(taskArgs.token, taskArgs.chain, min, max, rate, {gasLimit: 500000});
             console.log(`set chain [${taskArgs.chain}] token [${taskArgs.token}] to chain fee success`);
         }
 
@@ -240,13 +261,15 @@ task("register:setBaseFee", "set target chain token base fee")
     .addParam("swap", "with swap on target chain")
     .addParam("bridge", "no swap on target chain")
     .addParam("decimals", "relay chain token decimals", 18, types.int)
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .addOptionalParam("update", "update token config", "false", types.boolean)
     .setAction(async (taskArgs, hre) => {
         // const accounts = await ethers.getSigners();
         // const deployer = accounts[0];
         // console.log("deployer address:", deployer.address);
 
-        let register = await getRegister(hre.network.name);
+        let register = await getRegister(hre.network.name, taskArgs.v2);
+
         let decimals = taskArgs.decimals;
         let withswap = ethers.utils.parseUnits(taskArgs.swap, decimals);
         let noswap = ethers.utils.parseUnits(taskArgs.bridge, decimals);
@@ -260,19 +283,20 @@ task("register:setBaseFee", "set target chain token base fee")
         console.log(`\tconfig base fee swap(${withswap}), noswap(${noswap})`);
 
         if (taskArgs.update) {
-            await register.setBaseFee(taskArgs.token, taskArgs.chain, withswap, noswap);
+            await register.setBaseFee(taskArgs.token, taskArgs.chain, withswap, noswap, {gasLimit: 500000});
             console.log(`set chain ${taskArgs.chain} token ${taskArgs.token} base fee success`);
         }
     });
 
 task("register:setBaseFeeReceiver", "set set baseFee Receiver")
     .addParam("receiver", "base fee receiver")
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
 
-        let register = await getRegister(hre.network.name);
+        let register = await getRegister(hre.network.name, taskArgs.v2);
 
         await (await register.setBaseFeeReceiver(taskArgs.receiver)).wait();
 
@@ -281,6 +305,7 @@ task("register:setBaseFeeReceiver", "set set baseFee Receiver")
 
 task("register:updateTokenChains", "update token target chain")
     .addParam("token", "token name")
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .addOptionalParam("update", "update token config", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
@@ -305,27 +330,32 @@ task("register:updateTokenChains", "update token target chain")
                 removeList.push(chainList[i].chainId);
             }
         }
-        await hre.run("register:registerTokenChains", {
-            token: taskArgs.token,
-            chains: addList.toString(),
-            enable: true,
-            update: taskArgs.update,
-        });
+        if (addList.length > 0) {
+            await hre.run("register:registerTokenChains", {
+                token: taskArgs.token,
+                chains: addList.toString(),
+                enable: true,
+                update: taskArgs.update,
+                v2: taskArgs.v2
+            });
+        }
 
-        await hre.run("register:registerTokenChains", {
-            token: taskArgs.token,
-            chains: removeList.toString(),
-            enable: false,
-            update: taskArgs.update,
-        });
-
-        outputAddr = true;
+        if (removeList.length > 0) {
+            await hre.run("register:registerTokenChains", {
+                token: taskArgs.token,
+                chains: removeList.toString(),
+                enable: false,
+                update: taskArgs.update,
+                v2: taskArgs.v2
+            });
+        }
 
         console.log(`update token [${taskArgs.token}] chains success`);
     });
 
 task("register:update", "update token bridge and fee to target chain")
     .addOptionalParam("chain", "chain name", "", types.string)
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .addOptionalParam("update", "update token config", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
@@ -351,19 +381,21 @@ task("register:update", "update token bridge and fee to target chain")
                     continue;
                 }
 
-                if (
-                    tokenName === "m-btc" ||
-                    tokenName === "solvbtc" ||
-                    tokenName === "iusd" ||
-                    tokenName === "stmapo" ||
-                    tokenName === "lsgs" ||
-                    tokenName === "stst" ||
-                    tokenName === "merl" ||
-                    tokenName === "mp" ||
-                    tokenName === "mstar" ||
-                    tokenName === "bnb"
-                ) {
-                    continue;
+                if (!taskArgs.v2) {
+                    if (
+                        tokenName === "m-btc" ||
+                        tokenName === "solvbtc" ||
+                        tokenName === "iusd" ||
+                        tokenName === "stmapo" ||
+                        tokenName === "lsgs" ||
+                        tokenName === "stst" ||
+                        tokenName === "merl" ||
+                        tokenName === "mp" ||
+                        tokenName === "mstar" ||
+                        tokenName === "bnb"
+                    ) {
+                        continue;
+                    }
                 }
 
                 console.log(`\nUpdate token [${tokenName}] ...`);
@@ -376,6 +408,7 @@ task("register:update", "update token bridge and fee to target chain")
                 await hre.run("register:updateTokenChains", {
                     token: tokenName,
                     update: taskArgs.update,
+                    v2: taskArgs.v2
                 });
 
                 let targetToken = await getToken(chain.chainId, tokenName);
@@ -387,6 +420,7 @@ task("register:update", "update token bridge and fee to target chain")
                     decimals: feeInfo.decimals,
                     mintable: feeInfo.mintable,
                     update: taskArgs.update,
+                    v2: taskArgs.v2
                 });
 
                 await hre.run("register:setBaseFee", {
@@ -396,6 +430,7 @@ task("register:update", "update token bridge and fee to target chain")
                     swap: feeInfo.base.swap,
                     decimals: decimals,
                     update: taskArgs.update,
+                    v2: taskArgs.v2
                 });
 
                 await hre.run("register:setToChainFee", {
@@ -406,6 +441,7 @@ task("register:update", "update token bridge and fee to target chain")
                     rate: feeInfo.fee.rate,
                     decimals: decimals,
                     update: taskArgs.update,
+                    v2: taskArgs.v2
                 });
 
                 let transferOutFee = feeInfo.outFee;
@@ -420,6 +456,7 @@ task("register:update", "update token bridge and fee to target chain")
                     rate: transferOutFee.rate,
                     decimals: decimals,
                     update: taskArgs.update,
+                    v2: taskArgs.v2
                 });
             }
         }
@@ -429,14 +466,14 @@ task("register:grantRole", "set token outFee")
     .addParam("role", "role address")
     .addParam("account", "account address")
     .addOptionalParam("grant", "grant or revoke", true, types.boolean)
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
 
-        let TokenRegister = await ethers.getContractFactory("TokenRegisterV3");
-        let deployment = await readFromFile(hre.network.name);
-        let register = TokenRegister.attach(deployment[hre.network.name]["registerProxy"]);
+        let register = await getRegister(hre.network.name, taskArgs.v2);
+
         console.log("token register:", register.address);
 
         let role;
@@ -462,16 +499,25 @@ task("register:getFee", "get token fees")
     .addParam("from", "from chain")
     .addParam("to", "to chain")
     .addParam("amount", "token amount")
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
-        let register = await getRegister(hre.network.name);
+        let register = await getRegister(hre.network.name, taskArgs.v2);
         console.log("Token register:", register.address);
 
         console.log(`\ntoken: ${taskArgs.token}`);
         let fromChain = await getChain(taskArgs.from);
         let toChain = await await getChain(taskArgs.to);
 
-        let fromToken = await getToken(fromChain.chain, taskArgs.token);
+        let token = await getToken(fromChain.chain, taskArgs.token);
         let relayToken = await getToken(hre.network.config.chainId, taskArgs.token);
+
+        let fromToken = token;
+        if (fromChain.chain === "Tron" || fromChain.chain === "TronTest") {
+            fromToken = await toHex(token, "Tron");
+        } else if (token.substr(0, 2) !== "0x") {
+            let hex = await stringToHex(token);
+            fromToken = "0x" + hex;
+        }
 
         let fromTokenInfo = await register.getTargetToken(fromChain.chainId, fromChain.chainId, fromToken);
         let toTokenInfo = await register.getTargetToken(fromChain.chainId, toChain.chainId, fromToken);
@@ -575,8 +621,9 @@ task("register:getFee", "get token fees")
 
 task("register:list", "List token infos")
     .addOptionalParam("token", "The token name", "wtoken", types.string)
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
-        let register = await getRegister(hre.network.name);
+        let register = await getRegister(hre.network.name, taskArgs.v2);
         console.log("Token register:", register.address);
 
         console.log(`\ntoken: ${taskArgs.token}`);

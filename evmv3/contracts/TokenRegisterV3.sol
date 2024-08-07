@@ -55,11 +55,12 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     }
 
     event SetBaseFeeReceiver(address _baseFeeReceiver);
-    event RegisterToken(address _token, address _vaultToken);
-    event RegisterTokenChain(address _token, uint256 _toChain, bool _enable);
-    event SetBaseFee(address _token, uint256 _toChain, uint256 _withSwap, uint256 _noSwap);
-    event SetToChainTokenFee(address _token, uint256 _toChain, uint256 _lowest, uint256 _highest, uint256 _rate);
-    event SetFromChainTokenFee(address _token, uint256 _toChain, uint256 _lowest, uint256 _highest, uint256 _rate);
+    event RegisterToken(address indexed _token, address _vaultToken);
+    event MapToken(address indexed _token, uint256 indexed _fromChain, bytes _fromToken, uint8 _decimals, bool _mintable);
+    event RegisterTokenChain(address indexed _token, uint256 indexed _toChain, bool _enable);
+    event SetBaseFee(address indexed _token, uint256 indexed _toChain, uint256 _withSwap, uint256 _noSwap);
+    event SetToChainTokenFee(address indexed _token, uint256 indexed _toChain, uint256 _lowest, uint256 _highest, uint256 _rate);
+    event SetFromChainTokenFee(address indexed _token, uint256 indexed _toChain, uint256 _lowest, uint256 _highest, uint256 _rate);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -102,6 +103,8 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         token.mappingList[_fromChain] = _fromToken;
         token.mintable[_fromChain] = _mintable;
         tokenMappingList[_fromChain][_fromToken] = _token;
+
+        emit MapToken(_token, _fromChain, _fromToken, _decimals, _mintable);
     }
 
     function registerTokenChains(
