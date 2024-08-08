@@ -58,6 +58,7 @@ abstract contract BridgeAbstract is
         uint256 gasLimit;
         bytes fromBytes;
         bytes toBytes;
+        bytes caller;
     }
 
     IMOSV3 public mos;
