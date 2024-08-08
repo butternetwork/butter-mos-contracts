@@ -49,7 +49,8 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
     address private baseFeeReceiver;
 
-    mapping(uint256 => mapping(bytes => uint256)) public whitelistFee;
+    //hash(fromChain,caller) => tochain => rate;
+    mapping(bytes32 => mapping(uint256 => uint256)) public whitelistFee;
 
     modifier checkAddress(address _address) {
         require(_address != address(0), "register: address is zero");
@@ -195,16 +196,18 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     }
 
     function setWhitelistCallerFeeRate(
-        uint256 _chain,
+        uint256 _fromChain,
+        uint256 _toChain,
         bytes calldata _caller,
         uint256 _rate,
         bool _isWhitelist
     ) external onlyRole(MANAGER_ROLE) {
         require(_rate <= MAX_RATE_UNI, "register: invalid proportion value");
-        if (_isWhitelist) {
-            whitelistFee[_chain][_caller] = (_rate << 1) | 0x01;
+        bytes32 key = _getKey(_fromChain,_caller);
+        if(_isWhitelist){
+            whitelistFee[key][_toChain] = (_rate << 1) | 0x01;
         } else {
-            whitelistFee[_chain][_caller] = 0;
+            whitelistFee[key][_toChain] = 0;
         }
     }
 
@@ -341,7 +344,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
         uint256 rate;
         bool isWhitelistCaller;
-        (isWhitelistCaller, rate) = getWhitelistCallerFeeRate(_fromChain, _caller);
+        (isWhitelistCaller, rate) = getWhitelistCallerFeeRate(_fromChain, _toChain, _caller);
 
         if (isWhitelistCaller) {
             proportionFee = (_relayAmount * rate) / MAX_RATE_UNI;
@@ -478,7 +481,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 rate;
         bool isWhitelistCaller;
         uint256 beforeFee;
-        (isWhitelistCaller, rate) = getWhitelistCallerFeeRate(_fromChain, _caller);
+        (isWhitelistCaller, rate) = getWhitelistCallerFeeRate(_fromChain, _toChain, _caller);
         if (isWhitelistCaller) {
             beforeFee = _getBeforeAmount(rate, _amount);
         } else {
@@ -499,10 +502,12 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     }
 
     function getWhitelistCallerFeeRate(
-        uint256 _chain,
+        uint256 _fromChain,
+        uint256 _toChain,
         bytes memory _caller
-    ) public view returns (bool isWhitelist, uint256 rate) {
-        uint256 whitelistRate = whitelistFee[_chain][_caller];
+    ) public view returns(bool isWhitelist,uint256 rate){
+        bytes32 key = _getKey(_fromChain,_caller);
+        uint256 whitelistRate =  whitelistFee[key][_toChain];
         isWhitelist = (whitelistRate != 0);
         rate = whitelistRate >> 1;
     }
@@ -565,6 +570,10 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
             return _amount;
         }
         return (_amount * (10 ** decimalsTo)) / (10 ** decimalsFrom);
+    }
+
+    function _getKey(uint256 _fromChain,bytes memory caller) private pure returns(bytes32){
+        return keccak256(abi.encodePacked(_fromChain,caller));
     }
 
     /** UUPS *********************************************************/
