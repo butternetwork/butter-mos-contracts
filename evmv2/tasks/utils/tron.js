@@ -211,20 +211,6 @@ exports.tronDeployRootToken = async function (artifacts, network, name, symbol, 
     await writeToFile(deploy);
 };
 
-const chainlist = [
-    1,
-    5,
-    56,
-    97, // bsc
-    137,
-    80001, // matic
-    212,
-    22776, // mapo
-    1001,
-    8217, // klaytn
-    "1360100178526209",
-    "1360100178526210", // near
-];
 exports.tronList = async function (artifacts, network, mos_addr, token) {
     let tronWeb = await getTronWeb(network);
     let deployer = tronWeb.defaultAddress.hex.substring(2);
@@ -256,15 +242,17 @@ exports.tronList = async function (artifacts, network, mos_addr, token) {
     if (address == "wtoken") {
         address = wtoken;
     }
+    address = await getToken(network, address);
     console.log("\ntoken address:", address);
     let mintable = await mos.isMintable(address).call();
     console.log(`token mintalbe:\t ${mintable}`);
 
     console.log("register chains:");
-    for (let i = 0; i < chainlist.length; i++) {
-        let bridgeable = await mos.isBridgeable(address, chainlist[i]).call();
+    let chains = await getChainList();
+    for (let i = 0; i < chains.length; i++) {
+        let bridgeable = await mos.isBridgeable(address, chains[i].chainId).call();
         if (bridgeable) {
-            console.log(`${chainlist[i]}`);
+            console.log(`${chains[i].chain} (${chains[i].chainId})`);
         }
     }
 };

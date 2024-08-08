@@ -11,7 +11,7 @@ let {
 } = require("../../utils/helper.js");
 let { mosDeploy, mosUpgrade, stringToHex } = require("../utils/util.js");
 const { getTronAddress, tronTokenTransferOut } = require("../utils/tron");
-let {execute} = require("../../utils/authority.js")
+let { execute } = require("../../utils/authority.js");
 const BigNumber = require("bignumber.js");
 
 task("relay:deploy", "mos relay deploy")
@@ -42,7 +42,7 @@ task("relay:upgrade", "upgrade mos evm contract in proxy")
 //client -> Update client manager on relay chain
 //tokenregister ->  update tokenRegister for mos in relay chain
 task("relay:setup", "set associated contracts for mos")
-    .addParam("type", "associated contracts type (client/router/register) to set for mos")
+    .addParam("type", "associated contracts type (client/router/tokenregister) to set for mos")
     .addParam("address", "associated contracts address")
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
@@ -256,7 +256,7 @@ task("relay:simpleSwapIn", "Swap to target chain")
 
 task("relay:setDistributeRate", "Set the fee to enter the vault address")
     .addOptionalParam("type", "0 - vault, 1 - relayer, 2 - protocol, default 0", 0, types.int)
-    .addOptionalParam("address", "receiver address", "0x0000000000000000000000000000000000000DEF", types.string)
+    .addOptionalParam("receiver", "receiver address", "0x0000000000000000000000000000000000000DEF", types.string)
     .addParam("rate", "The percentage value of the fee charged, unit 0.000001")
     .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
@@ -272,14 +272,13 @@ task("relay:setDistributeRate", "Set the fee to enter the vault address")
         console.log("mos address:", mos.address);
 
         if (taskArgs.auth) {
-            await execute(mos, "setDistributeRate", [taskArgs.type, taskArgs.address, taskArgs.rate], deployer);
+            await execute(mos, "setDistributeRate", [taskArgs.type, taskArgs.receiver, taskArgs.rate], deployer);
         } else {
-            await mos.connect(deployer).setDistributeRate(taskArgs.type, taskArgs.address, taskArgs.rate);
+            await mos.connect(deployer).setDistributeRate(taskArgs.type, taskArgs.receiver, taskArgs.rate);
         }
 
         console.log(`mos set distribute ${taskArgs.type} rate ${taskArgs.rate} to ${taskArgs.address} success`);
     });
-
 
 task("relay:updateToken", "update token fee to target chain")
     .addParam("token", "relay chain token name")
@@ -326,7 +325,9 @@ task("relay:updateToken", "update token fee to target chain")
                 console.log(`${chain.chainId} => onchain token(${info[0]}), decimals(${info[1]}) `);
                 console.log(`\tchain token(${targetToken}), decimals(${targetDecimals})`);
 
-                await register.connect(deployer).mapToken(tokenAddr, chain.chainId, targetToken, targetDecimals, true, {gasLimit: 150000});
+                await register
+                    .connect(deployer)
+                    .mapToken(tokenAddr, chain.chainId, targetToken, targetDecimals, true, { gasLimit: 150000 });
 
                 console.log(`register chain ${chain.chain} token ${taskArgs.token} success`);
             }
@@ -336,7 +337,9 @@ task("relay:updateToken", "update token fee to target chain")
                     `${chain.chainId} => on-chain fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]}) `
                 );
                 console.log(`\tconfig fee min(${min}), max(${max}), rate(${rate})`);
-                await register.connect(deployer).setTokenFee(tokenAddr, chain.chainId, min, max, rate, {gasLimit: 150000});
+                await register
+                    .connect(deployer)
+                    .setTokenFee(tokenAddr, chain.chainId, min, max, rate, { gasLimit: 150000 });
 
                 console.log(`set chain ${chain.chain} token ${taskArgs.token} fee success`);
             }
@@ -357,7 +360,9 @@ task("relay:updateToken", "update token fee to target chain")
                     `${chain.chainId} => on-chain outFee min(${info[3][0]}), max(${info[3][1]}), rate(${info[3][2]}) `
                 );
                 console.log(`\tconfig outFee min(${min}), max(${max}), rate(${rate})`);
-                await register.connect(deployer).setTransferOutFee(tokenAddr, chain.chainId, min, max, rate, {gasLimit: 150000});
+                await register
+                    .connect(deployer)
+                    .setTransferOutFee(tokenAddr, chain.chainId, min, max, rate, { gasLimit: 150000 });
             }
         }
 
@@ -396,7 +401,6 @@ task("relay:list", "List relay infos")
         console.log("Impl:\t", await mos.getImplementation());
         console.log("wToken address:\t", wtoken);
         console.log("Token manager:\t", tokenmanager);
-
 
         console.log(`distribute vault rate: rate(${vaultFee[1]})`);
         console.log(`distribute relay rate: rate(${relayFee[1]}), receiver(${relayFee[0]})`);
@@ -462,12 +466,10 @@ task("relay:getTransferOut", "Cross-chain transfer token")
         console.log("transfer fee:", ethers.utils.formatUnits(amount, decimals));
     });
 
-
 task("relay:tokenInfo", "List token infos")
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
     .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
     .setAction(async (taskArgs, hre) => {
-
         let mos;
         if (taskArgs.mos === "mos") {
             mos = await getMos(hre.network.config.chainId, hre.network.name);
@@ -480,6 +482,7 @@ task("relay:tokenInfo", "List token infos")
         console.log("mos address:\t", mos.address);
 
         let tokenmanager = await mos.tokenRegister();
+        tokenmanager = "0xE00219ecDbD02e102998fF208724671c4709e188";
         let manager = await ethers.getContractAt("TokenRegisterV2", tokenmanager);
         console.log("Token manager:\t", manager.address);
 
@@ -490,9 +493,10 @@ task("relay:tokenInfo", "List token infos")
         address = await getToken(hre.network.config.chainId, address);
 
         console.log("\ntoken address:", address);
-        let token = await manager.tokenList(address);
-        console.log(`token mintalbe:\t ${token.mintable}`);
-        console.log(`token decimals:\t ${token.decimals}`);
+        //let token = await manager.tokenList(address);
+        console.log(token);
+        //console.log(`token mintalbe:\t ${token.mintable}`);
+        //console.log(`token decimals:\t ${token.decimals}`);
         console.log(`vault address: ${token.vaultToken}`);
 
         let vault = await ethers.getContractAt("VaultTokenV2", token.vaultToken);

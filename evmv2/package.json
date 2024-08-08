@@ -5,7 +5,6 @@
   "files": [
     "artifacts/contracts/**/*.sol/*.json",
     "!artifacts/contracts/**/*.sol/*.dbg.json",
-    "deployments/*/*.json",
     "contracts"
   ],
   "main": "index.js",

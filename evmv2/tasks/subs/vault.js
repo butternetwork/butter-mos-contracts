@@ -52,8 +52,6 @@ task("vault:addManager", "Add vaultToken manager")
         console.log(`MAPVaultToken ${taskArgs.vault} add manager ${manager} success`);
     });
 
-
-
 task("vault:deposit", "Cross-chain deposit token")
     .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
     .addOptionalParam("address", "The receiver address", "", types.string)
@@ -91,7 +89,7 @@ task("vault:deposit", "Cross-chain deposit token")
             await (await token.connect(deployer).approve(mos.address, value)).wait();
 
             console.log("deposit token... ");
-            await (await mos.connect(deployer).depositToken(tokenAddr, address, value, {gasLimit: 150000})).wait();
+            await (await mos.connect(deployer).depositToken(tokenAddr, address, value, { gasLimit: 150000 })).wait();
         }
 
         console.log(`deposit token ${taskArgs.token} ${taskArgs.value} to ${address} successful`);

@@ -13,7 +13,7 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
     }
 
     let implAddr;
-    if (hre.network.zksync === true){
+    if (hre.network.zksync === true) {
         implAddr = await zksyncDeploy(implContract, [], hre);
     } else {
         await deploy(implContract, {
@@ -53,7 +53,13 @@ exports.mosDeploy = async function (deploy, chainId, deployer, wtoken, lightnode
 
     await writeToFile(deployment);
 
-    await verify(proxyAddr, [implAddr, data], "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2", chainId, true);
+    await verify(
+        proxyAddr,
+        [implAddr, data],
+        "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2",
+        chainId,
+        true
+    );
 };
 
 exports.mosVerify = async function (deploy, chainId, deployer, wtoken, lightnode) {
@@ -68,18 +74,21 @@ exports.mosVerify = async function (deploy, chainId, deployer, wtoken, lightnode
     let impl = await ethers.getContract(implContract);
     console.log(`${implContract} address: ${impl.address}`);
 
-
-
     let data = impl.interface.encodeFunctionData("initialize", [wtoken, lightnode, deployer]);
 
     let deployment = await readFromFile(hre.network.name);
     let mos_proxy = deployment[hre.network.name]["mosProxy"];
     console.log(`proxy address: ${mos_proxy}`);
 
-    await verify(mos_proxy, [impl.address, data], "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2", chainId, false);
+    await verify(
+        mos_proxy,
+        [impl.address, data],
+        "contracts/MAPOmnichainServiceProxyV2.sol:MAPOmnichainServiceProxyV2",
+        chainId,
+        false
+    );
 
     await verify(impl.address, [], "contracts/MAPOmnichainServiceV2.sol:MAPOmnichainServiceV2", chainId, false);
-
 };
 
 exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_addr, auth) {
@@ -132,6 +141,7 @@ exports.mosUpgrade = async function (deploy, chainId, deployer, network, impl_ad
 
         let data = mos.interface.encodeFunctionData("upgradeTo", [implAddr]);
         let executeData = authority.interface.encodeFunctionData("execute", [mos.address, 0, data]);
+        console.log("execute address", authority.address);
         console.log("execute input", executeData);
 
         await (await authority.execute(mos.address, 0, data)).wait();

@@ -53,7 +53,7 @@ task("auth:deploy", "mos relay deploy")
         deployment[hre.network.name]["authority"] = authority;
         await writeToFile(deployment);
 
-        await verify(authority, [taskArgs.admin], "contracts/utils/Authority.sol:Authority", chainId,true);
+        await verify(authority, [taskArgs.admin], "contracts/utils/Authority.sol:Authority", chainId, true);
     });
 
 task("auth:addControl", "add control")

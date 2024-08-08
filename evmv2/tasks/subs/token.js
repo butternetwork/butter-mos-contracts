@@ -1,4 +1,4 @@
-const { getMos, getToken, getRole, getChain, readFromFile} = require("../../utils/helper");
+const { getMos, getToken, getRole, getChain, readFromFile } = require("../../utils/helper");
 const { tronTokenTransferOut } = require("../utils/tron");
 
 function stringToHex(str) {
@@ -14,7 +14,6 @@ let IDeployFactory_abi = [
     "function deploy(bytes32 salt, bytes memory creationCode, uint256 value) external",
     "function getAddress(bytes32 salt) external view returns (address)",
 ];
-
 
 task("token:transferOut", "Cross-chain transfer token")
     .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
@@ -74,8 +73,12 @@ task("token:transferOut", "Cross-chain transfer token")
             let decimals = await token.decimals();
             let value = ethers.utils.parseUnits(taskArgs.value, decimals);
 
-            console.log(`${tokenAddr} approve ${mos.address} value ${value} ...`);
-            await (await token.connect(deployer).approve(mos.address, value)).wait();
+            let approved = await token.allowance(deployer.address, mos.address);
+            console.log("approved ", approved);
+            if (approved.lt(value)) {
+                console.log(`${tokenAddr} approve ${mos.address} value [${value}] ...`);
+                await (await token.approve(mos.address, value)).wait();
+            }
 
             await mos.connect(deployer).swapOutToken(deployer.address, tokenAddr, receiver, value, targetChainId, "0x");
         }
@@ -213,7 +216,6 @@ task("token:revoke", "revoke role")
 
         await (await token.revokeRole(role, addr)).wait();
     });
-
 
 task("token:getMember", "get role member")
     .addOptionalParam("token", "The token addr", "", types.string)

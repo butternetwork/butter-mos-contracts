@@ -18,6 +18,7 @@ import "./interface/IWrappedToken.sol";
 import "./interface/IMintableToken.sol";
 import "./interface/IVaultTokenV2.sol";
 import "./interface/ITokenRegisterV2.sol";
+import "./interface/ITokenRegisterV3.sol";
 import "./interface/IButterReceiver.sol";
 import "./interface/IButterMosV2.sol";
 import "./utils/EvmDecoder.sol";
@@ -42,7 +43,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     uint256 public nonce;
     address public wToken; // native wrapped token
 
-    ITokenRegisterV2 public tokenRegister;
+    ITokenRegisterV3 public tokenRegister;
     ILightClientManager public lightClientManager;
 
     //id : 0 VToken  1:relayer
@@ -75,6 +76,16 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     event mapSwapExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
 
     event CollectFee(bytes32 indexed orderId, address indexed token, uint256 value);
+
+    event CollectFeeV2(
+        bytes32 indexed orderId,
+        address indexed token,
+        uint256 baseFee,
+        uint256 bridgeFee,
+        uint256 messageFee,
+        uint256 vaultFee,
+        uint256 protocolFee
+    );
 
     function initialize(
         address _wToken,
@@ -115,7 +126,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     }
 
     function setTokenRegister(address _register) external onlyOwner checkAddress(_register) {
-        tokenRegister = ITokenRegisterV2(_register);
+        tokenRegister = ITokenRegisterV3(_register);
         emit SetTokenRegister(_register);
     }
 
@@ -272,6 +283,27 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         emit mapTransferExecute(_chainId, selfChainId, msg.sender);
     }
 
+    function getBridgeTokenInfo(
+        uint256 _fromChain,
+        uint256 _toChain,
+        bytes memory _fromToken
+    ) external view returns (bytes memory toChainToken, uint8 decimals, bool mintable) {
+        ITokenRegisterV3 register = ITokenRegisterV3(address(tokenRegister));
+        return register.getTargetToken(_fromChain, _toChain, _fromToken);
+    }
+
+    function getBridgeFeeInfo(
+        bytes memory _from,
+        bytes memory _fromToken,
+        uint256 _fromChain,
+        uint256 _fromAmount,
+        uint256 _toChain,
+        bool _withSwap
+    ) external view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 vaultBalance) {
+        ITokenRegisterV3 register = ITokenRegisterV3(address(tokenRegister));
+        return register.getBridgeFeeInfo(_fromChain, _fromToken, _fromAmount, _toChain, true);
+    }
+
     function getFee(uint256 _id, uint256 _amount) public view returns (uint256, address) {
         Rate memory rate = distributeRate[_id];
         return (_amount.mul(rate.rate).div(1000000), rate.receiver);
@@ -292,44 +324,94 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     }
 
     function _collectFee(
+        bytes32 _orderId,
         address _token,
-        uint256 _mapAmount,
+        uint256 _relayAmount,
         uint256 _fromChain,
-        uint256 _toChain
-    ) internal returns (uint256, uint256) {
-        address token = _token;
-        address vaultToken = tokenRegister.getVaultToken(token);
+        uint256 _toChain,
+        bool _withSwap
+    ) internal returns (uint256 relayOutAmount, uint256 outAmount) {
+        // address token = _token;
+        // ITokenRegisterV3 register = ITokenRegisterV3(address(tokenRegister));
+        address vaultToken = tokenRegister.getVaultToken(_token);
         require(vaultToken != address(0), "vault token not registered");
 
-        uint256 fee = tokenRegister.getTransferFee(token, _mapAmount, _fromChain, _toChain);
+        uint256 proportionFee;
+        uint256 excludeVaultFee = 0;
+        uint256 totalFee;
+        uint256 baseFee;
 
-        uint256 mapOutAmount = 0;
-        uint256 outAmount = 0;
-        if (_mapAmount > fee) {
-            mapOutAmount = _mapAmount - fee;
-            outAmount = tokenRegister.getToChainAmount(token, mapOutAmount, _toChain);
+        (totalFee, baseFee, proportionFee) = tokenRegister.getTransferFeeV2(
+            _token,
+            _relayAmount,
+            _fromChain,
+            _toChain,
+            true
+        );
+        if (_relayAmount >= totalFee) {
+            relayOutAmount = _relayAmount - totalFee;
+            outAmount = tokenRegister.getToChainAmount(_token, relayOutAmount, _toChain);
+        } else if (_relayAmount >= baseFee) {
+            proportionFee = _relayAmount - baseFee;
         } else {
-            fee = _mapAmount;
-        }
-        uint256 otherFee = 0;
-        if (fee > 0) {
-            (uint256 vaultFee, ) = getFee(0, fee);
-            otherFee = fee - vaultFee;
-
-            (uint256 out, address receiver) = getFee(1, fee);
-            if (out > 0 && receiver != address(0)) {
-                _withdraw(token, payable(receiver), out);
-            }
-
-            (uint256 protocolFee, address protocolReceiver) = getFee(2, fee);
-            if (protocolFee > 0 && protocolReceiver != address(0)) {
-                _withdraw(token, payable(protocolReceiver), protocolFee);
-            }
+            baseFee = _relayAmount;
+            proportionFee = 0;
         }
 
-        IVaultTokenV2(vaultToken).transferToken(_fromChain, _mapAmount, _toChain, mapOutAmount, selfChainId, otherFee);
+        if (baseFee != 0) {
+            address baseFeeReceiver = tokenRegister.getBaseFeeReceiver();
+            _withdraw(_token, payable(baseFeeReceiver), baseFee);
+            excludeVaultFee += baseFee;
+        }
 
-        return (mapOutAmount, outAmount);
+        if (proportionFee > 0) {
+            excludeVaultFee += _collectBridgeFee(_orderId, _token, baseFee, proportionFee);
+        }
+
+        IVaultTokenV2(vaultToken).transferToken(
+            _fromChain,
+            _relayAmount,
+            _toChain,
+            relayOutAmount,
+            selfChainId,
+            excludeVaultFee
+        );
+
+        emit CollectFee(_orderId, _token, proportionFee);
+
+        return (relayOutAmount, outAmount);
+    }
+
+    function _collectBridgeFee(
+        bytes32 _orderId,
+        address _token,
+        uint256 baseFee,
+        uint256 proportionFee
+    ) internal returns (uint256 excludeVaultFee) {
+        uint256 messageFee;
+        uint256 protocolFee;
+        address receiver;
+
+        excludeVaultFee = 0;
+
+        // messenger fee
+        (messageFee, receiver) = getFee(1, proportionFee);
+        if (messageFee != 0 && receiver != address(0)) {
+            _withdraw(_token, payable(receiver), messageFee);
+
+            excludeVaultFee += messageFee;
+        }
+        // protocol fee
+        (protocolFee, receiver) = getFee(2, proportionFee);
+        if (protocolFee != 0 && receiver != address(0)) {
+            _withdraw(_token, payable(receiver), protocolFee);
+
+            excludeVaultFee += protocolFee;
+        }
+
+        uint256 vaultFee = proportionFee - messageFee - protocolFee;
+
+        emit CollectFeeV2(_orderId, _token, baseFee, proportionFee, messageFee, vaultFee, protocolFee);
     }
 
     function _swapIn(uint256 _chainId, IEvent.swapOutEvent memory _outEvent) internal checkOrder(_outEvent.orderId) {
@@ -344,8 +426,15 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
                 IMintableToken(token).mint(address(this), mapAmount);
             }
 
-            (mapOutAmount, outAmount) = _collectFee(token, mapAmount, _outEvent.fromChain, _outEvent.toChain);
-            emit CollectFee(_outEvent.orderId, token, (mapAmount - mapOutAmount));
+            (mapOutAmount, outAmount) = _collectFee(
+                _outEvent.orderId,
+                token,
+                mapAmount,
+                _outEvent.fromChain,
+                _outEvent.toChain,
+                _outEvent.swapData.length != 0
+            );
+            // emit CollectFee(_outEvent.orderId, token, (mapAmount - mapOutAmount));
         }
 
         if (_outEvent.toChain == selfChainId) {
@@ -418,8 +507,15 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         // bytes memory toToken = "0x0";
         require(!Utils.checkBytes(toToken, bytes("")), "Out token not registered");
         orderId = _getOrderId(_from, _to, _toChain);
-        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(_token, _amount, selfChainId, _toChain);
-        emit CollectFee(orderId, _token, (_amount - mapOutAmount));
+        (uint256 mapOutAmount, uint256 outAmount) = _collectFee(
+            orderId,
+            _token,
+            _amount,
+            selfChainId,
+            _toChain,
+            _swapData.length != 0
+        );
+        // emit CollectFee(orderId, _token, (_amount - mapOutAmount));
 
         if (tokenRegister.checkMintable(_token)) {
             IMintableToken(_token).burn(mapOutAmount);

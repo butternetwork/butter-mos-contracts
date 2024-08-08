@@ -1,6 +1,6 @@
 let { readFromFile, writeToFile, getChain, getMos, getToken } = require("../../utils/helper.js");
 let { mosDeploy, mosUpgrade, mosVerify } = require("../utils/util.js");
-let {execute} = require("../../utils/authority.js")
+let { execute } = require("../../utils/authority.js");
 let {
     tronMosDeploy,
     tronMosUpgrade,
@@ -82,7 +82,14 @@ task("mos:upgrade", "upgrade mos evm contract in proxy")
             const accounts = await ethers.getSigners();
             const deployer = accounts[0];
             console.log("deployer address:", deployer.address);
-            await mosUpgrade(deploy, hre.network.config.chainId, deployer.address, hre.network.name, taskArgs.impl, taskArgs.auth);
+            await mosUpgrade(
+                deploy,
+                hre.network.config.chainId,
+                deployer.address,
+                hre.network.name,
+                taskArgs.impl,
+                taskArgs.auth
+            );
         }
     });
 
@@ -209,7 +216,7 @@ task("mos:registerToken", "MapCrossChainService settings allow cross-chain token
         }
     });
 
-async function register (deployer, mos, token, chain, bridgeable, auth) {
+async function register(deployer, mos, token, chain, bridgeable, auth) {
     if (auth) {
         let deployment = await readFromFile(hre.network.name);
         if (!deployment[hre.network.name]["authority"]) {
@@ -226,7 +233,6 @@ async function register (deployer, mos, token, chain, bridgeable, auth) {
         await mos.connect(deployer).registerToken(token, chain, bridgeable);
     }
 }
-
 
 task("mos:updateChain", "update token fee to target chain")
     .addParam("token", "token name")
@@ -549,6 +555,57 @@ task("mos:changeOwner", "changeOwner for mos")
         }
     });
 
+task("mos:withdraw", "changeOwner for mos")
+    .addParam("token", "token address")
+    .addParam("receiver", "receiver address")
+    .addParam("amount", "token amount")
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
+    .setAction(async (taskArgs, hre) => {
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await tronSetup(hre.artifacts, hre.network.name, taskArgs.address, taskArgs.type);
+        } else {
+            const accounts = await ethers.getSigners();
+            const deployer = accounts[0];
+            const chainId = await hre.network.config.chainId;
+            let mos = await getMos(chainId, hre.network.name);
+            if (mos == undefined) {
+                throw "mos not deployed ...";
+            }
+            console.log("mos address", mos.address);
+
+            let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+            let token = await ethers.getContractAt("MintableToken", tokenAddr);
+            let decimals = await token.decimals();
+            console.log(`token address ${token.address}, decimals ${decimals}`);
+            let amount = ethers.utils.parseUnits(taskArgs.amount, decimals);
+
+            if (taskArgs.auth) {
+                let deployment = await readFromFile(hre.network.name);
+                if (!deployment[hre.network.name]["authority"]) {
+                    throw "authority not deployed";
+                }
+                let Authority = await ethers.getContractFactory("Authority");
+                let authority = Authority.attach(deployment[hre.network.name]["authority"]);
+
+                let data = mos.interface.encodeFunctionData("withdraw", [tokenAddr, taskArgs.receiver, amount]);
+                let executeData = authority.interface.encodeFunctionData("execute", [mos.address, 0, data]);
+                console.log("execute address:", authority.address);
+                console.log("target:", mos.address);
+                console.log("value:", 0);
+                console.log("payload:", data);
+                console.log("execute input:", executeData);
+
+                await (await authority.execute(mos.address, 0, data)).wait();
+            } else {
+                await (await mos.connect(deployer).withdraw(tokenAddr, taskArgs.receiver, amount)).wait();
+            }
+
+            console.log(
+                `mos withdraw token ${taskArgs.token} to ${taskArgs.receiver} ${taskArgs.amount} successfully `
+            );
+        }
+    });
+
 task("mos:getOrderStatus", "changeOwner for mos")
     .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
     .addOptionalParam("order", "The token address, default wtoken", "wtoken", types.string)
@@ -635,6 +692,7 @@ task("mos:list", "List mos  infos")
             if (address == "wtoken") {
                 address = wtoken;
             }
+
             address = await getToken(hre.network.config.chainId, address);
 
             console.log("\ntoken address:", address);

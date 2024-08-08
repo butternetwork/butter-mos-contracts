@@ -20,6 +20,7 @@ module.exports = {
   defaultNetwork: "hardhat",
   abiExporter: {
     path: "./abi",
+    only: [":IButter*", ":*Token*", ":MAP*", ":*Vault*"],
     clear: false,
     flat: true,
   },
@@ -60,7 +61,7 @@ module.exports = {
       accounts: accounts,
     },
     Bsc: {
-      url: `https://bsc.drpc.org`,
+      url: `https://bscrpc.com`,
       chainId: 56,
       accounts: accounts,
     },
