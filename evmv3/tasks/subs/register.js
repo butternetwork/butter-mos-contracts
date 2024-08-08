@@ -19,7 +19,10 @@ async function getRegister(network, v2) {
     }
 
     let register = await ethers.getContractAt("TokenRegisterV3", addr);
-    // console.log("token register address:", register.address);
+    if (outputAddr) {
+        console.log("token register address:", register.address);
+    }
+
     return register;
 }
 
@@ -138,7 +141,9 @@ task("register:mapToken", "mapping token")
         console.log(`\tchain token(${targetToken}), decimals(${taskArgs.decimals}), mintable(${taskArgs.mintable})`);
 
         if (taskArgs.update) {
-            await register.mapToken(tokenAddr, taskArgs.chain, targetToken, taskArgs.decimals, taskArgs.mintable, {gasLimit: 500000});
+            await register.mapToken(tokenAddr, taskArgs.chain, targetToken, taskArgs.decimals, taskArgs.mintable, {
+                gasLimit: 500000,
+            });
             console.log(`register chain [${taskArgs.chain}] token [${taskArgs.token}] success`);
         }
     });
@@ -175,7 +180,9 @@ task("register:registerTokenChains", "register token Chains")
             if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
                 await register.registerTokenChains(tokenAddr, updateList, taskArgs.enable).send();
             } else {
-                await (await register.registerTokenChains(tokenAddr, updateList, taskArgs.enable, {gasLimit: 500000})).wait();
+                await (
+                    await register.registerTokenChains(tokenAddr, updateList, taskArgs.enable, { gasLimit: 500000 })
+                ).wait();
             }
             console.log(`set token [${taskArgs.token}] chains [${chainList}] bridgeable [${taskArgs.enable}]`);
         }
@@ -213,7 +220,7 @@ task("register:setFromChainFee", "set transfer outFee")
         console.log(`\tconfig outFee min(${taskArgs.lowest}), max(${taskArgs.highest}), rate(${taskArgs.rate})`);
 
         if (taskArgs.update) {
-            await register.setFromChainFee(taskArgs.token, taskArgs.chain, min, max, rate, {gasLimit: 500000});
+            await register.setFromChainFee(taskArgs.token, taskArgs.chain, min, max, rate, { gasLimit: 500000 });
         }
 
         console.log(`set chain [${taskArgs.chain}] token [${taskArgs.token}] from chain fee success`);
@@ -248,7 +255,7 @@ task("register:setToChainFee", "set to chain token outFee")
         console.log(`${taskArgs.chain} => on-chain fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]}) `);
         console.log(`\tconfig fee min(${min}), max(${max}), rate(${rate})`);
         if (taskArgs.update) {
-            await register.setToChainTokenFee(taskArgs.token, taskArgs.chain, min, max, rate, {gasLimit: 500000});
+            await register.setToChainTokenFee(taskArgs.token, taskArgs.chain, min, max, rate, { gasLimit: 500000 });
             console.log(`set chain [${taskArgs.chain}] token [${taskArgs.token}] to chain fee success`);
         }
 
@@ -283,7 +290,7 @@ task("register:setBaseFee", "set target chain token base fee")
         console.log(`\tconfig base fee swap(${withswap}), noswap(${noswap})`);
 
         if (taskArgs.update) {
-            await register.setBaseFee(taskArgs.token, taskArgs.chain, withswap, noswap, {gasLimit: 500000});
+            await register.setBaseFee(taskArgs.token, taskArgs.chain, withswap, noswap, { gasLimit: 500000 });
             console.log(`set chain ${taskArgs.chain} token ${taskArgs.token} base fee success`);
         }
     });
@@ -336,7 +343,7 @@ task("register:updateTokenChains", "update token target chain")
                 chains: addList.toString(),
                 enable: true,
                 update: taskArgs.update,
-                v2: taskArgs.v2
+                v2: taskArgs.v2,
             });
         }
 
@@ -346,7 +353,7 @@ task("register:updateTokenChains", "update token target chain")
                 chains: removeList.toString(),
                 enable: false,
                 update: taskArgs.update,
-                v2: taskArgs.v2
+                v2: taskArgs.v2,
             });
         }
 
@@ -361,6 +368,7 @@ task("register:update", "update token bridge and fee to target chain")
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
         // console.log("deployer address:", deployer.address);
+        outputAddr = false;
 
         let chainList = [];
         if (taskArgs.chain === "") {
@@ -408,7 +416,7 @@ task("register:update", "update token bridge and fee to target chain")
                 await hre.run("register:updateTokenChains", {
                     token: tokenName,
                     update: taskArgs.update,
-                    v2: taskArgs.v2
+                    v2: taskArgs.v2,
                 });
 
                 let targetToken = await getToken(chain.chainId, tokenName);
@@ -420,7 +428,7 @@ task("register:update", "update token bridge and fee to target chain")
                     decimals: feeInfo.decimals,
                     mintable: feeInfo.mintable,
                     update: taskArgs.update,
-                    v2: taskArgs.v2
+                    v2: taskArgs.v2,
                 });
 
                 await hre.run("register:setBaseFee", {
@@ -430,7 +438,7 @@ task("register:update", "update token bridge and fee to target chain")
                     swap: feeInfo.base.swap,
                     decimals: decimals,
                     update: taskArgs.update,
-                    v2: taskArgs.v2
+                    v2: taskArgs.v2,
                 });
 
                 await hre.run("register:setToChainFee", {
@@ -441,7 +449,7 @@ task("register:update", "update token bridge and fee to target chain")
                     rate: feeInfo.fee.rate,
                     decimals: decimals,
                     update: taskArgs.update,
-                    v2: taskArgs.v2
+                    v2: taskArgs.v2,
                 });
 
                 let transferOutFee = feeInfo.outFee;
@@ -456,7 +464,7 @@ task("register:update", "update token bridge and fee to target chain")
                     rate: transferOutFee.rate,
                     decimals: decimals,
                     update: taskArgs.update,
-                    v2: taskArgs.v2
+                    v2: taskArgs.v2,
                 });
             }
         }
@@ -502,7 +510,8 @@ task("register:getFee", "get token fees")
     .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         let register = await getRegister(hre.network.name, taskArgs.v2);
-        console.log("Token register:", register.address);
+
+        outputAddr = false;
 
         console.log(`\ntoken: ${taskArgs.token}`);
         let fromChain = await getChain(taskArgs.from);
@@ -518,6 +527,12 @@ task("register:getFee", "get token fees")
             let hex = await stringToHex(token);
             fromToken = "0x" + hex;
         }
+
+        console.log(`relay token [${await register.getRelayChainToken(fromChain.chainId, fromToken)}]`);
+        console.log(`mintable [${await register.checkMintable(relayToken)}]`);
+        console.log(`vault token [${await register.getVaultToken(relayToken)}]`);
+
+        console.log(`target token [${await register.getToChainToken(relayToken, toChain.chainId)}]`);
 
         let fromTokenInfo = await register.getTargetToken(fromChain.chainId, fromChain.chainId, fromToken);
         let toTokenInfo = await register.getTargetToken(fromChain.chainId, toChain.chainId, fromToken);
@@ -587,7 +602,7 @@ task("register:getFee", "get token fees")
             )}], to amount [${ethers.utils.formatUnits(
                 bridgeInfo[1],
                 toTokenInfo[1]
-            )}], vault [${ethers.utils.formatUnits(bridgeInfo[2], 18)}]`
+            )}], vault [${ethers.utils.formatUnits(bridgeInfo[2], toTokenInfo[1])}]`
         );
         console.log(
             `  swap: fromChain fee [${ethers.utils.formatUnits(
@@ -596,7 +611,7 @@ task("register:getFee", "get token fees")
             )}], to amount [${ethers.utils.formatUnits(
                 swapInfo[1],
                 toTokenInfo[1]
-            )}], vault [${ethers.utils.formatUnits(swapInfo[2], 18)}]`
+            )}], vault [${ethers.utils.formatUnits(swapInfo[2], toTokenInfo[1])}]`
         );
 
         console.log(
@@ -623,6 +638,8 @@ task("register:list", "List token infos")
     .addOptionalParam("token", "The token name", "wtoken", types.string)
     .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
+        outputAddr = false;
+
         let register = await getRegister(hre.network.name, taskArgs.v2);
         console.log("Token register:", register.address);
 

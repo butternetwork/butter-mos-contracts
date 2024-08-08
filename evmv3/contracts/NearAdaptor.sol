@@ -162,7 +162,7 @@ contract NearAdaptor is UUPSUpgradeable, AccessControlEnumerableUpgradeable {
             outEvent.from,
             outEvent.to,
             outEvent.swapData,
-            outEvent.from     // for caller
+            outEvent.from // for caller
         );
         payload = abi.encode(OutType.SWAP, payload);
         uint256 value;
