@@ -17,7 +17,7 @@ import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "./interface/IWrappedToken.sol";
 import "./interface/IMintableToken.sol";
 import "./interface/IVaultTokenV2.sol";
-import "./interface/ITokenRegisterV2.sol";
+// import "./interface/ITokenRegisterV2.sol";
 import "./interface/ITokenRegisterV3.sol";
 import "./interface/IButterReceiver.sol";
 import "./interface/IButterMosV2.sol";
@@ -179,7 +179,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(_amount > 0, "Sending value is zero");
         require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
         SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), _amount);
-        orderId = _swapOut(_token, _to, _initiatorAddress, _amount, _toChain, _swapData);
+        orderId = _swapOut(_token, _to, msg.sender, _amount, _toChain, _swapData);
     }
 
     function swapOutNative(
@@ -192,7 +192,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWrappedToken(wToken).deposit{value: amount}();
-        orderId = _swapOut(wToken, _to, _initiatorAddress, amount, _toChain, _swapData);
+        orderId = _swapOut(wToken, _to, msg.sender, amount, _toChain, _swapData);
     }
 
     function depositToken(address _token, address _to, uint256 _amount) external override nonReentrant whenNotPaused {
@@ -300,8 +300,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         uint256 _toChain,
         bool _withSwap
     ) external view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 vaultBalance) {
-        ITokenRegisterV3 register = ITokenRegisterV3(address(tokenRegister));
-        return register.getBridgeFeeInfo(_fromChain, _fromToken, _fromAmount, _toChain, true);
+        // ITokenRegisterV3 register = ITokenRegisterV3(address(tokenRegister));
+        return tokenRegister.getBridgeFeeInfo(_from,_fromChain, _fromToken, _fromAmount, _toChain, _withSwap);
     }
 
     function getFee(uint256 _id, uint256 _amount) public view returns (uint256, address) {
@@ -324,6 +324,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
     }
 
     function _collectFee(
+        bytes memory _caller,
         bytes32 _orderId,
         address _token,
         uint256 _relayAmount,
@@ -342,11 +343,12 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         uint256 baseFee;
 
         (totalFee, baseFee, proportionFee) = tokenRegister.getTransferFeeV2(
+            _caller,
             _token,
             _relayAmount,
             _fromChain,
             _toChain,
-            true
+            _withSwap
         );
         if (_relayAmount >= totalFee) {
             relayOutAmount = _relayAmount - totalFee;
@@ -427,6 +429,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             }
 
             (mapOutAmount, outAmount) = _collectFee(
+                _outEvent.from,
                 _outEvent.orderId,
                 token,
                 mapAmount,
@@ -439,7 +442,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
         if (_outEvent.toChain == selfChainId) {
             address payable toAddress = payable(Utils.fromBytes(_outEvent.to));
-            if (_outEvent.swapData.length > 0) {
+            if (_outEvent.swapData.length > 0 && address(toAddress).isContract()) {
                 SafeERC20.safeTransfer(IERC20(token), toAddress, mapOutAmount);
                 try
                     IButterReceiver(toAddress).onReceived(
@@ -508,6 +511,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         require(!Utils.checkBytes(toToken, bytes("")), "Out token not registered");
         orderId = _getOrderId(_from, _to, _toChain);
         (uint256 mapOutAmount, uint256 outAmount) = _collectFee(
+            abi.encodePacked(_from),
             orderId,
             _token,
             _amount,

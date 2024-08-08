@@ -169,7 +169,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         if (isMintable(_token)) {
             IMintableToken(_token).burn(_amount);
         }
-        orderId = _swapOut(_token, _to, _initiatorAddress, _amount, _toChain, _swapData);
+        orderId = _swapOut(_token, _to, msg.sender, _amount, _toChain, _swapData);
     }
 
     function swapOutNative(
@@ -190,7 +190,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWrappedToken(wToken).deposit{value: amount}();
-        orderId = _swapOut(wToken, _to, _initiatorAddress, amount, _toChain, _swapData);
+        orderId = _swapOut(wToken, _to, msg.sender, amount, _toChain, _swapData);
     }
 
     function depositToken(
