@@ -145,6 +145,7 @@ contract BridgeAndRelay is BridgeAbstract {
             orderId = _getOrderId(param.from, param.toBytes, param.toChain);
             uint256 mapOutAmount;
             (param.relayOutAmount, param.toAmount, param.baseFee) = _collectFee(
+                abi.encodePacked(msg.sender),
                 param.token,
                 param.amount,
                 selfChainId,
@@ -222,13 +223,14 @@ contract BridgeAndRelay is BridgeAbstract {
     }
 
     function getBridgeFeeInfo(
+        bytes memory _caller,
         uint256 _fromChain,
         bytes memory _fromToken,
         uint256 _fromAmount,
         uint256 _toChain,
         bool _withSwap
     ) external view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 vaultBalance) {
-        return tokenRegister.getBridgeFeeInfo(_fromChain, _fromToken, _fromAmount, _toChain, _withSwap);
+        return tokenRegister.getBridgeFeeInfo(_caller, _fromChain, _fromToken, _fromAmount, _toChain, _withSwap);
     }
 
     function _deposit(
@@ -258,9 +260,9 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes memory token;
         bytes memory swapData;
 
-        (param.gasLimit, token, param.amount, param.fromBytes, param.toBytes, swapData) = abi.decode(
+        (param.gasLimit, token, param.amount, param.fromBytes, param.toBytes, swapData, param.caller) = abi.decode(
             payload,
-            (uint256, bytes, uint256, bytes, bytes, bytes)
+            (uint256, bytes, uint256, bytes, bytes, bytes, bytes)
         );
         param.token = tokenRegister.getRelayChainToken(param.fromChain, token);
         require(param.token != address(0), "relay token not registered");
@@ -268,6 +270,7 @@ contract BridgeAndRelay is BridgeAbstract {
             param.relayAmount = tokenRegister.getRelayChainAmount(param.token, param.fromChain, param.amount);
             _checkAndMint(param.token, param.relayAmount);
             (param.relayOutAmount, param.toAmount, param.baseFee) = _collectFee(
+                param.caller,
                 param.token,
                 param.relayAmount,
                 param.fromChain,
@@ -345,6 +348,7 @@ contract BridgeAndRelay is BridgeAbstract {
     }
 
     function _collectFee(
+        bytes memory _caller,
         address _token,
         uint256 _relayAmount,
         uint256 _fromChain,
@@ -358,6 +362,7 @@ contract BridgeAndRelay is BridgeAbstract {
         {
             uint256 totalFee;
             (totalFee, baseFee, proportionFee) = tokenRegister.getTransferFeeV2(
+                _caller,
                 _token,
                 _relayAmount,
                 _fromChain,

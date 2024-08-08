@@ -69,7 +69,8 @@ contract Bridge is BridgeAbstract {
                 param.amount,
                 abi.encodePacked(param.from),
                 param.toBytes,
-                bridge.swapData
+                bridge.swapData,
+                abi.encodePacked(msg.sender) // for caller
             );
             payload = abi.encode(OutType.SWAP, payload);
             IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
