@@ -17,7 +17,6 @@ import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "./interface/IWrappedToken.sol";
 import "./interface/IMintableToken.sol";
 import "./interface/IVaultTokenV2.sol";
-// import "./interface/ITokenRegisterV2.sol";
 import "./interface/ITokenRegisterV3.sol";
 import "./interface/IButterReceiver.sol";
 import "./interface/IButterMosV2.sol";
@@ -288,20 +287,29 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         uint256 _toChain,
         bytes memory _fromToken
     ) external view returns (bytes memory toChainToken, uint8 decimals, bool mintable) {
-        ITokenRegisterV3 register = ITokenRegisterV3(address(tokenRegister));
-        return register.getTargetToken(_fromChain, _toChain, _fromToken);
+        return tokenRegister.getTargetToken(_fromChain, _toChain, _fromToken);
     }
 
     function getBridgeFeeInfo(
-        bytes memory _from,
+        bytes memory _caller,
         bytes memory _fromToken,
         uint256 _fromChain,
         uint256 _fromAmount,
         uint256 _toChain,
         bool _withSwap
     ) external view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 vaultBalance) {
-        // ITokenRegisterV3 register = ITokenRegisterV3(address(tokenRegister));
-        return tokenRegister.getBridgeFeeInfo(_from,_fromChain, _fromToken, _fromAmount, _toChain, _withSwap);
+        return tokenRegister.getBridgeFeeInfoV3(_caller, _fromToken, _fromChain, _fromAmount, _toChain, _withSwap);
+    }
+
+    function getSourceFeeByTarget(
+        bytes memory _caller,
+        bytes memory _targetToken,
+        uint256 _targetChain,
+        uint256 _targetAmount,
+        uint256 _fromChain,
+        bool _withSwap
+    ) external view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 vaultBalance, bytes memory fromChainToken) {
+        return tokenRegister.getSourceFeeByTargetV3(_caller, _targetToken, _targetChain, _targetAmount, _fromChain, _withSwap);
     }
 
     function getFee(uint256 _id, uint256 _amount) public view returns (uint256, address) {
@@ -342,7 +350,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         uint256 totalFee;
         uint256 baseFee;
 
-        (totalFee, baseFee, proportionFee) = tokenRegister.getTransferFeeV2(
+        (totalFee, baseFee, proportionFee) = tokenRegister.getTransferFeeV3(
             _caller,
             _token,
             _relayAmount,

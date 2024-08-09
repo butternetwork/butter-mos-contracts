@@ -36,31 +36,52 @@ interface ITokenRegisterV3 {
 
     function getBaseFeeReceiver() external view returns (address);
 
-    // get token transfer fee, the larger one of tranfer in or transfer out fee
-    function getTransferFee(
-        bytes memory _caller,
-        address _token,
-        uint256 _amount,
-        uint256 _fromChain,
-        uint256 _toChain
-    ) external view returns (uint256);
-
     // get token transfer fee, the larger one of transfer in or transfer out fee
     function getTransferFeeV2(
-        bytes memory _caller,
         address _token,
         uint256 _amount,
         uint256 _fromChain,
         uint256 _toChain,
         bool _withSwap
-    ) external view returns (uint256 totalFee, uint256 baseFee, uint256 proportionFee);
+    ) external view returns (uint256 totalFee, uint256 baseFee, uint256 bridgeFee);
 
     function getBridgeFeeInfo(
-        bytes memory _caller,
         uint256 _fromChain,
         bytes memory _fromToken,
         uint256 _fromAmount,
         uint256 _toChain,
         bool _withSwap
     ) external view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault);
+
+
+    // get token transfer fee, the larger one of tranfer in or transfer out fee
+    function getTransferFeeV3(
+        bytes memory _caller,
+        address _token,
+        uint256 _amount,
+        uint256 _fromChain,
+        uint256 _toChain,
+        bool _withSwap
+    ) external view returns (uint256 totalFee, uint256 baseFee, uint256 bridgeFee);
+
+    function getBridgeFeeInfoV3(
+        bytes memory _caller,
+        bytes memory _fromToken,
+        uint256 _fromChain,
+        uint256 _fromAmount,
+        uint256 _toChain,
+        bool _withSwap
+    ) external view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault);
+
+    function getSourceFeeByTargetV3(
+        bytes memory _caller,
+        bytes memory _targetToken,
+        uint256 _targetChain,
+        uint256 _targetAmount,
+        uint256 _fromChain,
+        bool _withSwap
+    )
+    external
+    view
+    returns (uint256 fromChainFee, uint256 fromChainAmount, uint256 targetChainVault, bytes memory fromChainToken);
 }

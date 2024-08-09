@@ -153,6 +153,12 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         }
     }
 
+    /*
+    function withdraw(address _token, address payable _receiver,uint256 _amount) external onlyOwner {
+        _transfer(_token, _receiver, _amount);
+    }
+    */
+
     // ------------------------------------------
 
     function swapOutToken(
@@ -218,36 +224,42 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         _deposit(wToken, from, _to, amount);
     }
 
-    function swapIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
-        require(_chainId == relayChainId, "invalid chain id");
-        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(
-            _receiptProof
-        );
-        require(success, message);
-        _swapInVerified(logArray);
-        emit mapSwapExecute(_chainId, selfChainId, msg.sender);
-    }
-
     function swapInWithIndex(
         uint256 _chainId,
-        uint256 logIndex,
-        bytes32 orderId,
+        uint256 _logIndex,
         bytes memory _receiptProof
     ) external nonReentrant whenNotPaused {
-        require(!orderList[orderId], "order exist");
         require(_chainId == relayChainId, "invalid chain id");
         (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(
             _receiptProof
         );
         require(success, message);
-        _swapInVerifiedWithIndex(logArray, logIndex);
+        _swapInVerifiedWithIndex(logArray, _logIndex);
         emit mapSwapExecute(_chainId, selfChainId, msg.sender);
     }
 
-     // verify swap in logs and store hash
+    function swapIn(
+        uint256 _chainId,
+        uint256 _logIndex,
+        bytes32 _orderId,
+        bytes memory _receiptProof
+    ) external nonReentrant whenNotPaused {
+        require(!orderList[_orderId], "order exist");
+        require(_chainId == relayChainId, "invalid chain id");
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(
+            _receiptProof
+        );
+        require(success, message);
+        _swapInVerifiedWithIndex(logArray, _logIndex);
+        emit mapSwapExecute(_chainId, selfChainId, msg.sender);
+    }
+
+    // verify swap in logs and store hash
     function swapInVerify(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
         require(_chainId == relayChainId, "invalid chain id");
-        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(_receiptProof);
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(
+            _receiptProof
+        );
         require(success, message);
         bytes32 hash = keccak256(logArray);
         require(!storedOrderId[hash], "already verified");
@@ -255,12 +267,32 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         emit mapSwapInVerified(logArray);
     }
 
-    // execute stored swap in logs
-    function swapInVerifiedWithIndex(bytes32 orderId,bytes calldata logArray, uint256 logIndex) external nonReentrant whenNotPaused {
-        require(!orderList[orderId], "order exist");
+    function swapInVerifyWithOrderId(uint256 _chainId, uint256 _logIndex,
+        bytes32 _orderId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
+        require(!orderList[_orderId], "order exist");
+        require(_chainId == relayChainId, "invalid chain id");
+        (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(
+            _receiptProof
+        );
+        require(success, message);
+        bytes32 hash = keccak256(logArray);
+        require(!storedOrderId[hash], "already verified");
+        storedOrderId[hash] = true;
+        emit mapSwapInVerified(logArray);
+    }
+
+    function swapInVerified(bytes calldata logArray, uint256 logIndex, bytes32 _orderId) external nonReentrant whenNotPaused {
+        require(!orderList[_orderId], "order exist");
         bytes32 hash = keccak256(logArray);
         require(storedOrderId[hash], "not verified");
-        _swapInVerifiedWithIndex(logArray,logIndex);
+        _swapInVerifiedWithIndex(logArray, logIndex);
+    }
+
+    // execute stored swap in logs
+    function swapInVerifiedWithIndex(bytes calldata logArray, uint256 logIndex) external nonReentrant whenNotPaused {
+        bytes32 hash = keccak256(logArray);
+        require(storedOrderId[hash], "not verified");
+        _swapInVerifiedWithIndex(logArray, logIndex);
     }
 
     function isMintable(address _token) public view returns (bool) {
