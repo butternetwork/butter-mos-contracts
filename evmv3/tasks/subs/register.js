@@ -360,6 +360,45 @@ task("register:updateTokenChains", "update token target chain")
         console.log(`update token [${taskArgs.token}] chains success`);
     });
 
+task("register:setWhitelistFee", "set to chain token outFee")
+    .addParam("sender", "sender address")
+    .addParam("from", "from chain id")
+    .addParam("to", "to chain id")
+    .addParam("rate", "fee rate")
+    .addParam("whitelist", "whitelist", false, types.boolean)
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
+    .addOptionalParam("update", "update token config", "false", types.boolean)
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        // console.log("deployer address:", deployer.address);
+
+        let register = await getRegister(hre.network.name, taskArgs.v2);
+
+        let fromChain = await getChain(taskArgs.from);
+        let toChain = await getChain(taskArgs.to);
+
+        let rate = ethers.utils.parseUnits(taskArgs.rate, 6);
+
+        let info = await register.getWhitelistCallerFeeRate(fromChain.chainId, toChain.chainId, taskArgs.sender);
+        if (taskArgs.whitelist === info[0] && rate.eq(info[1])) {
+            console.log(`sender [${taskArgs.sender}] from [${fromChain.chain}] to [${toChain.chain}] rate no update`);
+            return;
+        } else if (taskArgs.whitelist === info[0] && taskArgs.whitelist === false) {
+            console.log(`sender [${taskArgs.sender}] from [${fromChain.chain}] to [${toChain.chain}] rate no update`);
+            return;
+        }
+
+        console.log(`${taskArgs.chain} => on-chain whitelist(${info[0]}), rate(${info[1]}) `);
+        console.log(`\tconfig whitelist(${taskArgs.whitelist}), rate(${rate})`);
+        if (taskArgs.update) {
+            await register.setWhitelistFeeRate(fromChain.chainId, toChain.chainId, taskArgs.sender, rate, taskArgs.whitelist);
+            console.log(`set sender [${taskArgs.sender}] from [${fromChain.chain}] to [${toChain.chain}] rate success`);
+        }
+
+        // await register.setTokenFee(taskArgs.token, taskArgs.from, taskArgs.lowest, taskArgs.highest, taskArgs.rate);
+    });
+
 task("register:update", "update token bridge and fee to target chain")
     .addOptionalParam("chain", "chain name", "", types.string)
     .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
@@ -504,14 +543,23 @@ task("register:grantRole", "set token outFee")
 
 task("register:getFee", "get token fees")
     .addOptionalParam("token", "The token name", "wtoken", types.string)
+    .addOptionalParam("caller", "call address", "", types.string)
     .addParam("from", "from chain")
     .addParam("to", "to chain")
     .addParam("amount", "token amount")
     .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
         let register = await getRegister(hre.network.name, taskArgs.v2);
 
         outputAddr = false;
+
+        let caller = taskArgs.caller;
+        if (caller === "") {
+            caller = deployer.address;
+        }
 
         console.log(`\ntoken: ${taskArgs.token}`);
         let fromChain = await getChain(taskArgs.from);
@@ -576,10 +624,12 @@ task("register:getFee", "get token fees")
             amount
         );
 
-        let swapInfo = await register.getBridgeFeeInfo(fromChain.chainId, fromToken, amount, toChain.chainId, true);
-        let bridgeInfo = await register.getBridgeFeeInfo(fromChain.chainId, fromToken, amount, toChain.chainId, false);
+        let swapInfo = await register.getBridgeFeeInfoV3(caller, fromToken, fromChain.chainId, amount, toChain.chainId, true);
 
-        let swapFee = await register.getTransferFeeV2(
+        let bridgeInfo = await register.getBridgeFeeInfoV3(caller, fromToken, fromChain.chainId, amount, toChain.chainId, false);
+
+        let swapFee = await register.getTransferFeeV3(
+            caller,
             relayToken,
             relayAmount,
             fromChain.chainId,
@@ -618,7 +668,7 @@ task("register:getFee", "get token fees")
             `bridge: receive [${ethers.utils.formatUnits(
                 relayAmount.sub(bridgeFee[0]),
                 18
-            )}], base fee [${ethers.utils.formatUnits(bridgeFee[1], 18)}], service fee [${ethers.utils.formatUnits(
+            )}], base fee [${ethers.utils.formatUnits(bridgeFee[1], 18)}], bridge fee [${ethers.utils.formatUnits(
                 bridgeFee[2],
                 18
             )}]`
@@ -627,7 +677,7 @@ task("register:getFee", "get token fees")
             `  swap: receive [${ethers.utils.formatUnits(
                 relayAmount.sub(swapFee[0]),
                 18
-            )}], base fee [${ethers.utils.formatUnits(swapFee[1], 18)}], service fee [${ethers.utils.formatUnits(
+            )}], base fee [${ethers.utils.formatUnits(swapFee[1], 18)}], bridge fee [${ethers.utils.formatUnits(
                 swapFee[2],
                 18
             )}]`

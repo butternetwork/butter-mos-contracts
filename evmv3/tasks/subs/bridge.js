@@ -461,6 +461,7 @@ task("bridge:grantRole", "grant role")
     });
 
 task("bridge:transferOut", "Cross-chain transfer token")
+    .addOptionalParam("initiator", "The initiator", "", types.string)
     .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
     .addOptionalParam("receiver", "The receiver address", "", types.string)
     .addOptionalParam("chain", "The receiver chain", "22776", types.string)
@@ -475,6 +476,11 @@ task("bridge:transferOut", "Cross-chain transfer token")
         let target = await getChain(taskArgs.chain);
         let targetChainId = target.chainId;
         console.log("target chain:", targetChainId);
+
+        let initiator = taskArgs.initiator;
+        if (initiator === "") {
+            initiator = deployer.address;
+        }
 
         let receiver = taskArgs.receiver;
         if (taskArgs.receiver === "") {
@@ -516,12 +522,12 @@ task("bridge:transferOut", "Cross-chain transfer token")
         let rst;
         if (taskArgs.gas === 0) {
             rst = await (
-                await bridge.swapOutToken(deployer.address, tokenAddr, receiver, value, targetChainId, "0x", {
+                await bridge.swapOutToken(initiator, tokenAddr, receiver, value, targetChainId, "0x", {
                     value: fee,
                 })
             ).wait();
         } else {
-            rst = await bridge.swapOutToken(deployer.address, tokenAddr, receiver, value, targetChainId, "0x", {
+            rst = await bridge.swapOutToken(initiator, tokenAddr, receiver, value, targetChainId, "0x", {
                 value: fee,
                 gasLimit: taskArgs.gas,
             });

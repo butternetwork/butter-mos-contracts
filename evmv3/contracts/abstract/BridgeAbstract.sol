@@ -305,6 +305,9 @@ abstract contract BridgeAbstract is
     ) internal returns (SwapParam memory param, BridgeParam memory bridge, uint256 messageFee) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         param.from = _initiator;
+        param.fromBytes = abi.encodePacked(_initiator);
+        param.caller = abi.encodePacked(msg.sender);
+
         param.toBytes = _to;
         param.toChain = _toChain;
         param.amount = _amount;

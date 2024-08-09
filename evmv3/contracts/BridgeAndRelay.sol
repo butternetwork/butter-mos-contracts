@@ -145,7 +145,7 @@ contract BridgeAndRelay is BridgeAbstract {
             orderId = _getOrderId(param.from, param.toBytes, param.toChain);
             uint256 mapOutAmount;
             (param.relayOutAmount, param.toAmount, param.baseFee) = _collectFee(
-                abi.encodePacked(msg.sender),
+                param.caller,
                 param.token,
                 param.amount,
                 selfChainId,
@@ -158,7 +158,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 toToken,
                 param.toAmount,
                 param.toBytes,
-                abi.encodePacked(param.from),
+                param.fromBytes,
                 bridge.swapData
             );
             IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
@@ -172,7 +172,7 @@ contract BridgeAndRelay is BridgeAbstract {
             if (param.toChain == adaptorChainId) {
                 IAdapter(adaptor).transferOut{value: messageFee}(param.toChain, abi.encode(messageData), selfChainId);
             } else {
-                mos.transferOut{value: messageFee}(param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
+                mos.messageOut{value: messageFee}(0x00, param.from, Helper.ZERO_ADDRESS, param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
             }
             emit CollectFee(orderId, param.token, (_amount - mapOutAmount));
         }
@@ -231,6 +231,29 @@ contract BridgeAndRelay is BridgeAbstract {
         bool _withSwap
     ) external view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 vaultBalance) {
         return tokenRegister.getBridgeFeeInfoV3(_caller, _fromToken, _fromChain, _fromAmount, _toChain, _withSwap);
+    }
+
+    function getSourceFeeByTarget(
+        bytes memory _caller,
+        bytes memory _targetToken,
+        uint256 _targetChain,
+        uint256 _targetAmount,
+        uint256 _fromChain,
+        bool _withSwap
+    )
+        external
+        view
+        returns (uint256 fromChainFee, uint256 toChainAmount, uint256 vaultBalance, bytes memory fromChainToken)
+    {
+        return
+            tokenRegister.getSourceFeeByTargetV3(
+                _caller,
+                _targetToken,
+                _targetChain,
+                _targetAmount,
+                _fromChain,
+                _withSwap
+            );
     }
 
     function _deposit(
@@ -357,11 +380,11 @@ contract BridgeAndRelay is BridgeAbstract {
     ) private returns (uint256 relayOutAmount, uint256 outAmount, uint256 baseFee) {
         address vaultToken = tokenRegister.getVaultToken(_token);
         require(vaultToken != address(0), "vault token not registered");
-        uint256 proportionFee;
+        uint256 bridgeFee;
         uint256 excludeVaultFee = 0;
         {
             uint256 totalFee;
-            (totalFee, baseFee, proportionFee) = tokenRegister.getTransferFeeV3(
+            (totalFee, baseFee, bridgeFee) = tokenRegister.getTransferFee(
                 _caller,
                 _token,
                 _relayAmount,
@@ -373,10 +396,10 @@ contract BridgeAndRelay is BridgeAbstract {
                 relayOutAmount = _relayAmount - totalFee;
                 outAmount = tokenRegister.getToChainAmount(_token, relayOutAmount, _toChain);
             } else if (_relayAmount >= baseFee) {
-                proportionFee = _relayAmount - baseFee;
+                bridgeFee = _relayAmount - baseFee;
             } else {
                 baseFee = _relayAmount;
-                proportionFee = 0;
+                bridgeFee = 0;
             }
             excludeVaultFee = baseFee;
             if (baseFee != 0) {
@@ -384,8 +407,8 @@ contract BridgeAndRelay is BridgeAbstract {
                 _withdraw(_token, baseFeeReceiver, baseFee);
             }
         }
-        if (proportionFee > 0) {
-            excludeVaultFee += _collectServiceFee(_token, proportionFee);
+        if (bridgeFee > 0) {
+            excludeVaultFee += _collectServiceFee(_token, bridgeFee);
         }
         // left for vault fee
         IVaultTokenV3(vaultToken).transferToken(

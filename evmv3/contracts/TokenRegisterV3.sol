@@ -50,7 +50,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     address private baseFeeReceiver;
 
     // hash(fromChain,caller) => toChain => rate;
-    mapping(bytes32 => mapping(uint256 => uint256)) public whitelistFee;
+    mapping(bytes32 => mapping(uint256 => uint256)) public toChainFeeList;
 
     modifier checkAddress(address _address) {
         require(_address != address(0), "register: address is zero");
@@ -205,9 +205,9 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         require(_rate <= MAX_RATE_UNI, "register: invalid proportion value");
         bytes32 key = _getKey(_fromChain, _caller);
         if (_isWhitelist) {
-            whitelistFee[key][_toChain] = (_rate << 1) | 0x01;
+            toChainFeeList[key][_toChain] = (_rate << 1) | 0x01;
         } else {
-            whitelistFee[key][_toChain] = 0;
+            toChainFeeList[key][_toChain] = 0;
         }
     }
 
@@ -402,7 +402,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _toChain,
         bool _withSwap
     ) external view override returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault) {
-        return _getBridgeFeeInfo(_caller, _fromToken, _fromChain, _fromAmount, _toChain, _withSwap);
+        return _getBridgeFeeInfo(bytes(""), _fromToken, _fromChain, _fromAmount, _toChain, _withSwap);
     }
 
     function _getBridgeFeeInfo(
@@ -496,7 +496,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         bytes memory _caller
     ) public view returns (bool isWhitelist, uint256 rate) {
         bytes32 key = _getKey(_fromChain, _caller);
-        uint256 whitelistRate = whitelistFee[key][_toChain];
+        uint256 whitelistRate = toChainFeeList[key][_toChain];
         isWhitelist = (whitelistRate != 0);
         rate = whitelistRate >> 1;
     }

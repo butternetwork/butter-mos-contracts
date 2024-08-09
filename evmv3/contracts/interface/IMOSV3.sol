@@ -17,7 +17,7 @@ interface IMOSV3 {
     // @notice This is the configuration you need across the chain.
     // @param relay - When it is true, the relay chain is required to perform a special execution to continue across the chain.
     // @param msgType - Different execution patterns of messages across chains.
-    // @param target - The contract address of the target chain.
+    // @param target - The target contract address of the target chain.
     // @param payload - Cross-chain data.
     // @param gasLimit - The gasLimit allowed to be consumed by an operation performed on the target chain.
     // @param value - Collateral value cross-chain, currently not supported, default is 0.
@@ -38,7 +38,7 @@ interface IMOSV3 {
         uint256 toChain,
         address feeToken,
         uint256 gasLimit
-    ) external view returns (uint256, address);
+    ) external view returns (uint256 fee, address receiver);
 
     function getOrderStatus(
         uint256 _chainId,
@@ -46,7 +46,25 @@ interface IMOSV3 {
         bytes32 _orderId
     ) external view returns (bool exists, bool verifiable, uint256 nodeType);
 
-    // @notice Initiate cross-chain transactions. Generate cross-chain logs.
+    // @notice Initiate omni-chain message.
+    // @param transferId - Custom identifier provided by the caller.
+    //        transferId will be reflected in the event and allows for queries based on the transferId.
+    //          Omnichain service does not check for the uniqueness of the transferId.
+    // @param initiator - The actual address of the message initiator, which is typically a user address.
+    // @param referrer - Custom parameter provided by the caller, which can serve as an identifier for the caller.
+    // @param toChain - Target chain chainID.
+    // @param messageData - Structure MessageData encoding.
+    // @param feeToken - In what Token would you like to pay the fee.
+    function messageOut(
+        bytes32 transferId,
+        address initiator,
+        address referrer,
+        uint256 toChain,
+        bytes memory messageData,
+        address feeToken
+    ) external payable returns (bytes32);
+
+    // @notice Initiate omni-chain message. It is recommended to use messageOut instead.
     // @param toChain - Target chain chainID.
     // @param messageData - Structure MessageData encoding.
     // @param feeToken - In what Token would you like to pay the fee.
@@ -72,20 +90,20 @@ interface IMOSV3 {
         bytes memory fromAddress
     ) external view returns (bool);
 
-    event mapMessageOut(
+    event MessageOut(
         uint256 indexed fromChain,
         uint256 indexed toChain,
         bytes32 orderId,
         bytes fromAddrss,
-        bytes callData
+        bytes messageData
     );
 
-    event mapMessageIn(
+    event MessageIn(
         uint256 indexed fromChain,
         uint256 indexed toChain,
         bytes32 orderId,
         bytes fromAddrss,
-        bytes callData,
+        bytes messageData,
         bool result,
         bytes reason
     );

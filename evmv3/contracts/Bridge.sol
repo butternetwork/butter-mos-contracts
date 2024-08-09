@@ -67,10 +67,10 @@ contract Bridge is BridgeAbstract {
                 param.gasLimit,
                 abi.encodePacked(param.token),
                 param.amount,
-                abi.encodePacked(param.from),
+                param.fromBytes,
                 param.toBytes,
                 bridge.swapData,
-                abi.encodePacked(msg.sender) // for caller
+                param.caller // for caller
             );
             payload = abi.encode(OutType.SWAP, payload);
             IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
@@ -81,7 +81,7 @@ contract Bridge is BridgeAbstract {
                 gasLimit: param.gasLimit,
                 value: 0
             });
-            orderId = mos.transferOut{value: messageFee}(param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
+            orderId = mos.messageOut{value: messageFee}(0x00, param.from, Helper.ZERO_ADDRESS, param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
         }
         emit SwapOut(
             orderId,
