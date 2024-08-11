@@ -3,18 +3,15 @@
 pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightNode.sol";
 import "@mapprotocol/protocol/contracts/utils/Utils.sol";
-import "@mapprotocol/protocol/contracts/lib/RLPReader.sol";
 import "./interface/IWrappedToken.sol";
 import "./interface/IMintableToken.sol";
 import "./interface/IButterReceiver.sol";
@@ -281,18 +278,18 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         emit mapSwapInVerified(logArray);
     }
 
-    function swapInVerified(bytes calldata logArray, uint256 logIndex, bytes32 _orderId) external nonReentrant whenNotPaused {
+    function swapInVerified(bytes calldata _logArray, uint256 _logIndex, bytes32 _orderId) external nonReentrant whenNotPaused {
         require(!orderList[_orderId], "order exist");
-        bytes32 hash = keccak256(logArray);
+        bytes32 hash = keccak256(_logArray);
         require(storedOrderId[hash], "not verified");
-        _swapInVerifiedWithIndex(logArray, logIndex);
+        _swapInVerifiedWithIndex(_logArray, _logIndex);
     }
 
     // execute stored swap in logs
-    function swapInVerifiedWithIndex(bytes calldata logArray, uint256 logIndex) external nonReentrant whenNotPaused {
-        bytes32 hash = keccak256(logArray);
+    function swapInVerifiedWithIndex(bytes calldata _logArray, uint256 _logIndex) external nonReentrant whenNotPaused {
+        bytes32 hash = keccak256(_logArray);
         require(storedOrderId[hash], "not verified");
-        _swapInVerifiedWithIndex(logArray, logIndex);
+        _swapInVerifiedWithIndex(_logArray, _logIndex);
     }
 
     function isMintable(address _token) public view returns (bool) {
@@ -315,14 +312,6 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
 
     function _getOrderID(address _from, bytes memory _to, uint256 _toChain) internal returns (bytes32) {
         return keccak256(abi.encodePacked(address(this), nonce++, selfChainId, _toChain, _from, _to));
-    }
-
-    function _swapInVerified(bytes memory logArray) private {
-        IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
-        for (uint256 i = 0; i < logs.length; i++) {
-            IEvent.txLog memory log = logs[i];
-            _swapIn(log);
-        }
     }
 
     function _swapInVerifiedWithIndex(bytes memory logArray, uint256 logIndex) private {

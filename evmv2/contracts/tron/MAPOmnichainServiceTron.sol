@@ -104,7 +104,7 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
         uint256 feeAmount = rootChainManager.feeAmount();
 
         if (address(feeToken) != address(0x0) && (feeAmount > 0)) {
-            SafeERC20.safeTransferFrom(ERC20(feeToken), _payer, address(this), feeAmount);
+            SafeERC20.safeTransferFrom(IERC20(feeToken), _payer, address(this), feeAmount);
             IERC20(feeToken).approve(address(rootChainManager), feeAmount);
         }
     }
