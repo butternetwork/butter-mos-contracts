@@ -52,6 +52,9 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     // hash(fromChain,caller) => toChain => rate;
     mapping(bytes32 => mapping(uint256 => uint256)) public toChainFeeList;
 
+    // hash(fromChain,caller) => rate;
+    mapping(bytes32 => uint256) public fromChainFeeList;
+
     modifier checkAddress(address _address) {
         require(_address != address(0), "register: address is zero");
         _;
@@ -81,6 +84,21 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _lowest,
         uint256 _highest,
         uint256 _rate
+    );
+
+    event SetToChainWhitelistFeeRate(
+        uint256 _fromChain,
+        uint256 _toChain,
+        bytes  _caller,
+        uint256 _rate,
+        bool _isWhitelist
+    );
+
+    event SetFromChainWhitelistFeeRate(
+        uint256 _fromChain,
+        bytes  _caller,
+        uint256 _rate,
+        bool _isWhitelist
     );
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -195,7 +213,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         emit SetBaseFee(_token, _toChain, _withSwap, _noSwap);
     }
 
-    function setWhitelistFeeRate(
+    function setToChainWhitelistFeeRate(
         uint256 _fromChain,
         uint256 _toChain,
         bytes calldata _caller,
@@ -209,6 +227,25 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         } else {
             toChainFeeList[key][_toChain] = 0;
         }
+
+        emit SetToChainWhitelistFeeRate(_fromChain, _toChain, _caller, _rate, _isWhitelist);
+    }
+
+
+    function setFromChainWhitelistFeeRate(
+        uint256 _fromChain,
+        bytes calldata _caller,
+        uint256 _rate,
+        bool _isWhitelist
+    ) external onlyRole(MANAGER_ROLE) {
+        require(_rate <= MAX_RATE_UNI, "register: invalid proportion value");
+        bytes32 key = _getKey(_fromChain, _caller);
+        if (_isWhitelist) {
+            fromChainFeeList[key] = (_rate << 1) | 0x01;
+        } else {
+            fromChainFeeList[key] = 0;
+        }
+        emit SetFromChainWhitelistFeeRate(_fromChain, _caller, _rate, _isWhitelist);
     }
 
     // --------------------------------------------------------
@@ -496,9 +533,31 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         bytes memory _caller
     ) public view returns (bool isWhitelist, uint256 rate) {
         bytes32 key = _getKey(_fromChain, _caller);
-        uint256 whitelistRate = toChainFeeList[key][_toChain];
-        isWhitelist = (whitelistRate != 0);
-        rate = whitelistRate >> 1;
+        uint256 toChainWhitelistRate = toChainFeeList[key][_toChain];
+        uint256 fromChainWhitelistRate = fromChainFeeList[key];
+        isWhitelist = (toChainWhitelistRate != 0) || (fromChainWhitelistRate != 0);
+        rate = (toChainWhitelistRate >> 1) + (fromChainWhitelistRate >> 1);
+    }
+
+    function getTochainWhitelistCallerFeeRate(
+        uint256 _fromChain,
+        uint256 _toChain,
+        bytes memory _caller
+    ) external view returns (bool isWhitelist, uint256 rate) {
+        bytes32 key = _getKey(_fromChain, _caller);
+        uint256 toChainWhitelistRate = toChainFeeList[key][_toChain];
+        isWhitelist = (toChainWhitelistRate != 0);
+        rate = toChainWhitelistRate >> 1;
+    }
+
+    function getFromChainWhitelistCallerFeeRate(
+        uint256 _fromChain,
+        bytes memory _caller
+    ) external view returns (bool isWhitelist, uint256 rate) {
+        bytes32 key = _getKey(_fromChain, _caller);
+        uint256 fromChainWhitelistRate = fromChainFeeList[key];
+        isWhitelist = (fromChainWhitelistRate != 0);
+        rate = fromChainWhitelistRate >> 1;
     }
 
     function getVaultBalance(address _token, uint256 _chainId) public view returns (uint256) {

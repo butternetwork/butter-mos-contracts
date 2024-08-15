@@ -147,6 +147,22 @@ async function getTokensFromFile(network) {
     return tokens;
 }
 
+async function getFeeConfig(subject) {
+    let p = path.join(__dirname, "../constants/feeConfig.json");
+    let configs;
+    if (!fs.existsSync(p)) {
+        tokens = {};
+        configs[subject] = {};
+    } else {
+        let rawdata = fs.readFileSync(p);
+        configs = JSON.parse(rawdata);
+        if (!configs[subject]) {
+            configs[subject] = {};
+        }
+    }
+    return configs[subject];
+}
+
 module.exports = {
     getChain,
     getToken,
@@ -156,4 +172,5 @@ module.exports = {
     getChainList,
     stringToHex,
     getFeeList,
+    getFeeConfig
 };
