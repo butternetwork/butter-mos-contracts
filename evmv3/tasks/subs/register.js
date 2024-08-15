@@ -452,7 +452,7 @@ task("register:updateWhitelistFee", "update whitelist fee")
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
-        let config = await getFeeConfig(taskArgs.subject,hre.network.name);
+        let config = await getFeeConfig(taskArgs.subject);
         if(!config){
             console.log("fee config not set");
             return;
