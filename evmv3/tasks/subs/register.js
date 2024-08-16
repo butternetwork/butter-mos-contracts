@@ -1,5 +1,13 @@
 let { create, toHex, fromHex, readFromFile, writeToFile } = require("../../utils/create.js");
-const { getToken, stringToHex, getFeeList, getChain, getChainList, getFeeInfo } = require("../../utils/helper");
+const { 
+    getToken, 
+    stringToHex, 
+    getFeeList, 
+    getChain, 
+    getChainList, 
+    getFeeInfo,
+    getFeeConfig
+ } = require("../../utils/helper");
 const { task } = require("hardhat/config");
 
 let outputAddr = true;
@@ -360,7 +368,7 @@ task("register:updateTokenChains", "update token target chain")
         console.log(`update token [${taskArgs.token}] chains success`);
     });
 
-task("register:setWhitelistFee", "set to chain token outFee")
+task("register:setToChainWhitelistFee", "set to chain token outFee")
     .addParam("sender", "sender address")
     .addParam("from", "from chain id")
     .addParam("to", "to chain id")
@@ -380,7 +388,7 @@ task("register:setWhitelistFee", "set to chain token outFee")
 
         let rate = ethers.utils.parseUnits(taskArgs.rate, 6);
 
-        let info = await register.getWhitelistCallerFeeRate(fromChain.chainId, toChain.chainId, taskArgs.sender);
+        let info = await register.getTochainWhitelistCallerFeeRate(fromChain.chainId, toChain.chainId, taskArgs.sender);
         if (taskArgs.whitelist === info[0] && rate.eq(info[1])) {
             console.log(`sender [${taskArgs.sender}] from [${fromChain.chain}] to [${toChain.chain}] rate no update`);
             return;
@@ -392,11 +400,97 @@ task("register:setWhitelistFee", "set to chain token outFee")
         console.log(`${taskArgs.chain} => on-chain whitelist(${info[0]}), rate(${info[1]}) `);
         console.log(`\tconfig whitelist(${taskArgs.whitelist}), rate(${rate})`);
         if (taskArgs.update) {
-            await register.setWhitelistFeeRate(fromChain.chainId, toChain.chainId, taskArgs.sender, rate, taskArgs.whitelist);
+            await register.setToChainWhitelistFeeRate(fromChain.chainId, toChain.chainId, taskArgs.sender, rate, taskArgs.whitelist);
             console.log(`set sender [${taskArgs.sender}] from [${fromChain.chain}] to [${toChain.chain}] rate success`);
         }
 
         // await register.setTokenFee(taskArgs.token, taskArgs.from, taskArgs.lowest, taskArgs.highest, taskArgs.rate);
+    });
+
+task("register:setFromChainWhitelistFee", "set to chain token outFee")
+    .addParam("sender", "sender address")
+    .addParam("from", "from chain id")
+    .addParam("rate", "fee rate")
+    .addParam("whitelist", "whitelist", false, types.boolean)
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
+    .addOptionalParam("update", "update token config", "false", types.boolean)
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        // console.log("deployer address:", deployer.address);
+
+        let register = await getRegister(hre.network.name, taskArgs.v2);
+
+        let fromChain = await getChain(taskArgs.from);
+        let toChain = await getChain(taskArgs.to);
+
+        let rate = ethers.utils.parseUnits(taskArgs.rate, 6);
+
+        let info = await register.getFromChainWhitelistCallerFeeRate(fromChain.chainId, taskArgs.sender);
+        if (taskArgs.whitelist === info[0] && rate.eq(info[1])) {
+            console.log(`sender [${taskArgs.sender}] from [${fromChain.chain}] rate no update`);
+            return;
+        } else if (taskArgs.whitelist === info[0] && taskArgs.whitelist === false) {
+            console.log(`sender [${taskArgs.sender}] from [${fromChain.chain}] rate no update`);
+            return;
+        }
+
+        console.log(`${taskArgs.chain} => on-chain whitelist(${info[0]}), rate(${info[1]}) `);
+        console.log(`\tconfig whitelist(${taskArgs.whitelist}), rate(${rate})`);
+        if (taskArgs.update) {
+            await register.setFromChainWhitelistFeeRate(fromChain.chainId, taskArgs.sender, rate, taskArgs.whitelist);
+            console.log(`set sender [${taskArgs.sender}] from [${fromChain.chain}] to [${toChain.chain}] rate success`);
+        }
+
+        // await register.setTokenFee(taskArgs.token, taskArgs.from, taskArgs.lowest, taskArgs.highest, taskArgs.rate);
+    });
+
+task("register:updateWhitelistFee", "update whitelist fee")
+    .addParam("subject", "subject")
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
+    .addOptionalParam("update", "update token config", "false", types.boolean)
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        let config = await getFeeConfig(taskArgs.subject);
+        if(!config){
+            console.log("fee config not set");
+            return;
+        }
+        let keys = Object.keys(config);
+        for (let index = 0; index < keys.length; index++) {
+            let key = keys[index]
+            let fee = config[key];
+            let chain = await getChain(key);
+            let sender = fee["address"]
+            let fromFee = fee["fromChainFee"];
+            if(fromFee){
+                await hre.run("register:setFromChainWhitelistFee", {
+                    sender: sender,
+                    from: chain.chainId,
+                    rate: fromFee["rate"],
+                    whitelist: fromFee["whitelist"],
+                    v2: taskArgs.v2,
+                    update: taskArgs.update
+                });
+            }
+            let toChainFeeList = fee["toChainFee"] 
+            if(toChainFeeList) {
+               for (let i = 0; i < toChainFeeList.length; i++) {
+                 let toChainFee = toChainFeeList[i];
+                 let toChain = await getChain(toChainFee.toChain);
+                 await hre.run("register:setToChainWhitelistFee", {
+                    sender: sender,
+                    from: chain.chainId,
+                    to: toChain.chainId,
+                    rate: toChainFee.rate,
+                    whitelist: toChainFee.whitelist,
+                    v2: taskArgs.v2,
+                    update: taskArgs.update
+                });
+               }
+            }
+        }
     });
 
 task("register:update", "update token bridge and fee to target chain")
