@@ -369,6 +369,7 @@ task("register:updateTokenChains", "update token target chain")
     });
 
 task("register:setToChainWhitelistFee", "set to chain token outFee")
+    .addParam("token", "relay chain token address")
     .addParam("sender", "sender address")
     .addParam("from", "from chain id")
     .addParam("to", "to chain id")
@@ -388,26 +389,25 @@ task("register:setToChainWhitelistFee", "set to chain token outFee")
 
         let rate = ethers.utils.parseUnits(taskArgs.rate, 6);
 
-        let info = await register.getTochainWhitelistCallerFeeRate(fromChain.chainId, toChain.chainId, taskArgs.sender);
+        let info = await register.getTochainWhitelistCallerFeeRate(taskArgs.token, fromChain.chainId, toChain.chainId, taskArgs.sender);
         if (taskArgs.whitelist === info[0] && rate.eq(info[1])) {
-            console.log(`sender [${taskArgs.sender}] from [${fromChain.chain}] to [${toChain.chain}] rate no update`);
+            console.log(`sender [${taskArgs.sender}] token[${taskArgs.token}]  from [${fromChain.chain}] to [${toChain.chain}] rate no update`);
             return;
         } else if (taskArgs.whitelist === info[0] && taskArgs.whitelist === false) {
-            console.log(`sender [${taskArgs.sender}] from [${fromChain.chain}] to [${toChain.chain}] rate no update`);
+            console.log(`sender [${taskArgs.sender}] token[${taskArgs.token}]  from [${fromChain.chain}] to [${toChain.chain}] rate no update`);
             return;
         }
 
         console.log(`${taskArgs.chain} => on-chain whitelist(${info[0]}), rate(${info[1]}) `);
         console.log(`\tconfig whitelist(${taskArgs.whitelist}), rate(${rate})`);
         if (taskArgs.update) {
-            await register.setToChainWhitelistFeeRate(fromChain.chainId, toChain.chainId, taskArgs.sender, rate, taskArgs.whitelist);
-            console.log(`set sender [${taskArgs.sender}] from [${fromChain.chain}] to [${toChain.chain}] rate success`);
+            await register.setToChainWhitelistFeeRate(taskArgs.token, fromChain.chainId, toChain.chainId, taskArgs.sender, rate, taskArgs.whitelist);
+            console.log(`set  sender [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.chain}] to [${toChain.chain}] rate success`);
         }
-
-        // await register.setTokenFee(taskArgs.token, taskArgs.from, taskArgs.lowest, taskArgs.highest, taskArgs.rate);
     });
 
 task("register:setFromChainWhitelistFee", "set to chain token outFee")
+    .addParam("token", "relay chain token address")
     .addParam("sender", "sender address")
     .addParam("from", "from chain id")
     .addParam("rate", "fee rate")
@@ -426,20 +426,20 @@ task("register:setFromChainWhitelistFee", "set to chain token outFee")
 
         let rate = ethers.utils.parseUnits(taskArgs.rate, 6);
 
-        let info = await register.getFromChainWhitelistCallerFeeRate(fromChain.chainId, taskArgs.sender);
+        let info = await register.getFromChainWhitelistCallerFeeRate(taskArgs.token, fromChain.chainId, taskArgs.sender);
         if (taskArgs.whitelist === info[0] && rate.eq(info[1])) {
-            console.log(`sender [${taskArgs.sender}] from [${fromChain.chain}] rate no update`);
+            console.log(`sender [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.chain}] rate no update`);
             return;
         } else if (taskArgs.whitelist === info[0] && taskArgs.whitelist === false) {
-            console.log(`sender [${taskArgs.sender}] from [${fromChain.chain}] rate no update`);
+            console.log(`sender [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.chain}] rate no update`);
             return;
         }
 
         console.log(`${taskArgs.chain} => on-chain whitelist(${info[0]}), rate(${info[1]}) `);
         console.log(`\tconfig whitelist(${taskArgs.whitelist}), rate(${rate})`);
         if (taskArgs.update) {
-            await register.setFromChainWhitelistFeeRate(fromChain.chainId, taskArgs.sender, rate, taskArgs.whitelist);
-            console.log(`set sender [${taskArgs.sender}] from [${fromChain.chain}] to [${toChain.chain}] rate success`);
+            await register.setFromChainWhitelistFeeRate(taskArgs.token, fromChain.chainId, taskArgs.sender, rate, taskArgs.whitelist);
+            console.log(`set sender [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.chain}] to [${toChain.chain}] rate success`);
         }
 
         // await register.setTokenFee(taskArgs.token, taskArgs.from, taskArgs.lowest, taskArgs.highest, taskArgs.rate);
@@ -458,37 +458,46 @@ task("register:updateWhitelistFee", "update whitelist fee")
             return;
         }
         let keys = Object.keys(config);
-        for (let index = 0; index < keys.length; index++) {
-            let key = keys[index]
-            let fee = config[key];
+        for (let i = 0; i < keys.length; i++) {
+            let key = keys[i]
+            let c = config[key];
+            let caller = c["caller"]
             let chain = await getChain(key);
-            let sender = fee["address"]
-            let fromFee = fee["fromChainFee"];
-            if(fromFee){
-                await hre.run("register:setFromChainWhitelistFee", {
-                    sender: sender,
-                    from: chain.chainId,
-                    rate: fromFee["rate"],
-                    whitelist: fromFee["whitelist"],
-                    v2: taskArgs.v2,
-                    update: taskArgs.update
-                });
-            }
-            let toChainFeeList = fee["toChainFee"] 
-            if(toChainFeeList) {
-               for (let i = 0; i < toChainFeeList.length; i++) {
-                 let toChainFee = toChainFeeList[i];
-                 let toChain = await getChain(toChainFee.toChain);
-                 await hre.run("register:setToChainWhitelistFee", {
-                    sender: sender,
-                    from: chain.chainId,
-                    to: toChain.chainId,
-                    rate: toChainFee.rate,
-                    whitelist: toChainFee.whitelist,
-                    v2: taskArgs.v2,
-                    update: taskArgs.update
-                });
-               }
+            let tokens = c["tokens"]
+            if(tokens) {
+                for (let j = 0; index < tokens.length; j++) {
+                    const element = array[j];
+                    let token = element.token
+                    let fromFee = element.fromChainFee;
+                    if(fromFee) {
+                        await hre.run("register:setFromChainWhitelistFee", {
+                            token: token,
+                            sender: caller,
+                            from: chain.chainId,
+                            rate: fromFee["rate"],
+                            whitelist: fromFee["whitelist"],
+                            v2: taskArgs.v2,
+                            update: taskArgs.update
+                        });
+                    }
+                    let toChainFeeList = element.toChainFee;
+                    if(toChainFeeList) {
+                        for (let k = 0; k < toChainFeeList.length; k++) {
+                          let toChainFee = toChainFeeList[k];
+                          let toChain = await getChain(toChainFee.toChain);
+                          await hre.run("register:setToChainWhitelistFee", {
+                             token: token,
+                             sender: caller,
+                             from: chain.chainId,
+                             to: toChain.chainId,
+                             rate: toChainFee.rate,
+                             whitelist: toChainFee.whitelist,
+                             v2: taskArgs.v2,
+                             update: taskArgs.update
+                         });
+                        }
+                     }
+                }
             }
         }
     });

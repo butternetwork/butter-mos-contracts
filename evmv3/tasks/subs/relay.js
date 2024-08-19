@@ -85,6 +85,19 @@ task("relay:setTokenRegister", "set token register")
         console.log("tokenRegister:", await relay.tokenRegister());
     });
 
+task("relay:setButterRouter", "set butter router address")
+    .addParam("router", "butter router address")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+
+        let relay = await getRelay(hre.network.name);
+
+        await (await relay.setButterRouter(taskArgs.router)).wait();
+        console.log("butterRouter:", await relay.butterRouter());
+    });
+
 task("relay:setDistributeRate", "set distribute rate")
     .addParam("id", "distribute id, 0 - vault, 1 - relayer, 2 - protocol")
     .addOptionalParam("receiver", "receiver address", "0x0000000000000000000000000000000000000DEF", types.string)

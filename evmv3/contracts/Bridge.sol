@@ -16,7 +16,9 @@ contract Bridge is BridgeAbstract {
     uint256 public relayChainId;
     address public relayContract;
     mapping(uint256 => bytes) public bridges;
+    address public butterRouter;
 
+    event SetButterRouter(address _butterRouter);
     event SetRelay(uint256 _chainId, address _relay);
     event RegisterChain(uint256 _chainId, bytes _address);
     event Deposit(
@@ -28,6 +30,11 @@ contract Bridge is BridgeAbstract {
         uint256 gasLimit,
         uint256 messageFee
     );
+
+    function setButterRouter(address _butterRouter) external onlyRole(MANAGER_ROLE) {
+        butterRouter = _butterRouter;
+        emit SetButterRouter(_butterRouter);
+    }
 
     function setRelay(uint256 _chainId, address _relay) external onlyRole(MANAGER_ROLE) checkAddress(_relay) {
         relayChainId = _chainId;
@@ -62,7 +69,7 @@ contract Bridge is BridgeAbstract {
             orderId = _interTransferAndCall(param, bridge, bridges[_toChain], messageFee);
         } else {
             _checkAndBurn(param.token, param.amount);
-
+            param.caller = (msg.sender == butterRouter) ? abi.encodePacked(_initiator) : abi.encodePacked(msg.sender);
             bytes memory payload = abi.encode(
                 param.gasLimit,
                 abi.encodePacked(param.token),

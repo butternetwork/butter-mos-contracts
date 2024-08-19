@@ -40,7 +40,6 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     mapping(bytes32 => bool) public orderList;
     mapping(address => bool) public mintableTokens;
     mapping(uint256 => mapping(address => bool)) public tokenMappingList;
-    //pre version,now placeholder the slot
     address public butterRouter;
 
     // reserved
@@ -51,6 +50,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     event SetButterRouterAddress(address indexed _newRouter);
 
     event mapTransferExecute(uint256 indexed fromChain, uint256 indexed toChain, address indexed from);
+    event SetButterRouter(address _butterRouter);
     event SetLightClient(address _lightNode);
     event SetWrappedToken(address wToken);
     event AddMintableToken(address[] _token);
@@ -114,6 +114,11 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         emit SetWrappedToken(_wToken);
     }
 
+    function setButterRouter(address _butterRouter) external onlyOwner {
+        butterRouter = _butterRouter;
+        emit SetButterRouter(_butterRouter);
+    }
+
     function addMintableToken(address[] memory _tokens) external onlyOwner {
         for (uint256 i = 0; i < _tokens.length; i++) {
             mintableTokens[_tokens[i]] = true;
@@ -172,7 +177,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         if (isMintable(_token)) {
             IMintableToken(_token).burn(_amount);
         }
-        orderId = _swapOut(_token, _to, msg.sender, _amount, _toChain, _swapData);
+        orderId = _swapOut(_token, _to, _initiatorAddress, _amount, _toChain, _swapData);
     }
 
     function swapOutNative(
@@ -193,7 +198,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWrappedToken(wToken).deposit{value: amount}();
-        orderId = _swapOut(wToken, _to, msg.sender, amount, _toChain, _swapData);
+        orderId = _swapOut(wToken, _to, _initiatorAddress, amount, _toChain, _swapData);
     }
 
     function depositToken(
@@ -402,6 +407,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     ) internal returns (bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         orderId = _getOrderID(msg.sender, _to, _toChain);
+        _from = (msg.sender == butterRouter) ? _from : msg.sender;
         _notifyLightClient(bytes(""));
         emit mapSwapOut(
             selfChainId,

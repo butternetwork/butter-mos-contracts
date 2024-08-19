@@ -1,37 +1,37 @@
 {
     "tw": {
         "Bsc": {
-            "address": "0x200AEe9ba7040d778922A763CE8A50948d61AFF5",
-            "fromChainFee": {"whitelist": true, "rate": "0.001"},
-            "toChainFee": [{"toChain": "Polygon","whitelist": false, "rate": "0"},{"toChain": "Eth","whitelist": false, "rate": "0"}]
+            "caller": "0x200AEe9ba7040d778922A763CE8A50948d61AFF5",
+            "tokens":
+                [
+                    {
+                        "token":"0x200AEe9ba7040d778922A763CE8A50948d61AFF5",
+                        "fromChainFee": {"whitelist": true, "rate": "0.001"},
+                        "toChainFee": [{"toChain": "Polygon","whitelist": false, "rate": "0"},{"toChain": "Eth","whitelist": false, "rate": "0"}]
+                    }
+                ]
         },
         "Polygon": {
-            "address": "0x200AEe9ba7040d778922A763CE8A50948d61AFF5",
-            "toChainFee": [{"toChain": "Bsc","whitelist": false, "rate": "0"},{"toChain": "Eth","whitelist": false, "rate": "0"}]
-            
+            "caller": "0x200AEe9ba7040d778922A763CE8A50948d61AFF5",
+            "tokens":
+                [
+                    {
+                        "token":"0x200AEe9ba7040d778922A763CE8A50948d61AFF5",
+                        "toChainFee": [{"toChain": "Bsc","whitelist": false, "rate": "0"},{"toChain": "Eth","whitelist": false, "rate": "0"}]
+                    }
+                ]
         },
         "Eth": {
-            "address": "0x200AEe9ba7040d778922A763CE8A50948d61AFF5",
-            "fromChainFee": {"whitelist": true, "rate": "0"}
-        }
-    },
-    "manager": {
-        "Bsc": {
-            "address": "0x200AEe9ba7040d778922A763CE8A50948d61AFF5",
-            "fromChainFee": {"whitelist": true, "rate": "0.001"},
-            "toChainFee": [{"toChain": "Polygon","whitelist": false, "rate": "0"},{"toChain": "Eth","whitelist": false, "rate": "0"}]
-        },
-        "Polygon": {
-            "address": "0x200AEe9ba7040d778922A763CE8A50948d61AFF5",
-            "toChainFee": [{"toChain": "Bsc","whitelist": false, "rate": "0"},{"toChain": "Eth","whitelist": false, "rate": "0"}]
-            
-        },
-        "Eth": {
-            "address": "0x200AEe9ba7040d778922A763CE8A50948d61AFF5",
-            "fromChainFee": {"whitelist": true, "rate": "0"}
+            "caller": "0x200AEe9ba7040d778922A763CE8A50948d61AFF5",
+            "tokens":
+                [
+                    {
+                       "token":"0x200AEe9ba7040d778922A763CE8A50948d61AFF5", 
+                       "fromChainFee": {"whitelist": true, "rate": "0"}
+                    }
+                ]
         }
     }
-
 }
 
 

@@ -6,6 +6,7 @@ let {
     tronMosUpgrade,
     tronSetup,
     tronSetRelay,
+    tronSetButterRouter,
     tronRegisterToken,
     tronSetMintableToken,
     tronUpdateChain,
@@ -179,6 +180,27 @@ task("mos:setWrapped", "Initialize MapCrossChainServiceRelay address for MapCros
         }
     });
 
+task("mos:setButterRouter", "set butter router address")
+    .addParam("router", "router address")
+    .setAction(async (taskArgs, hre) => {
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await tronSetButterRouter(hre.artifacts, hre.network.name, taskArgs.address);
+        } else {
+            const accounts = await ethers.getSigners();
+            const deployer = accounts[0];
+            console.log("deployer address:", deployer.address);
+
+            let mos = await getMos(hre.network.config.chainId, hre.network.name);
+            if (mos === undefined) {
+                throw "mos not deployed ...";
+            }
+            console.log("mos address:", mos.address);
+
+            await (await mos.connect(deployer).setButterRouter(taskArgs.router)).wait();
+
+            console.log(`mos set butter router ${taskArgs.router} successfully `);
+        }
+    });
 task("mos:registerToken", "MapCrossChainService settings allow cross-chain tokens")
     .addParam("token", "token address")
     .addParam("chains", "chain ids allowed to cross, separated by ',', ex. `1,2,3` ")

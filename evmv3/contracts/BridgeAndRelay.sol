@@ -44,7 +44,9 @@ contract BridgeAndRelay is BridgeAbstract {
 
     uint256 public adaptorChainId;
     address public adaptor; // near adaptor
+    address public butterRouter;
 
+    event SetButterRouter(address _butterRouter);
     event SetTokenRegister(address tokenRegister);
     event RegisterChain(uint256 chainId, bytes bridge, ChainType chainType);
     event SetAdaptor(uint256 chainId, address adptor);
@@ -63,6 +65,11 @@ contract BridgeAndRelay is BridgeAbstract {
         adaptorChainId = _chainId;
         adaptor = _adaptor;
         emit SetAdaptor(_chainId, _adaptor);
+    }
+
+    function setButterRouter(address _butterRouter) external onlyRole(MANAGER_ROLE) {
+        butterRouter = _butterRouter;
+        emit SetButterRouter(_butterRouter);
     }
 
     function setTokenRegister(address _register) external onlyRole(MANAGER_ROLE) checkAddress(_register) {
@@ -143,6 +150,7 @@ contract BridgeAndRelay is BridgeAbstract {
             orderId = _interTransferAndCall(param, bridge, bridges[param.toChain], messageFee);
         } else {
             orderId = _getOrderId(param.from, param.toBytes, param.toChain);
+            param.caller = (msg.sender == butterRouter) ? abi.encodePacked(_initiator) : abi.encodePacked(msg.sender);
             uint256 mapOutAmount;
             (param.relayOutAmount, param.toAmount, param.baseFee) = _collectFee(
                 param.caller,
