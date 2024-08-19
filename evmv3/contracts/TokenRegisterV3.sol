@@ -49,10 +49,10 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
     address private baseFeeReceiver;
 
-    // hash(fromChain,caller) => toChain => rate;
+    // hash(fromChain,caller,token) => toChain => rate;
     mapping(bytes32 => mapping(uint256 => uint256)) public toChainFeeList;
 
-    // hash(fromChain,caller) => rate;
+    // hash(fromChain,caller,token) => rate;
     mapping(bytes32 => uint256) public fromChainFeeList;
 
     modifier checkAddress(address _address) {
@@ -87,6 +87,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     );
 
     event SetToChainWhitelistFeeRate(
+        address _token,
         uint256 _fromChain,
         uint256 _toChain,
         bytes  _caller,
@@ -95,6 +96,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     );
 
     event SetFromChainWhitelistFeeRate(
+        address _token,
         uint256 _fromChain,
         bytes  _caller,
         uint256 _rate,
@@ -214,6 +216,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     }
 
     function setToChainWhitelistFeeRate(
+        address _token,
         uint256 _fromChain,
         uint256 _toChain,
         bytes calldata _caller,
@@ -221,31 +224,32 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         bool _isWhitelist
     ) external onlyRole(MANAGER_ROLE) {
         require(_rate <= MAX_RATE_UNI, "register: invalid proportion value");
-        bytes32 key = _getKey(_fromChain, _caller);
+        bytes32 key = _getKey(_fromChain, _caller, _token);
         if (_isWhitelist) {
             toChainFeeList[key][_toChain] = (_rate << 1) | 0x01;
         } else {
             toChainFeeList[key][_toChain] = 0;
         }
 
-        emit SetToChainWhitelistFeeRate(_fromChain, _toChain, _caller, _rate, _isWhitelist);
+        emit SetToChainWhitelistFeeRate(_token, _fromChain, _toChain, _caller, _rate, _isWhitelist);
     }
 
 
     function setFromChainWhitelistFeeRate(
+        address _token,
         uint256 _fromChain,
         bytes calldata _caller,
         uint256 _rate,
         bool _isWhitelist
     ) external onlyRole(MANAGER_ROLE) {
         require(_rate <= MAX_RATE_UNI, "register: invalid proportion value");
-        bytes32 key = _getKey(_fromChain, _caller);
+        bytes32 key = _getKey(_fromChain, _caller, _token);
         if (_isWhitelist) {
             fromChainFeeList[key] = (_rate << 1) | 0x01;
         } else {
             fromChainFeeList[key] = 0;
         }
-        emit SetFromChainWhitelistFeeRate(_fromChain, _caller, _rate, _isWhitelist);
+        emit SetFromChainWhitelistFeeRate(_token, _fromChain, _caller, _rate, _isWhitelist);
     }
 
     // --------------------------------------------------------
@@ -392,7 +396,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
         uint256 rate;
         bool isWhitelistCaller;
-        (isWhitelistCaller, rate) = getWhitelistCallerFeeRate(_fromChain, _toChain, _caller);
+        (isWhitelistCaller, rate) = getWhitelistCallerFeeRate(_relayToken, _fromChain, _toChain, _caller);
 
         if (isWhitelistCaller) {
             bridgeFee = (_relayAmount * rate) / MAX_RATE_UNI;
@@ -507,7 +511,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 rate;
         bool isWhitelistCaller;
         uint256 beforeFee;
-        (isWhitelistCaller, rate) = getWhitelistCallerFeeRate(_fromChain, _toChain, _caller);
+        (isWhitelistCaller, rate) = getWhitelistCallerFeeRate(_token, _fromChain, _toChain, _caller);
         if (isWhitelistCaller) {
             beforeFee = _getBeforeAmount(rate, _amount);
         } else {
@@ -528,11 +532,12 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     }
 
     function getWhitelistCallerFeeRate(
+        address _token,
         uint256 _fromChain,
         uint256 _toChain,
         bytes memory _caller
     ) public view returns (bool isWhitelist, uint256 rate) {
-        bytes32 key = _getKey(_fromChain, _caller);
+        bytes32 key = _getKey(_fromChain, _caller, _token);
         uint256 toChainWhitelistRate = toChainFeeList[key][_toChain];
         uint256 fromChainWhitelistRate = fromChainFeeList[key];
         isWhitelist = (toChainWhitelistRate != 0) || (fromChainWhitelistRate != 0);
@@ -540,21 +545,23 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     }
 
     function getTochainWhitelistCallerFeeRate(
+        address _token,
         uint256 _fromChain,
         uint256 _toChain,
         bytes memory _caller
     ) external view returns (bool isWhitelist, uint256 rate) {
-        bytes32 key = _getKey(_fromChain, _caller);
+        bytes32 key = _getKey(_fromChain, _caller, _token);
         uint256 toChainWhitelistRate = toChainFeeList[key][_toChain];
         isWhitelist = (toChainWhitelistRate != 0);
         rate = toChainWhitelistRate >> 1;
     }
 
     function getFromChainWhitelistCallerFeeRate(
+        address _token,
         uint256 _fromChain,
         bytes memory _caller
     ) external view returns (bool isWhitelist, uint256 rate) {
-        bytes32 key = _getKey(_fromChain, _caller);
+        bytes32 key = _getKey(_fromChain, _caller, _token);
         uint256 fromChainWhitelistRate = fromChainFeeList[key];
         isWhitelist = (fromChainWhitelistRate != 0);
         rate = fromChainWhitelistRate >> 1;
@@ -624,8 +631,8 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         return (_amount * (10 ** decimalsTo)) / (10 ** decimalsFrom);
     }
 
-    function _getKey(uint256 _fromChain, bytes memory caller) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(_fromChain, caller));
+    function _getKey(uint256 _fromChain, bytes memory _caller,address _token) private pure returns (bytes32) {
+        return keccak256(abi.encodePacked(_fromChain, _caller, _token));
     }
 
     /** UUPS *********************************************************/

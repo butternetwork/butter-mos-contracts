@@ -106,6 +106,22 @@ exports.tronSetRelay = async function (artifacts, network, addr, chain) {
     console.log(`mos set  relay ${addr} with chain id ${chain} successfully `);
 };
 
+exports.tronSetButterRouter = async function (artifacts, network, addr) {
+    let tronWeb = await getTronWeb(network);
+    console.log("deployer :", tronWeb.defaultAddress);
+
+    let mos = await getTronMos(tronWeb, artifacts, network);
+    console.log("mos address", mos.address);
+
+    if (addr.substr(0, 2) != "0x") {
+        addr = "0x" + stringToHex(addr);
+    }
+
+    await mos.setButterRouter(addr).send();
+
+    console.log(`mos set  butter router ${addr} successfully `);
+};
+
 exports.tronRegisterToken = async function (artifacts, network, token, chains, enable) {
     let tronWeb = await getTronWeb(network);
     console.log("deployer :", tronWeb.defaultAddress);

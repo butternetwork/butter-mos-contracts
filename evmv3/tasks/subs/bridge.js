@@ -130,6 +130,25 @@ task("bridge:setMos", "set omni service")
         }
     });
 
+task("bridge:setButterRouter", "set butter router address")
+    .addParam("router", "butter router address")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
+        console.log("deployer address is:", deployer.address);
+
+        let bridge = await getBridge(hre.network.name, true);
+
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await bridge.setButterRouter(taskArgs.router).send();
+            console.log("butterRouter", await bridge.butterRouter().call());
+        } else {
+            await (await bridge.setButterRouter(taskArgs.router)).wait();
+            console.log("butterRouter", await bridge.butterRouter());
+        }
+    });
+
 task("bridge:setReceiver", "set native fee receiver")
     .addParam("receiver", "receiver address")
     .setAction(async (taskArgs, hre) => {

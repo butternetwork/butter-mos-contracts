@@ -61,6 +61,9 @@ task("relay:setup", "set associated contracts for mos")
         } else if (taskArgs.type === "tokenregister") {
             await (await mos.connect(deployer).setTokenRegister(taskArgs.address)).wait();
             console.log("set token register:", taskArgs.address);
+        }  else if (taskArgs.type === "router"){
+            await (await mos.connect(deployer).setButterRouter(taskArgs.address)).wait();
+            console.log("set token butter router:", taskArgs.address);
         } else {
             throw "unsupported set type";
         }
