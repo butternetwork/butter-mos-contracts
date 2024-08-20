@@ -177,42 +177,88 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
-    ) external override whenNotPaused returns (bytes32 orderId) {
+    ) external payable override whenNotPaused returns (bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         require(_amount > 0, "Sending value is zero");
-        require(IERC20(_token).balanceOf(msg.sender) >= _amount, "Insufficient token balance");
-        SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), _amount);
-        orderId = _swapOut(_token, _to, _initiatorAddress, _amount, _toChain, _swapData);
+        address token = _token;
+        if (token == address(0)) {
+            token = wToken;
+            require(msg.value >= _amount, "Invalid msg value");
+            IWrappedToken(token).deposit{value: _amount}();
+        } else {
+            SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), _amount);
+        }
+
+        orderId = _swapOut(token, _to, _initiatorAddress, _amount, _toChain, _swapData);
     }
 
+    /*
     function swapOutNative(
         address _initiatorAddress,
         bytes memory _to,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
-    ) external payable override whenNotPaused returns (bytes32 orderId) {
+    ) external payable whenNotPaused returns (bytes32 orderId) {
         require(_toChain != selfChainId, "Cannot swap to self chain");
         uint256 amount = msg.value;
         require(amount > 0, "Sending value is zero");
         IWrappedToken(wToken).deposit{value: amount}();
         orderId = _swapOut(wToken, _to, _initiatorAddress, amount, _toChain, _swapData);
-    }
+    }*/
 
-    function depositToken(address _token, address _to, uint256 _amount) external override nonReentrant whenNotPaused {
-        require(IERC20(_token).balanceOf(msg.sender) >= _amount, "balance too low");
+    function depositToken(address _token, address _to, uint256 _amount) external payable override whenNotPaused {
         require(_amount > 0, "value too low");
-        require(_token.isContract(), "token is not contract");
-        SafeERC20.safeTransferFrom(IERC20(_token), msg.sender, address(this), _amount);
+        address token = _token;
+        if (token == address(0)) {
+            token = wToken;
+            require(msg.value >= _amount, "value too low");
+            IWrappedToken(token).deposit{value: _amount}();
+        } else {
+            SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), _amount);
+        }
 
-        _deposit(_token, Utils.toBytes(msg.sender), _to, _amount, bytes32(""), selfChainId);
+        _deposit(token, Utils.toBytes(msg.sender), _to, _amount, bytes32(""), selfChainId);
     }
 
+    /*
     function depositNative(address _to) external payable override nonReentrant whenNotPaused {
         uint256 amount = msg.value;
         require(amount > 0, "value too low");
         IWrappedToken(wToken).deposit{value: amount}();
         _deposit(wToken, Utils.toBytes(msg.sender), _to, amount, bytes32(""), selfChainId);
+    }*/
+
+    function swapIn(uint256 _chainId, uint256 _logIndex,
+        bytes32 _orderId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
+        (bool success, string memory message, bytes memory logArray) = lightClientManager.verifyProofData(
+            _chainId,
+            _receiptProof
+        );
+        require(success, message);
+        if (chainTypes[_chainId] == chainType.NEAR) {
+            (bytes memory mosContract, IEvent.swapOutEvent[] memory outEvents) = NearDecoder.decodeNearSwapLog(
+                logArray
+            );
+            IEvent.swapOutEvent memory outEvent = outEvents[_logIndex];
+            require(outEvent.toChain != 0, "invalid chain id");
+            require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
+            _swapIn(_chainId, outEvent);
+        } else if (chainTypes[_chainId] == chainType.EVM) {
+            IEvent.txLog memory log = EvmDecoder.decodeTxLog(logArray, _logIndex);
+            bytes32 topic = abi.decode(log.topics[0], (bytes32));
+            if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC) {
+                (bytes memory mosContract, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
+                require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
+                if (Utils.checkBytes(mosContract, mosContracts[_chainId])) {
+                    _swapIn(_chainId, outEvent);
+                }
+            }
+        } else {
+            require(false, "chain type error");
+        }
+        // emit mapSwapExecute(_chainId, selfChainId, msg.sender);
     }
+
 
     function swapIn(uint256 _chainId, bytes memory _receiptProof) external nonReentrant whenNotPaused {
         (bool success, string memory message, bytes memory logArray) = lightClientManager.verifyProofData(
@@ -248,7 +294,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         } else {
             require(false, "chain type error");
         }
-        emit mapSwapExecute(_chainId, selfChainId, msg.sender);
+        // emit mapSwapExecute(_chainId, selfChainId, msg.sender);
     }
 
     function depositIn(uint256 _chainId, bytes memory _receiptProof) external payable nonReentrant whenNotPaused {
@@ -391,7 +437,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             excludeVaultFee
         );
 
-        emit CollectFee(_orderId, _token, proportionFee);
+        // emit CollectFee(_orderId, _token, proportionFee);
 
         return (relayOutAmount, outAmount);
     }

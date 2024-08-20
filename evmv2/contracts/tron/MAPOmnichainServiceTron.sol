@@ -35,7 +35,7 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
-    ) external override nonReentrant whenNotPaused checkBridgeable(_token, _toChain) returns (bytes32 orderId) {
+    ) external payable override nonReentrant whenNotPaused checkBridgeable(_token, _toChain) returns (bytes32 orderId) {
         require(_toChain != selfChainId, "self chain");
         require(_amount > 0, "value is zero");
 
@@ -53,7 +53,7 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
         bytes memory _to,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
-    ) external payable override nonReentrant whenNotPaused checkBridgeable(wToken, _toChain) returns (bytes32 orderId) {
+    ) external payable nonReentrant whenNotPaused checkBridgeable(wToken, _toChain) returns (bytes32 orderId) {
         require(_toChain != selfChainId, "self chain");
         uint256 amount = msg.value;
         require(amount > 0, "value is zero");
@@ -70,10 +70,12 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
         uint256 _toChain,
         bytes calldata _swapData
     ) internal returns (bytes32 orderId) {
-        orderId = _getOrderID(msg.sender, _to, _toChain);
+        uint256 fromChain = selfChainId;
+
+        orderId = _getOrderID(msg.sender, _to, fromChain, _toChain);
 
         bytes memory mosData = abi.encode(
-            selfChainId,
+            fromChain,
             _toChain,
             orderId,
             Utils.toBytes(_token),
@@ -82,12 +84,14 @@ contract MAPOmnichainServiceTron is MAPOmnichainServiceV2 {
             _amount,
             _swapData
         );
-        uint256 depositAmount = 1000000000000000000;
-        payFee(_from);
-        rootChainManager.depositFor(_from, address(rootToken), abi.encodePacked(depositAmount, mosData));
+        {
+            uint256 depositAmount = 1000000000000000000;
+            payFee(_from);
+            rootChainManager.depositFor(_from, address(rootToken), abi.encodePacked(depositAmount, mosData));
+        }
 
         emit mapSwapOut(
-            selfChainId,
+            fromChain,
             _toChain,
             orderId,
             Utils.toBytes(_token),

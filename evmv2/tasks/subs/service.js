@@ -710,6 +710,8 @@ task("mos:list", "List mos  infos")
             console.log("Owner:\t", await mos.getAdmin());
             console.log("Impl:\t", await mos.getImplementation());
 
+            console.log("butterRouter:\t", await mos.butterRouter());
+
             address = taskArgs.token;
             if (address == "wtoken") {
                 address = wtoken;

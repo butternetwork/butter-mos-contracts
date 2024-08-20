@@ -9,18 +9,18 @@ interface IButterMosV2 {
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata _swapData
-    ) external returns (bytes32 orderId);
-
-    function swapOutNative(
-        address _sender,
-        bytes memory _to,
-        uint256 _toChain, // target chain id
-        bytes calldata _swapData
     ) external payable returns (bytes32 orderId);
 
-    function depositToken(address _token, address to, uint256 _amount) external;
+    //function swapOutNative(
+    //    address _sender,
+    //    bytes memory _to,
+    //    uint256 _toChain, // target chain id
+    //    bytes calldata _swapData
+    //) external payable returns (bytes32 orderId);
 
-    function depositNative(address _to) external payable;
+    function depositToken(address _token, address to, uint256 _amount) external payable;
+
+    //function depositNative(address _to) external payable;
 
     function getOrderStatus(
         uint256 _chainId,
