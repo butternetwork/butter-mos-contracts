@@ -46,13 +46,6 @@ interface ITokenRegisterV3 {
     ) external view returns (uint256 totalFee, uint256 baseFee, uint256 bridgeFee);
 
     // get token transfer fee, the larger one of transfer in or transfer out fee
-    function getTransferFeeV2(
-        address _token,
-        uint256 _amount,
-        uint256 _fromChain,
-        uint256 _toChain,
-        bool _withSwap
-    ) external view returns (uint256 totalFee, uint256 baseFee, uint256 bridgeFee);
 
     function getBridgeFeeInfo(
         uint256 _fromChain,

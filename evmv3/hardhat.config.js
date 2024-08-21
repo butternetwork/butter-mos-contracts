@@ -38,7 +38,7 @@ module.exports = {
       initialBaseFeePerGas: 0,
     },
     Eth: {
-      url: `https://mainnet.infura.io/v3/` + process.env.INFURA_KEY,
+      url: "https://eth-mainnet.public.blastapi.io",
       chainId: 1,
       zksync: false,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],

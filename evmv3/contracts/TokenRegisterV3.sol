@@ -122,11 +122,13 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         address tokenAddress = IVaultTokenV3(_vaultToken).getTokenAddress();
         require(_token == tokenAddress, "register: invalid relay token");
 
+        uint256 chainId = selfChainId;
+
         token.tokenAddress = _token;
         token.vaultToken = _vaultToken;
-        token.mappingList[selfChainId] = Utils.toBytes(_token);
-        token.decimals[selfChainId] = IERC20MetadataUpgradeable(_token).decimals();
-        token.mintable[selfChainId] = _mintable;
+        token.mappingList[chainId] = Utils.toBytes(_token);
+        token.decimals[chainId] = IERC20MetadataUpgradeable(_token).decimals();
+        token.mintable[chainId] = _mintable;
         emit RegisterToken(_token, _vaultToken);
     }
 
@@ -362,16 +364,6 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     }
 
     // get bridge fee info based on the relay chain token and amount
-    function getTransferFeeV2(
-        address _token,
-        uint256 _amount,
-        uint256 _fromChain,
-        uint256 _toChain,
-        bool _withSwap
-    ) external view override returns (uint256 totalFee, uint256 baseFee, uint256 bridgeFee) {
-        return _getTransferFee(bytes(""), _token, _amount, _fromChain, _toChain, _withSwap);
-    }
-
     function getTransferFeeV3(
         bytes memory _caller,
         address _token,
@@ -396,7 +388,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
         uint256 rate;
         bool isWhitelistCaller;
-        (isWhitelistCaller, rate) = getWhitelistCallerFeeRate(_relayToken, _fromChain, _toChain, _caller);
+        (isWhitelistCaller, rate) = getCallerFeeRate(_relayToken, _fromChain, _toChain, _caller);
 
         if (isWhitelistCaller) {
             bridgeFee = (_relayAmount * rate) / MAX_RATE_UNI;
@@ -458,18 +450,20 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 feeAmount;
         uint256 relayAmount;
 
+        uint256 chainId = selfChainId;
+
         relayToken = _getRelayChainToken(_fromChain, _fromToken);
 
         toChainVault = getVaultBalance(relayToken, _toChain);
 
-        relayAmount = _getTargetAmount(relayToken, _fromChain, selfChainId, _fromAmount);
+        relayAmount = _getTargetAmount(relayToken, _fromChain, chainId, _fromAmount);
         (feeAmount, , ) = _getTransferFee(_caller, relayToken, relayAmount, _fromChain, _toChain, _withSwap);
         if (relayAmount <= feeAmount) {
             return (_fromAmount, 0, toChainVault);
         }
 
-        fromChainFee = _getTargetAmount(relayToken, selfChainId, _fromChain, feeAmount);
-        toChainAmount = _getTargetAmount(relayToken, selfChainId, _toChain, relayAmount - feeAmount);
+        fromChainFee = _getTargetAmount(relayToken, chainId, _fromChain, feeAmount);
+        toChainAmount = _getTargetAmount(relayToken, chainId, _toChain, relayAmount - feeAmount);
     }
 
     // get source chain token amount and the fee amount based the target chain token amount
@@ -485,14 +479,15 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         view
         returns (uint256 fromChainFee, uint256 fromChainAmount, uint256 targetChainVault, bytes memory fromChainToken)
     {
+        uint256 chainId = selfChainId;
         address relayToken = _getRelayChainToken(_targetChain, _targetToken);
 
         fromChainToken = _getToChainToken(relayToken, _fromChain);
 
-        uint256 outAmount = _getTargetAmount(relayToken, _targetChain, selfChainId, _targetAmount);
+        uint256 outAmount = _getTargetAmount(relayToken, _targetChain, chainId, _targetAmount);
         uint256 relayAmount = _getAmountBeforeFee(_caller, relayToken, outAmount, _targetChain, _fromChain, _withSwap);
-        fromChainFee = _getTargetAmount(relayToken, selfChainId, _fromChain, (relayAmount - outAmount));
-        fromChainAmount = _getTargetAmount(relayToken, selfChainId, _fromChain, relayAmount);
+        fromChainFee = _getTargetAmount(relayToken, chainId, _fromChain, (relayAmount - outAmount));
+        fromChainAmount = _getTargetAmount(relayToken, chainId, _fromChain, relayAmount);
 
         targetChainVault = getVaultBalance(relayToken, _targetChain);
     }
@@ -511,7 +506,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 rate;
         bool isWhitelistCaller;
         uint256 beforeFee;
-        (isWhitelistCaller, rate) = getWhitelistCallerFeeRate(_token, _fromChain, _toChain, _caller);
+        (isWhitelistCaller, rate) = getCallerFeeRate(_token, _fromChain, _toChain, _caller);
         if (isWhitelistCaller) {
             beforeFee = _getBeforeAmount(rate, _amount);
         } else {
@@ -531,7 +526,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         return (_amount * MAX_RATE_UNI) / (MAX_RATE_UNI - rate) + 1;
     }
 
-    function getWhitelistCallerFeeRate(
+    function getCallerFeeRate(
         address _token,
         uint256 _fromChain,
         uint256 _toChain,
@@ -544,7 +539,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         rate = (toChainWhitelistRate >> 1) + (fromChainWhitelistRate >> 1);
     }
 
-    function getTochainWhitelistCallerFeeRate(
+    function getToChainCallerFeeRate(
         address _token,
         uint256 _fromChain,
         uint256 _toChain,
@@ -556,7 +551,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         rate = toChainWhitelistRate >> 1;
     }
 
-    function getFromChainWhitelistCallerFeeRate(
+    function getFromChainCallerFeeRate(
         address _token,
         uint256 _fromChain,
         bytes memory _caller
