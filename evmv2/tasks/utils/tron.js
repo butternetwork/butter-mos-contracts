@@ -98,7 +98,8 @@ exports.tronSetRelay = async function (artifacts, network, addr, chain) {
     console.log("mos address", mos.address);
 
     if (addr.substr(0, 2) != "0x") {
-        addr = "0x" + stringToHex(addr);
+        // addr = "0x" + stringToHex(addr);
+        addr = tronWeb.address.toHex(addr).replace(/^(41)/, "0x");
     }
 
     await mos.setRelayContract(chain, addr).send();
@@ -112,9 +113,11 @@ exports.tronSetButterRouter = async function (artifacts, network, addr) {
 
     let mos = await getTronMos(tronWeb, artifacts, network);
     console.log("mos address", mos.address);
+    console.log("router address", addr);
 
     if (addr.substr(0, 2) != "0x") {
-        addr = "0x" + stringToHex(addr);
+        // addr = "0x" + stringToHex(addr);
+        addr = tronWeb.address.toHex(addr).replace(/^(41)/, "0x");
     }
 
     await mos.setButterRouter(addr).send();

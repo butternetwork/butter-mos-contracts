@@ -125,6 +125,7 @@ task("mos:setLightClient", "set light client contracts for mos")
 task("mos:setRelay", "Initialize MapCrossChainServiceRelay address for MapCrossChainService")
     .addParam("address", "mos contract address")
     .addParam("chain", "chain id")
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             await tronSetRelay(hre.artifacts, hre.network.name, taskArgs.address, taskArgs.chain);
@@ -157,6 +158,7 @@ task("mos:setRelay", "Initialize MapCrossChainServiceRelay address for MapCrossC
 
 task("mos:setWrapped", "Initialize MapCrossChainServiceRelay address for MapCrossChainService")
     .addParam("token", "wrapped token")
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
             await tronSetRelay(hre.artifacts, hre.network.name, taskArgs.address, taskArgs.chain);
@@ -182,9 +184,10 @@ task("mos:setWrapped", "Initialize MapCrossChainServiceRelay address for MapCros
 
 task("mos:setButterRouter", "set butter router address")
     .addParam("router", "router address")
+    .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
     .setAction(async (taskArgs, hre) => {
         if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-            await tronSetButterRouter(hre.artifacts, hre.network.name, taskArgs.address);
+            await tronSetButterRouter(hre.artifacts, hre.network.name, taskArgs.router);
         } else {
             const accounts = await ethers.getSigners();
             const deployer = accounts[0];
@@ -196,7 +199,11 @@ task("mos:setButterRouter", "set butter router address")
             }
             console.log("mos address:", mos.address);
 
-            await (await mos.connect(deployer).setButterRouter(taskArgs.router)).wait();
+            if (taskArgs.auth) {
+                await execute(mos, "setButterRouter", [taskArgs.router], deployer);
+            } else {
+                await (await mos.connect(deployer).setButterRouter(taskArgs.router)).wait();
+            }
 
             console.log(`mos set butter router ${taskArgs.router} successfully `);
         }

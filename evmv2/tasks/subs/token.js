@@ -61,27 +61,26 @@ task("token:transferOut", "Cross-chain transfer token")
         }
         console.log("mos address:", mos.address);
 
+        let value = ethers.utils.parseUnits("0", 18);
+        let amount;
         if (tokenAddr === "0x0000000000000000000000000000000000000000") {
-            let value = ethers.utils.parseUnits(taskArgs.value, 18);
-            await (
-                await mos.connect(deployer).swapOutNative(deployer.address, receiver, targetChainId, "0x", {
-                    value: value,
-                })
-            ).wait();
+            value = ethers.utils.parseUnits(taskArgs.value, 18);
+            amount = value;
         } else {
             let token = await ethers.getContractAt("MintableToken", tokenAddr);
             let decimals = await token.decimals();
-            let value = ethers.utils.parseUnits(taskArgs.value, decimals);
+            amount = ethers.utils.parseUnits(taskArgs.value, decimals);
 
             let approved = await token.allowance(deployer.address, mos.address);
             console.log("approved ", approved);
-            if (approved.lt(value)) {
-                console.log(`${tokenAddr} approve ${mos.address} value [${value}] ...`);
-                await (await token.approve(mos.address, value)).wait();
+            if (approved.lt(amount)) {
+                console.log(`${tokenAddr} approve ${mos.address} value [${amount}] ...`);
+                await (await token.approve(mos.address, amount)).wait();
             }
-
-            await mos.connect(deployer).swapOutToken(deployer.address, tokenAddr, receiver, value, targetChainId, "0x");
         }
+        await mos.connect(deployer).swapOutToken(deployer.address, tokenAddr, receiver, amount, targetChainId, "0x", {
+            value: value,
+        });
 
         console.log(`transfer token ${taskArgs.token} ${taskArgs.value} to ${receiver} successful`);
     });
