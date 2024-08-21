@@ -45,16 +45,6 @@ interface ITokenRegisterV3 {
         bool _withSwap
     ) external view returns (uint256 totalFee, uint256 baseFee, uint256 bridgeFee);
 
-    // get token transfer fee, the larger one of transfer in or transfer out fee
-
-    function getBridgeFeeInfo(
-        uint256 _fromChain,
-        bytes memory _fromToken,
-        uint256 _fromAmount,
-        uint256 _toChain,
-        bool _withSwap
-    ) external view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault);
-
     // get token transfer fee, the larger one of tranfer in or transfer out fee
     function getTransferFeeV3(
         bytes memory _caller,
@@ -64,6 +54,7 @@ interface ITokenRegisterV3 {
         uint256 _toChain,
         bool _withSwap
     ) external view returns (uint256 totalFee, uint256 baseFee, uint256 bridgeFee);
+
 
     function getBridgeFeeInfoV3(
         bytes memory _caller,

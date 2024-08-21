@@ -372,7 +372,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _toChain,
         bool _withSwap
     ) external view override returns (uint256 totalFee, uint256 baseFee, uint256 bridgeFee) {
-        return _getTransferFee(bytes(""), _token, _amount, _fromChain, _toChain, _withSwap);
+        return _getTransferFee(_caller, _token, _amount, _fromChain, _toChain, _withSwap);
     }
 
     function _getTransferFee(
@@ -417,16 +417,6 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         return fee;
     }
 
-    function getBridgeFeeInfo(
-        uint256 _fromChain,
-        bytes memory _fromToken,
-        uint256 _fromAmount,
-        uint256 _toChain,
-        bool _withSwap
-    ) external view override returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault) {
-        return _getBridgeFeeInfo(bytes(""), _fromToken, _fromChain, _fromAmount, _toChain, _withSwap);
-    }
-
     function getBridgeFeeInfoV3(
         bytes memory _caller,
         bytes memory _fromToken,
@@ -435,7 +425,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _toChain,
         bool _withSwap
     ) external view override returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault) {
-        return _getBridgeFeeInfo(bytes(""), _fromToken, _fromChain, _fromAmount, _toChain, _withSwap);
+        return _getBridgeFeeInfo(_caller, _fromToken, _fromChain, _fromAmount, _toChain, _withSwap);
     }
 
     function _getBridgeFeeInfo(
