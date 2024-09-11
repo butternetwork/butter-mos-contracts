@@ -32,19 +32,21 @@ library EvmDecoder {
         RLPReader.RLPItem[] memory items = item.toList();
         require(items.length >= 3, "log length to low");
         RLPReader.RLPItem[] memory firstItemList = items[1].toList();
-        bytes[] memory topic = new bytes[](firstItemList.length);
+        bytes32[] memory topic = new bytes32[](firstItemList.length);
         for (uint256 j = 0; j < firstItemList.length; j++) {
-            topic[j] = firstItemList[j].toBytes();
+            topic[j] = firstItemList[j].toBytes32();
         }
-        _txLog = IEvent.txLog({addr: items[0].toAddress(), topics: topic, data: items[2].toBytes()});
+        _txLog = IEvent.txLog({addr: items[0].toAddress(), topics: topic, data: items[2].unsafeToBytes()});
     }
 
     function decodeSwapOutLog(
         IEvent.txLog memory log
-    ) internal pure returns (bytes memory executorId, IEvent.swapOutEvent memory outEvent) {
-        executorId = Utils.toBytes(log.addr);
-        outEvent.fromChain = abi.decode(log.topics[1], (uint256));
-        outEvent.toChain = abi.decode(log.topics[2], (uint256));
+    ) internal pure returns (IEvent.swapOutEvent memory outEvent) {
+        // executorId = Utils.toBytes(log.addr);
+        //outEvent.fromChain = abi.decode(log.topics[1], (uint256));
+        //outEvent.toChain = abi.decode(log.topics[2], (uint256));
+        outEvent.fromChain = uint256(log.topics[1]);
+        outEvent.toChain = uint256(log.topics[2]);
 
         (outEvent.orderId, outEvent.token, outEvent.from, outEvent.to, outEvent.amount, outEvent.swapData) = abi.decode(
             log.data,
@@ -57,8 +59,10 @@ library EvmDecoder {
     ) internal pure returns (bytes memory executorId, IEvent.depositOutEvent memory depositEvent) {
         executorId = Utils.toBytes(log.addr);
 
-        depositEvent.fromChain = abi.decode(log.topics[1], (uint256));
-        depositEvent.toChain = abi.decode(log.topics[2], (uint256));
+        //depositEvent.fromChain = abi.decode(log.topics[1], (uint256));
+        //depositEvent.toChain = abi.decode(log.topics[2], (uint256));
+        depositEvent.fromChain = uint256(log.topics[1]);
+        depositEvent.toChain = uint256(log.topics[2]);
 
         address token;
         address toAddress;

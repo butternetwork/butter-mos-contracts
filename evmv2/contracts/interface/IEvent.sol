@@ -26,7 +26,7 @@ interface IEvent {
 
     struct txLog {
         address addr;
-        bytes[] topics;
+        bytes32[] topics;
         bytes data;
     }
 }

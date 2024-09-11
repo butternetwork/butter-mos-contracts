@@ -405,6 +405,8 @@ task("relay:list", "List relay infos")
         console.log("wToken address:\t", wtoken);
         console.log("Token manager:\t", tokenmanager);
 
+        console.log("butterRouter:\t", await mos.butterRouter());
+
         console.log(`distribute vault rate: rate(${vaultFee[1]})`);
         console.log(`distribute relay rate: rate(${relayFee[1]}), receiver(${relayFee[0]})`);
         console.log(`distribute protocol rate: rate(${protocolFee[1]}), receiver(${protocolFee[0]})`);

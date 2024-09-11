@@ -72,7 +72,7 @@ module.exports = {
       gasPrice: 11 * 1000000000,
     },
     Eth: {
-      url: `https://eth-mainnet.public.blastapi.io`,
+      url: `https://rpc.ankr.com/eth`,
       chainId: 1,
       accounts: accounts,
     },

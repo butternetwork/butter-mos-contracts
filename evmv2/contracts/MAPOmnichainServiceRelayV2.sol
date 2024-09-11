@@ -5,10 +5,10 @@ pragma solidity 0.8.20;
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+//import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+//import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
+//import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
@@ -24,7 +24,7 @@ import "./utils/EvmDecoder.sol";
 import "./utils/NearDecoder.sol";
 
 contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable, IButterMosV2, UUPSUpgradeable {
-    using SafeMath for uint256;
+    //using SafeMath for uint256;
     using Address for address;
 
     struct Rate {
@@ -162,7 +162,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         distributeRate[_id] = Rate(_to, _rate);
 
         require(
-            (distributeRate[0].rate).add(distributeRate[1].rate).add(distributeRate[2].rate) <= 1000000,
+            distributeRate[0].rate + distributeRate[1].rate + distributeRate[2].rate <= 1000000,
             "invalid rate value"
         );
         emit SetDistributeRate(_id, _to, _rate);
@@ -245,13 +245,11 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             _swapIn(_chainId, outEvent);
         } else if (chainTypes[_chainId] == chainType.EVM) {
             IEvent.txLog memory log = EvmDecoder.decodeTxLog(logArray, _logIndex);
-            bytes32 topic = abi.decode(log.topics[0], (bytes32));
-            if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC) {
-                (bytes memory mosContract, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
-                require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
-                if (Utils.checkBytes(mosContract, mosContracts[_chainId])) {
-                    _swapIn(_chainId, outEvent);
-                }
+            // bytes32 topic = abi.decode(log.topics[0], (bytes32));
+            if (log.topics[0] == EvmDecoder.MAP_SWAPOUT_TOPIC) {
+                IEvent.swapOutEvent memory outEvent = EvmDecoder.decodeSwapOutLog(log);
+                require(log.addr == Utils.fromBytes(mosContracts[_chainId]), "invalid mos contract");
+                _swapIn(_chainId, outEvent);
             }
         } else {
             require(false, "chain type error");
@@ -282,11 +280,11 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
             for (uint256 i = 0; i < logs.length; i++) {
                 IEvent.txLog memory log = logs[i];
-                bytes32 topic = abi.decode(log.topics[0], (bytes32));
-                if (topic == EvmDecoder.MAP_SWAPOUT_TOPIC) {
-                    (bytes memory mosContract, IEvent.swapOutEvent memory outEvent) = EvmDecoder.decodeSwapOutLog(log);
-                    require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
-                    if (Utils.checkBytes(mosContract, mosContracts[_chainId])) {
+                //bytes32 topic = abi.decode(log.topics[0], (bytes32));
+                if (log.topics[0] == EvmDecoder.MAP_SWAPOUT_TOPIC) {
+                    IEvent.swapOutEvent memory outEvent = EvmDecoder.decodeSwapOutLog(log);
+                    // require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
+                    if (log.addr == Utils.fromBytes(mosContracts[_chainId])) {
                         _swapIn(_chainId, outEvent);
                     }
                 }
@@ -318,7 +316,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
         } else if (chainTypes[_chainId] == chainType.EVM) {
             IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
             for (uint256 i = 0; i < logs.length; i++) {
-                if (abi.decode(logs[i].topics[0], (bytes32)) == EvmDecoder.MAP_DEPOSITOUT_TOPIC) {
+                if (logs[i].topics[0] == EvmDecoder.MAP_DEPOSITOUT_TOPIC) {
                     (bytes memory mosContract, IEvent.depositOutEvent memory depositEvent) = EvmDecoder
                         .decodeDepositOutLog(logs[i]);
                     if (Utils.checkBytes(mosContract, mosContracts[_chainId])) {
@@ -364,7 +362,8 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
 
     function getFee(uint256 _id, uint256 _amount) public view returns (uint256, address) {
         Rate memory rate = distributeRate[_id];
-        return (_amount.mul(rate.rate).div(1000000), rate.receiver);
+        return (_amount * rate.rate / 1000000, rate.receiver);
+        //return (_amount.mul(rate.rate).div(1000000), rate.receiver);
     }
 
     function getOrderStatus(
