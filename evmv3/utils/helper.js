@@ -148,19 +148,15 @@ async function getTokensFromFile(network) {
 }
 
 async function getFeeConfig(subject) {
-    let p = path.join(__dirname, "../constants/feeConfig.json");
-    let configs;
-    if (!fs.existsSync(p)) {
-        tokens = {};
-        configs[subject] = {};
-    } else {
+    let configFile = "../constants/" + subject + ".json";
+    let p = path.join(__dirname, configFile);
+    console.log("fee path", p);
+    let configs = {};
+    if (fs.existsSync(p)) {
         let rawdata = fs.readFileSync(p);
         configs = JSON.parse(rawdata);
-        if (!configs[subject]) {
-            configs[subject] = {};
-        }
     }
-    return configs[subject];
+    return configs;
 }
 
 module.exports = {

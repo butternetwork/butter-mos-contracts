@@ -399,7 +399,7 @@ task("register:setToChainWhitelistFee", "set to chain token outFee")
         console.log(`${taskArgs.from} ${taskArgs.token} to ${taskArgs.to} => on-chain whitelist(${info[0]}), rate(${info[1]}) `);
         console.log(`\tconfig whitelist(${taskArgs.whitelist}), rate(${rate})`);
         if (taskArgs.update) {
-            await register.setToChainWhitelistFeeRate(token, fromChain.chainId, toChain.chainId, taskArgs.sender, rate, taskArgs.whitelist);
+            await register.setToChainWhitelistFeeRate(token, fromChain.chainId, toChain.chainId, taskArgs.sender, rate, taskArgs.whitelist, {gasLimit: 100000});
             console.log(`set caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.chain}] to [${toChain.chain}] rate success`);
         }
     });
@@ -448,7 +448,7 @@ task("register:setFromChainWhitelistFee", "set to chain token outFee")
         // await register.setTokenFee(taskArgs.token, taskArgs.from, taskArgs.lowest, taskArgs.highest, taskArgs.rate);
     });
 
-task("register:updateListFee", "update whitelist fee")
+task("register:updateCallerFee", "update whitelist fee")
     .addParam("caller", "subject")
     .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
     .addOptionalParam("update", "update token config", false, types.boolean)
@@ -464,6 +464,7 @@ task("register:updateListFee", "update whitelist fee")
             console.log("fee config not set");
             return;
         }
+
         for (let chain in config) {
             let chainConfig = config[chain];
 
