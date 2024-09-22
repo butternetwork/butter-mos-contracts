@@ -5,14 +5,13 @@ pragma solidity 0.8.20;
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-//import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-//import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-//import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightClientManager.sol";
+import "@mapprotocol/protocol/contracts/interface/ILightNode.sol";
+import "@mapprotocol/protocol/contracts/lib/LogDecode.sol";
 import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "./interface/IWrappedToken.sol";
 import "./interface/IMintableToken.sol";
@@ -23,8 +22,8 @@ import "./interface/IButterMosV2.sol";
 import "./utils/EvmDecoder.sol";
 import "./utils/NearDecoder.sol";
 
+
 contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable, IButterMosV2, UUPSUpgradeable {
-    //using SafeMath for uint256;
     using Address for address;
 
     struct Rate {
@@ -244,7 +243,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
             require(Utils.checkBytes(mosContract, mosContracts[_chainId]), "invalid mos contract");
             _swapIn(_chainId, outEvent);
         } else if (chainTypes[_chainId] == chainType.EVM) {
-            IEvent.txLog memory log = EvmDecoder.decodeTxLog(logArray, _logIndex);
+            ILightVerifier.txLog memory log = LogDecode.decodeTxLog(logArray, _logIndex);
             // bytes32 topic = abi.decode(log.topics[0], (bytes32));
             if (log.topics[0] == EvmDecoder.MAP_SWAPOUT_TOPIC) {
                 IEvent.swapOutEvent memory outEvent = EvmDecoder.decodeSwapOutLog(log);
@@ -277,9 +276,9 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
                 _swapIn(_chainId, outEvent);
             }
         } else if (chainTypes[_chainId] == chainType.EVM) {
-            IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
+            ILightVerifier.txLog[] memory logs = LogDecode.decodeTxLogs(logArray);
             for (uint256 i = 0; i < logs.length; i++) {
-                IEvent.txLog memory log = logs[i];
+                ILightVerifier.txLog memory log = logs[i];
                 //bytes32 topic = abi.decode(log.topics[0], (bytes32));
                 if (log.topics[0] == EvmDecoder.MAP_SWAPOUT_TOPIC) {
                     IEvent.swapOutEvent memory outEvent = EvmDecoder.decodeSwapOutLog(log);
@@ -314,7 +313,7 @@ contract MAPOmnichainServiceRelayV2 is ReentrancyGuard, Initializable, Pausable,
                 _depositIn(_chainId, depositEvent);
             }
         } else if (chainTypes[_chainId] == chainType.EVM) {
-            IEvent.txLog[] memory logs = EvmDecoder.decodeTxLogs(logArray);
+            ILightVerifier.txLog[] memory logs = LogDecode.decodeTxLogs(logArray);
             for (uint256 i = 0; i < logs.length; i++) {
                 if (logs[i].topics[0] == EvmDecoder.MAP_DEPOSITOUT_TOPIC) {
                     (bytes memory mosContract, IEvent.depositOutEvent memory depositEvent) = EvmDecoder

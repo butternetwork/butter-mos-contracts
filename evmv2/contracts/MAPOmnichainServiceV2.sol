@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "@mapprotocol/protocol/contracts/interface/ILightNode.sol";
+import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
 import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "./interface/IWrappedToken.sol";
 import "./interface/IMintableToken.sol";
@@ -24,7 +24,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     address public wToken; // native wrapped token
     address public relayContract;
     uint256 public relayChainId;
-    ILightNode public lightNode;
+    ILightVerifier public lightNode;
 
     mapping(bytes32 => bool) public orderList;
     mapping(address => bool) public mintableTokens;
@@ -52,7 +52,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     ) public initializer checkAddress(_wToken) checkAddress(_lightNode) checkAddress(_owner) {
         wToken = _wToken;
         emit SetWrappedToken(_wToken);
-        lightNode = ILightNode(_lightNode);
+        lightNode = ILightVerifier(_lightNode);
         emit SetLightClient(_lightNode);
         _changeAdmin(_owner);
     }
@@ -89,7 +89,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     }
 
     function setLightClient(address _lightNode) external onlyOwner checkAddress(_lightNode) {
-        lightNode = ILightNode(_lightNode);
+        lightNode = ILightVerifier(_lightNode);
         emit SetLightClient(_lightNode);
     }
 
@@ -185,11 +185,17 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
     ) external nonReentrant whenNotPaused {
         require(!orderList[_orderId], "order exist");
         require(_chainId == relayChainId, "invalid chain id");
+        /*
         (bool success, string memory message, bytes memory logArray) = lightNode.verifyProofDataWithCache(
+            _receiptProof
+        );*/
+        (bool success, string memory message, ILightVerifier.txLog memory log) = lightNode.verifyProofDataWithCache(
+            false,
+            _logIndex,
             _receiptProof
         );
         require(success, message);
-        _swapInVerifiedWithIndex(logArray, _logIndex);
+        _swapInVerifiedWithIndex(log, _logIndex);
         // emit mapSwapExecute(_chainId, selfChainId, msg.sender);
     }
 
@@ -240,8 +246,8 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         return keccak256(abi.encodePacked(address(this), nonce++, _fromChain, _toChain, _from, _to));
     }
 
-    function _swapInVerifiedWithIndex(bytes memory logArray, uint256 logIndex) private {
-        IEvent.txLog memory log = EvmDecoder.decodeTxLog(logArray, logIndex);
+    function _swapInVerifiedWithIndex(ILightVerifier.txLog memory log, uint256 logIndex) private {
+        // IEvent.txLog memory log = EvmDecoder.decodeTxLog(logArray, logIndex);
         // bytes32 topic = abi.decode(log.topics[0], (bytes32));
 
         require(relayContract == log.addr, "Invalid relay contract");

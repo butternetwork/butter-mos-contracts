@@ -11,7 +11,7 @@ async function getTronMos(tronWeb, artifacts, network) {
     if (!deploy[network]["mosProxy"]) {
         throw "mos proxy not deployed ...";
     }
-    let Mos = await artifacts.readArtifact("MAPOmnichainServiceTron");
+    let Mos = await artifacts.readArtifact("MAPOmnichainServiceV2");
     let mos = await tronWeb.contract(Mos.abi, deploy[network]["mosProxy"]);
 
     return mos;

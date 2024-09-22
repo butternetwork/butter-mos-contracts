@@ -16,10 +16,10 @@ contract LightClientManager is ILightClientManager, Ownable {
 
     function updateLightClient(uint256 _chainId, bytes memory _data) external override {}
 
+
     function updateBlockHeader(uint256 _chainId, bytes memory _blockHeader) external override {
         require(updateBlockContract[_chainId] != address(0), "not register");
-        ILightNode lightNode = ILightNode(updateBlockContract[_chainId]);
-        lightNode.updateBlockHeader(_blockHeader);
+
     }
 
     function verifyProofData(

@@ -24,9 +24,10 @@ interface IEvent {
         bytes swapData;
     }
 
+    /*
     struct txLog {
         address addr;
         bytes32[] topics;
         bytes data;
-    }
+    }*/
 }
