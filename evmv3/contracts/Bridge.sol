@@ -2,53 +2,66 @@
 
 pragma solidity 0.8.20;
 
-import "./lib/Helper.sol";
-import "./interface/IMOSV3.sol";
 import "./abstract/BridgeAbstract.sol";
 import "./interface/IMintableToken.sol";
-import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import { EVMSwapOutEvent } from "./lib/Types.sol";
+import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
 
 contract Bridge is BridgeAbstract {
-    using AddressUpgradeable for address;
-    using SafeERC20Upgradeable for IERC20Upgradeable;
+
+    bytes32 constant MESSAGE_OUT_TOPIC =
+        keccak256(bytes("MessageRelay(bytes32,uint256,bytes)"));
+
 
     uint256 public relayChainId;
     address public relayContract;
-    mapping(uint256 => bytes) public bridges;
-    address public butterRouter;
+    ILightVerifier public lightNode;
 
-    event SetButterRouter(address _butterRouter);
+    mapping(address => bool) public mintableTokens;
+    mapping(uint256 => mapping(address => bool)) public tokenMappingList;
+
+    error invalid_relay_contract();
+    error invalid_mos_contract();
+    error invalid_to_chain();
+    error invalid_bridge_log();
+    event SetLightClient(address lightNode);
     event SetRelay(uint256 _chainId, address _relay);
-    event RegisterChain(uint256 _chainId, bytes _address);
-    event Deposit(
+    event DepositOut(
+        uint256 indexed fromChain,
+        uint256 indexed toChain,
         bytes32 orderId,
         address token,
+        address relay,
         address from,
         address to,
-        uint256 amount,
-        uint256 gasLimit,
-        uint256 messageFee
+        uint256 amount
     );
 
-    function setButterRouter(address _butterRouter) external onlyRole(MANAGER_ROLE) {
-        butterRouter = _butterRouter;
-        emit SetButterRouter(_butterRouter);
-    }
-
-    function setRelay(uint256 _chainId, address _relay) external onlyRole(MANAGER_ROLE) checkAddress(_relay) {
+    function setRelay( uint256 _chainId, address _relay) external onlyRole(MANAGER_ROLE) {
+        _checkAddress(_relay);
         relayChainId = _chainId;
         relayContract = _relay;
-        bridges[relayChainId] = abi.encodePacked(relayContract);
         emit SetRelay(_chainId, _relay);
     }
 
-    function registerChain(uint256[] calldata _chainIds, bytes[] calldata _addresses) external onlyRole(MANAGER_ROLE) {
-        uint256 len = _chainIds.length;
-        require(len == _addresses.length, "length mismatching");
-        for (uint256 i = 0; i < len; i++) {
-            bridges[_chainIds[i]] = _addresses[i];
-            emit RegisterChain(_chainIds[i], _addresses[i]);
+    function setLightClient(address _lightNode) external onlyRole(MANAGER_ROLE) {
+        _checkAddress(_lightNode);
+        lightNode = ILightVerifier(_lightNode);
+        emit SetLightClient(_lightNode);
+    }
+
+    function registerTokenChains(
+        address _token,
+        uint256[] memory _toChains,
+        bool _enable,
+        bool _mintAble
+    ) external onlyRole(MANAGER_ROLE) {
+        if(_isContract(_token)) revert not_contract();
+        mintableTokens[_token] = _mintAble;
+        for (uint256 i = 0; i < _toChains.length; i++) {
+            uint256 toChain = _toChains[i];
+            tokenMappingList[toChain][_token] = _enable;
+            emit RegisterToken(_token, toChain, _enable, _mintAble);
         }
     }
 
@@ -59,48 +72,19 @@ contract Bridge is BridgeAbstract {
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata _bridgeData
-    ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
-        BridgeParam memory bridge;
-        SwapParam memory param;
-        uint256 messageFee;
-        (param, bridge, messageFee) = _swapOutInit(_initiator, _token, _to, _amount, _toChain, _bridgeData);
+    ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId)
+    {
+        if (_amount == 0) revert zero_amount();
+        address from = msg.sender;
+        address bridgeToken = _transferIn(_token, from, _amount, true);
 
-        if (isOmniToken(param.token)) {
-            orderId = _interTransferAndCall(param, bridge, bridges[_toChain], messageFee);
-        } else {
-            _checkAndBurn(param.token, param.amount);
-            param.caller = (msg.sender == butterRouter) ? abi.encodePacked(_initiator) : abi.encodePacked(msg.sender);
-            bytes memory payload = abi.encode(
-                param.gasLimit,
-                abi.encodePacked(param.token),
-                param.amount,
-                param.fromBytes,
-                param.toBytes,
-                bridge.swapData,
-                param.caller // for caller
-            );
-            payload = abi.encode(OutType.SWAP, payload);
-            IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
-                relay: (_toChain != relayChainId),
-                msgType: IMOSV3.MessageType.MESSAGE,
-                target: abi.encodePacked(relayContract),
-                payload: payload,
-                gasLimit: param.gasLimit,
-                value: 0
-            });
-            orderId = mos.messageOut{value: messageFee}(0x00, param.from, Helper.ZERO_ADDRESS, param.toChain, abi.encode(messageData), Helper.ZERO_ADDRESS);
-        }
-        emit SwapOut(
-            orderId,
-            param.toChain,
-            _token,
-            param.amount,
-            param.from,
-            msg.sender,
-            param.toBytes,
-            abi.encodePacked(param.token),
-            param.gasLimit,
-            messageFee
+        orderId = _swapOut(
+            bridgeToken,
+            _to,
+            _initiator,
+            _amount,
+            _toChain,
+            _bridgeData
         );
     }
 
@@ -108,58 +92,156 @@ contract Bridge is BridgeAbstract {
         address _token,
         address _to,
         uint256 _amount
-    ) external payable override nonReentrant whenNotPaused {
-        uint256 gasLimit = _getBaseGas(relayChainId, OutType.DEPOSIT);
-        (address token, , uint256 messageFee) = _tokenIn(relayChainId, _amount, _token, gasLimit, false);
-        // todo: check omnitoken
-        _checkAndBurn(token, _amount);
-        _checkBridgeable(token, relayChainId);
-        bytes memory payload = abi.encode(abi.encodePacked(token), _amount, abi.encodePacked(msg.sender), _to);
-        payload = abi.encode(OutType.DEPOSIT, payload);
-        IMOSV3.MessageData memory messageData = IMOSV3.MessageData({
-            relay: false,
-            msgType: IMOSV3.MessageType.MESSAGE,
-            target: abi.encodePacked(relayContract),
-            payload: payload,
-            gasLimit: gasLimit,
-            value: 0
-        });
-        bytes32 orderId = mos.transferOut{value: messageFee}(
-            relayChainId,
-            abi.encode(messageData),
-            Helper.ZERO_ADDRESS
-        );
-        emit Deposit(orderId, _token, msg.sender, _to, _amount, gasLimit, messageFee);
+    ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId)
+    {
+        if (_amount == 0) revert zero_amount();
+        address from = msg.sender;
+        address bridgeToken = _transferIn(_token, from, _amount, true);
+        orderId = _depositToken(bridgeToken, from, _to, _amount);
     }
 
-    function mapoExecute(
-        uint256 _fromChain,
-        uint256 _toChain,
-        bytes calldata _fromAddress,
+    function bridgeIn(
+        uint256 _chainId,
+        uint256 _logIndex,
         bytes32 _orderId,
-        bytes calldata _message
-    ) external payable override nonReentrant checkOrder(_orderId) returns (bytes memory newMessage) {
-        require(msg.sender == address(mos), "only mos");
-        require(_toChain == selfChainId, "invalid to chain");
-        require(_fromBytes(_fromAddress) == relayContract, "invalid from");
-        SwapParam memory param;
-        param.fromChain = _fromChain;
-        bytes memory token;
-        bytes memory swapData;
-        (param.orderId, token, param.amount, param.toBytes, param.fromBytes, swapData) = abi.decode(
-            _message,
-            (bytes32, bytes, uint256, bytes, bytes, bytes)
-        );
-        // TODO: check param.orderId
-        param.token = _fromBytes(token);
-        _checkAndMint(param.token, param.amount);
-        _swapIn(param, swapData);
-        return bytes("");
+        bytes memory _receiptProof
+    ) external override nonReentrant whenNotPaused {
+        _checkOrder(_orderId);
+        require(_chainId == relayChainId);
+        (
+            bool success,
+            string memory message,
+            ILightVerifier.txLog memory log
+        ) = lightNode.verifyProofDataWithCache(false, _logIndex, _receiptProof);
+        require(success, message);
+        if (relayContract != log.addr) revert invalid_relay_contract();
+        if (MESSAGE_OUT_TOPIC != log.topics[0]) revert invalid_bridge_log();
+        EVMSwapOutEvent memory outEvent = _decodeMessageRelayLog(log);
+        if (outEvent.mosOrRelay != address(this)) revert invalid_mos_contract();
+        if (selfChainId != outEvent.toChain) revert invalid_to_chain();
+        if (_orderId != outEvent.orderId) revert invalid_order_Id();
+        if (outEvent.amount == 0) {
+            // message bridge
+        } else {
+            // token bridge
+            _swapIn(
+                outEvent.orderId,
+                outEvent.token,
+                outEvent.to,
+                outEvent.amount,
+                outEvent.fromChain,
+                outEvent.from,
+                outEvent.swapData
+            );
+        }
     }
 
-    function getDepositNativeFee(address _token) external view returns (uint256) {
-        address token = Helper._isNative(_token) ? wToken : _token;
-        uint256 gasLimit = _getBaseGas(relayChainId, OutType.DEPOSIT);
-        return getMessageFee(token, gasLimit, relayChainId);
+    function _decodeMessageRelayLog(
+        ILightVerifier.txLog memory log
+    ) internal pure returns (EVMSwapOutEvent memory outEvent) {
+        uint256 chainAndGasLimit;
+        bytes memory messageData;
+        (outEvent.orderId, chainAndGasLimit, messageData) = abi.decode(
+            log.data,
+            (bytes32, uint256, bytes)
+        );
+        outEvent.fromChain = chainAndGasLimit >> 192;
+        outEvent.toChain = (chainAndGasLimit << 64) >> 192;
+        outEvent.gasLimit = uint256(uint64(chainAndGasLimit));
+        (
+            outEvent.mosOrRelay,
+            outEvent.token,
+            outEvent.amount,
+            outEvent.to,
+            outEvent.from,
+            outEvent.swapData
+        ) = abi.decode(
+            messageData,
+            (address, address, uint256, address, bytes, bytes)
+        );
     }
+
+    function _depositToken(
+        address _token,
+        address _from,
+        address _to,
+        uint256 _amount
+    ) internal returns (bytes32 orderId) {
+        _checkBridgeable(_token, relayChainId);
+        orderId = _getOrderId(_from, _toBytes(_to), relayChainId);
+        _notifyLightClient(bytes(""));
+        emit DepositOut(
+            selfChainId,
+            relayChainId,
+            orderId,
+            _token,
+            relayContract,
+            _from,
+            _to,
+            _amount
+        );
+    }
+
+    function _swapOut(
+        address _token, // src token
+        bytes memory _to,
+        address _from,
+        uint256 _amount,
+        uint256 _toChain, // target chain id
+        bytes calldata _swapData
+    ) internal returns (bytes32 orderId) {
+        _checkLimit(_amount, _toChain, _token);
+        _checkBridgeable(_token, _toChain);
+        uint256 fromChain = selfChainId;
+        if (_toChain == fromChain) revert bridge_same_chain();
+        orderId = _getOrderId(_from, _to, _toChain);
+        _from = (msg.sender == butterRouter) ? _from : msg.sender;
+        _notifyLightClient(bytes(""));
+
+        bytes memory messageData = abi.encode(
+            relayContract,
+            _token,
+            _amount,
+            _to,
+            _swapData
+        );
+        _emitMessageOut(
+            orderId,
+            uint64(fromChain),
+            uint64(_toChain),
+            uint64(0),
+            _from,
+            messageData
+        );
+    }
+
+    function _emitMessageOut(
+        bytes32 _orderId, 
+        uint64 _fromChain, 
+        uint64 _toChain, 
+        uint64 _gasLimit, 
+        address _from, 
+        bytes memory messageData
+    ) internal {
+        uint256 chainAndGasLimit = _getChainAndGasLimit(_fromChain, _toChain, _gasLimit);
+        emit MessageOut(_orderId, chainAndGasLimit, _from, messageData);
+    }
+
+    function _checkBridgeable(address _token, uint256 _chainId) internal view {
+        if(!tokenMappingList[_chainId][_token]) revert token_not_registered();
+    }
+
+    function isMintAble(address _token) internal view override returns(bool) {
+        return mintableTokens[_token];
+    }
+
+    function _notifyLightClient(bytes memory _data) internal {
+        lightNode.notifyLightClient(address(this), _data);
+    }
+
+    function transferOut(
+        uint256 _toChain,
+        bytes memory _messageData,
+        address _feeToken
+    ) external payable override returns (bytes32) {}
 }

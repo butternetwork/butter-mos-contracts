@@ -2,11 +2,6 @@
 pragma solidity ^0.8.0;
 
 interface IButterBridgeV3 {
-    struct BridgeParam {
-        uint256 gasLimit;
-        bytes refundAddress;
-        bytes swapData;
-    }
 
     function swapOutToken(
         address _sender, // user account send this transaction
@@ -17,26 +12,59 @@ interface IButterBridgeV3 {
         bytes calldata _bridgeData
     ) external payable returns (bytes32 orderId);
 
-    function depositToken(address _token, address to, uint256 _amount) external payable;
+    function depositToken(address _token, address _to, uint256 _amount) external payable returns (bytes32 orderId);
 
-    function getNativeFee(address _token, uint256 _gasLimit, uint256 _toChain) external view returns (uint256);
+    function transferOut(
+        uint256 _toChain,
+        bytes memory _messageData,
+        address _feeToken
+    ) external payable returns (bytes32);
 
-    event Relay(bytes32 orderId1, bytes32 orderId2);
+    function bridgeIn(
+        uint256 _chainId,
+        uint256 _logIndex,
+        bytes32 _orderId,
+        bytes memory _receiptProof
+    ) external;
 
-    // todo: add native fee and base fee
     event CollectFee(bytes32 indexed orderId, address indexed token, uint256 value);
 
-    event SwapOut(
-        bytes32 indexed orderId, // orderId
-        uint256 indexed tochain, // to chain
-        address indexed token, // token to across chain
-        uint256 amount, // amount to transfer
-        address from, // account send this transaction
-        address caller, // msg.sender call swapOutToken
-        bytes to, // account receiver on target chain
-        bytes outToken, // token bridge to target chain(token is native this maybe wtoken)
-        uint256 gasLimit, // gasLimit for call on target chain
-        uint256 messageFee // native amount for pass message
+    event MessageOut(
+        bytes32 orderId,
+        // fromChain (8 bytes) | toChain (8 bytes) | reserved (8 bytes) | gasLimit (8 bytes)
+        uint256 chainAndGasLimit, 
+        address from,
+        // abi.encode(address(mosRelay), address(token), amount, bytes(to), bytes(message))
+        bytes messageData  
+    );
+
+    event MessageRelay(
+        bytes32 orderId,
+        // fromChain (8 bytes) | toChain (8 bytes) | reserved (8 bytes) | gasLimit (8 bytes)
+        uint256 chainAndGasLimit,
+        bytes messageData   // abi.encode(address(mos), address(token), amount, address(to), bytes(from), bytes(message))
+    );
+
+    //   packed message data
+    //   version (1 bytes), majorVersion(4bit) | minorVersion(4bit), same major version means the same structure
+    //   relay (1 bytes)
+    //   token len (1 bytes)
+    //   mos len (1 bytes)
+    //   from len (1 bytes)
+    //   to len (1 bytes)
+    //   payload len (2 bytes)
+    //   reserved (8 bytes)
+    //   token amount (16 bytes)
+    //
+    //   token address (tokenLen bytes)
+    //   mos target (targetLen bytes)
+    //   from address (fromLen bytes)
+    //   to address (toLen bytes)
+    //   payload (payloadLen bytes)
+    event MessageRelayPacked(
+        bytes32 orderId,
+        uint256 chainAndGasLimit,
+        bytes messageData
     );
 
     event SwapIn(
