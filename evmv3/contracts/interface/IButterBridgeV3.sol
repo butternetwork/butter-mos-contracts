@@ -2,9 +2,16 @@
 pragma solidity ^0.8.0;
 
 interface IButterBridgeV3 {
+    struct BridgeParam {
+        bool relay;
+        address referrer;
+        bytes32 transferId;
+        uint256 gasLimit;
+        bytes swapData;
+    }
 
     function swapOutToken(
-        address _sender, // user account send this transaction
+        address _initiator, // user account send this transaction
         address _token, // src token
         bytes memory _to, // receiver account
         uint256 _amount, // token amount
@@ -14,35 +21,32 @@ interface IButterBridgeV3 {
 
     function depositToken(address _token, address _to, uint256 _amount) external payable returns (bytes32 orderId);
 
-    function transferOut(
-        uint256 _toChain,
-        bytes memory _messageData,
-        address _feeToken
-    ) external payable returns (bytes32);
-
-    function bridgeIn(
-        uint256 _chainId,
-        uint256 _logIndex,
-        bytes32 _orderId,
-        bytes memory _receiptProof
-    ) external;
-
     event CollectFee(bytes32 indexed orderId, address indexed token, uint256 value);
 
+    event MessageIn(
+        bytes32 indexed orderId,
+        uint256 indexed chainAndGasLimit, // fromChain (8 bytes) | toChain (8 bytes) | reserved (8 bytes) | gasLimit (8 bytes)
+        address token,
+        uint256 amount,
+        address to,
+        bytes from,
+        bytes payload
+    );
+
     event MessageOut(
-        bytes32 orderId,
+        bytes32 indexed orderId,
         // fromChain (8 bytes) | toChain (8 bytes) | reserved (8 bytes) | gasLimit (8 bytes)
-        uint256 chainAndGasLimit, 
-        address from,
-        // abi.encode(address(mosRelay), address(token), amount, bytes(to), bytes(message))
-        bytes messageData  
+        uint256 indexed chainAndGasLimit,
+        // address from,
+        // abi.encode(version, mos, token, amount, from, bytes(to), bytes(message))
+        bytes payload
     );
 
     event MessageRelay(
         bytes32 orderId,
         // fromChain (8 bytes) | toChain (8 bytes) | reserved (8 bytes) | gasLimit (8 bytes)
         uint256 chainAndGasLimit,
-        bytes messageData   // abi.encode(address(mos), address(token), amount, address(to), bytes(from), bytes(message))
+        bytes payload // abi.encode(version, mos, token, amount, to, bytes(from), bytes(message))
     );
 
     //   packed message data
@@ -61,19 +65,5 @@ interface IButterBridgeV3 {
     //   from address (fromLen bytes)
     //   to address (toLen bytes)
     //   payload (payloadLen bytes)
-    event MessageRelayPacked(
-        bytes32 orderId,
-        uint256 chainAndGasLimit,
-        bytes messageData
-    );
-
-    event SwapIn(
-        bytes32 indexed orderId, // orderId
-        uint256 indexed fromChain, // from chain
-        address indexed token, // token received on target chain
-        uint256 amount, // target token amount
-        address to, // account receiver on target chain
-        address outToken, //
-        bytes from // from chain account send this transaction
-    );
+    event MessageRelayPacked(bytes32 orderId, uint256 chainAndGasLimit, bytes messageData);
 }

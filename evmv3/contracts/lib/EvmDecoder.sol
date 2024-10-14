@@ -3,51 +3,87 @@
 pragma solidity 0.8.20;
 
 import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
-import { SwapOutEvent, DepositOutEvent } from "./Types.sol";
+import {SwapOutEvent, EVMSwapOutEvent} from "./Types.sol";
 
 library EvmDecoder {
-    bytes32 constant DEPOSITOUT_TOPIC =
-        keccak256(bytes("DepositOut(uint256,uint256,bytes32,address,address,address,uint256)"));
-    bytes32 constant MESSAGE_OUT_TOPIC =
-        keccak256(bytes("MessageOut(bytes32,uint256,address,bytes)"));
+    bytes32 constant MESSAGE_OUT_TOPIC = keccak256(bytes("MessageOut(bytes32,uint256,address,bytes)"));
+
+    uint256 constant EVM_PACK_VERSION = 0x00;
+
+    uint256 constant RELAY_BIT_OFFSET = 64;
+
+    function encodeMessageHeader(bool _relay, uint8 _type) internal pure returns (uint256) {
+        uint256 header = EVM_PACK_VERSION << 248;
+        header |= _type;
+        if (_relay) {
+            header |= (0x01 << RELAY_BIT_OFFSET);
+        }
+
+        return header;
+    }
 
     function decodeMessageOut(
         ILightVerifier.txLog memory log
-    ) internal pure returns (SwapOutEvent memory outEvent) {
-        uint256 chainAndGasLimit;
-        address from;
-        bytes memory messageData;
-        (outEvent.orderId, chainAndGasLimit, from, messageData) = abi.decode(
-            log.data,
-            (bytes32, uint256, address, bytes)
-        );
-        outEvent.fromChain = chainAndGasLimit >> 192;
-        outEvent.toChain = (chainAndGasLimit << 64) >> 192;
-        outEvent.gasLimit = uint256(uint64(chainAndGasLimit));
-        outEvent.from = abi.encodePacked(from);
-        address mos;
-        address token;
-        (mos, token, outEvent.amount, outEvent.to, outEvent.swapData) = abi.decode(messageData, (address,address,uint256,bytes,bytes));
-        outEvent.mosOrRelay = abi.encodePacked(mos);
-        outEvent.token = abi.encodePacked(token);
+    ) internal pure returns (bool result, SwapOutEvent memory outEvent) {
+        if (!_checkEvmPackVersion(log.data)) {
+            return (false, outEvent);
+        }
+
+        outEvent.orderId = log.topics[1];
+        (outEvent.fromChain, outEvent.toChain, outEvent.gasLimit) = _decodeChainAndGasLimit(uint256(log.topics[2]));
+
+        {
+            address mos;
+            address token;
+            address from;
+            uint256 header;
+            (header, mos, token, outEvent.amount, from, outEvent.to, outEvent.swapData) = abi.decode(
+                log.data,
+                (uint256, address, address, uint256, address, bytes, bytes)
+            );
+            outEvent.from = abi.encodePacked(from);
+            outEvent.mosOrRelay = abi.encodePacked(mos);
+            outEvent.token = abi.encodePacked(token);
+            outEvent.relay = (((header >> RELAY_BIT_OFFSET) & 0x01) == 0x01);
+            outEvent.messageType = uint8(header & 0xFF);
+        }
+
+        return (true, outEvent);
     }
 
-    function decodeDepositOutLog(
+    function decodeMessageRelay(
         ILightVerifier.txLog memory log
-    ) internal pure returns (DepositOutEvent memory depositEvent) {
-        depositEvent.fromChain = uint256(log.topics[1]);
-        depositEvent.toChain = uint256(log.topics[2]);
-        address token;
-        address from;
-        address to;
-        address relay;
-        (depositEvent.orderId, token,relay, from, to, depositEvent.amount) = abi.decode(
-            log.data,
-            (bytes32, address, address, address, address, uint256)
-        );
-        depositEvent.token = abi.encodePacked(token);
-        depositEvent.from = abi.encodePacked(from);
-        depositEvent.to = abi.encodePacked(to);
-        depositEvent.mosOrRelay = abi.encodePacked(relay);
+    ) internal pure returns (bool result, EVMSwapOutEvent memory outEvent) {
+        if (!_checkEvmPackVersion(log.data)) {
+            return (false, outEvent);
+        }
+
+        outEvent.orderId = log.topics[1];
+        (outEvent.fromChain, outEvent.toChain, outEvent.gasLimit) = _decodeChainAndGasLimit(uint256(log.topics[2]));
+
+        uint256 header;
+        (header, outEvent.mos, outEvent.token, outEvent.amount, outEvent.to, outEvent.from, outEvent.swapData) = abi
+            .decode(log.data, (uint256, address, address, uint256, address, bytes, bytes));
+
+        outEvent.messageType = uint8(header);
+
+        return (true, outEvent);
+    }
+
+    function _checkEvmPackVersion(bytes memory payload) internal pure returns (bool) {
+        uint8 version;
+        assembly {
+            version := byte(payload, 0)
+        }
+
+        return (version & 0xF0 == uint8(EVM_PACK_VERSION));
+    }
+
+    function _decodeChainAndGasLimit(
+        uint256 chainAndGasLimit
+    ) internal pure returns (uint256 fromChain, uint256 toChain, uint256 gasLimit) {
+        fromChain = chainAndGasLimit >> 192;
+        toChain = (chainAndGasLimit << 64) >> 192;
+        gasLimit = uint256(uint64(chainAndGasLimit));
     }
 }

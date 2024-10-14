@@ -168,5 +168,5 @@ module.exports = {
     getChainList,
     stringToHex,
     getFeeList,
-    getFeeConfig
+    getFeeConfig,
 };

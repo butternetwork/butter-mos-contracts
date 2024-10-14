@@ -90,7 +90,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         address _token,
         uint256 _fromChain,
         uint256 _toChain,
-        bytes  _caller,
+        bytes _caller,
         uint256 _rate,
         bool _isWhitelist
     );
@@ -98,7 +98,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     event SetFromChainWhitelistFeeRate(
         address _token,
         uint256 _fromChain,
-        bytes  _caller,
+        bytes _caller,
         uint256 _rate,
         bool _isWhitelist
     );
@@ -235,7 +235,6 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
         emit SetToChainWhitelistFeeRate(_token, _fromChain, _toChain, _caller, _rate, _isWhitelist);
     }
-
 
     function setFromChainWhitelistFeeRate(
         address _token,
@@ -616,7 +615,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         return (_amount * (10 ** decimalsTo)) / (10 ** decimalsFrom);
     }
 
-    function _getKey(uint256 _fromChain, bytes memory _caller,address _token) private pure returns (bytes32) {
+    function _getKey(uint256 _fromChain, bytes memory _caller, address _token) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(_fromChain, _caller, _token));
     }
 

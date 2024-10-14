@@ -55,7 +55,6 @@ interface ITokenRegisterV3 {
         bool _withSwap
     ) external view returns (uint256 totalFee, uint256 baseFee, uint256 bridgeFee);
 
-
     function getBridgeFeeInfoV3(
         bytes memory _caller,
         bytes memory _fromToken,
