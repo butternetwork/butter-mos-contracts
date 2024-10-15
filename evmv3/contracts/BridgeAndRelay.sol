@@ -8,6 +8,7 @@ import "./interface/IMintableToken.sol";
 import "./interface/ITokenRegisterV3.sol";
 import "./lib/EvmDecoder.sol";
 import "./lib/NearDecoder.sol";
+import "./interface/IRelayExecutor.sol";
 import {SwapOutEvent} from "./lib/Types.sol";
 import "@mapprotocol/protocol/contracts/lib/LogDecode.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
@@ -263,6 +264,15 @@ contract BridgeAndRelay is BridgeAbstract {
             );
     }
 
+    function relayToken(address _token, uint256 _amount, SwapOutEvent calldata _outEvent) external returns(address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage){
+        require(msg.sender == address(this));
+        (address to, bytes memory relayData) = abi.decode(_outEvent.swapData, (address,bytes));
+        _transferOut(_token, to, _amount, false);
+        (tokenOut, amountOut, target, newMessage) = IRelayExecutor(to).
+                                                        relayExecute(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, _token, _amount, _outEvent.from, relayData);
+        _transferIn(tokenOut, to, amountOut, false);
+    }
+
     function _swapOut(
         address _token, // src token
         bytes memory _to,
@@ -335,9 +345,21 @@ contract BridgeAndRelay is BridgeAbstract {
     function _swapInWithToken(SwapOutEvent memory _outEvent) internal {
         address token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
         if (token == address(0)) revert token_not_registered();
-        uint256 outAmount;
-        {
-            uint256 mapAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
+        uint256 mapAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
+        if(MessageType(_outEvent.messageType) == MessageType.DEPOSIT) {
+            // if (tokenRegister.checkMintable(token)) {
+            //     IMintableToken(token).mint(address(this), mapAmount);
+            // }
+            _deposit(
+                token,
+                _outEvent.from,
+                _fromBytes(_outEvent.to),
+                mapAmount,
+                _outEvent.orderId,
+                _outEvent.fromChain
+            );
+        } else {
+            uint256 outAmount;
             (, outAmount) = _collectFee(
                 _outEvent.from,
                 _outEvent.orderId,
@@ -347,35 +369,44 @@ contract BridgeAndRelay is BridgeAbstract {
                 _outEvent.toChain,
                 _outEvent.swapData.length != 0
             );
-        }
-        if (_outEvent.toChain == selfChainId) {
-            _swapIn(
-                _outEvent.orderId,
-                token,
-                _fromBytes(_outEvent.to),
-                _outEvent.amount,
-                _outEvent.fromChain,
-                _outEvent.from,
-                _outEvent.swapData
-            );
-        } else {
-            if (_outEvent.relay) {
-                // todo: relay execute
+
+            if (_outEvent.toChain == selfChainId) {
+                _swapIn(
+                    _outEvent.orderId,
+                    token,
+                    _fromBytes(_outEvent.to),
+                    _outEvent.amount,
+                    _outEvent.fromChain,
+                    _outEvent.from,
+                    _outEvent.swapData
+                );
+            } else {
+                if (_outEvent.relay) {
+                    // todo: relay execute
+                    try this.relayToken(token, outAmount, _outEvent) returns (address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage) {
+                        token = tokenOut;
+                        outAmount = amountOut;
+                        _outEvent.to = target;
+                        _outEvent.swapData = newMessage;
+                    } catch  {
+                        _outEvent.swapData = bytes("");
+                    }
+                }
+                _notifyLightClient(_outEvent.toChain, bytes(""));
+                bytes memory toChainToken = tokenRegister.getToChainToken(token, _outEvent.toChain);
+                if (!_checkBytes(toChainToken, bytes(""))) revert token_not_registered();
+                _emitMessageRelay(
+                    _outEvent.messageType,
+                    _outEvent.orderId,
+                    _outEvent.fromChain,
+                    _outEvent.toChain,
+                    toChainToken,
+                    outAmount,
+                    _outEvent.to,
+                    _outEvent.from,
+                    _outEvent.swapData
+                );
             }
-            _notifyLightClient(_outEvent.toChain, bytes(""));
-            bytes memory toChainToken = tokenRegister.getToChainToken(token, _outEvent.toChain);
-            if (!_checkBytes(toChainToken, bytes(""))) revert token_not_registered();
-            _emitMessageRelay(
-                _outEvent.messageType,
-                _outEvent.orderId,
-                _outEvent.fromChain,
-                _outEvent.toChain,
-                toChainToken,
-                outAmount,
-                _outEvent.to,
-                _outEvent.from,
-                _outEvent.swapData
-            );
         }
     }
 

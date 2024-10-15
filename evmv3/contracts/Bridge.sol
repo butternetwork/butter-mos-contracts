@@ -26,16 +26,16 @@ contract Bridge is BridgeAbstract {
     event SetLightClient(address lightNode);
     event SetRelay(uint256 _chainId, address _relay);
     event SetFeeService(address indexed feeServiceAddress);
-    event DepositOut(
-        uint256 indexed fromChain,
-        uint256 indexed toChain,
-        bytes32 orderId,
-        address token,
-        address relay,
-        address from,
-        address to,
-        uint256 amount
-    );
+    // event DepositOut(
+    //     uint256 indexed fromChain,
+    //     uint256 indexed toChain,
+    //     bytes32 orderId,
+    //     address token,
+    //     address relay,
+    //     address from,
+    //     address to,
+    //     uint256 amount
+    // );
 
     function setRelay(uint256 _chainId, address _relay) external onlyRole(MANAGER_ROLE) {
         _checkAddress(_relay);
