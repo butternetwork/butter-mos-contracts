@@ -8,11 +8,14 @@ import "../interface/IMintableToken.sol";
 import "../interface/IMapoExecutor.sol";
 import "../interface/ISwapOutLimit.sol";
 import "../interface/IButterReceiver.sol";
+import "../interface/IFeeService.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import {EvmDecoder} from "../lib/EvmDecoder.sol";
+import {EVMSwapOutEvent} from "../lib/Types.sol";
+import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 
 abstract contract BridgeAbstract is
     UUPSUpgradeable,
@@ -33,8 +36,13 @@ abstract contract BridgeAbstract is
     address private wToken;
     address private butterRouter;
     ISwapOutLimit public swapLimit;
+    IFeeService public feeService;
 
     mapping(bytes32 => uint256) public orderList;
+
+    mapping(address => mapping(uint256 => mapping(bytes => bool))) public callerList;
+
+    mapping(bytes32 => bytes32) public storedMessageList;
 
     //
     mapping(address => uint256) public tokenFeatureList;
@@ -55,6 +63,7 @@ abstract contract BridgeAbstract is
     event SetContract(uint256 _t, address _addr);
     event RegisterToken(address _token, uint256 _toChain, bool _enable);
     event UpdateToken(address token, address _omniProxy, uint96 feature);
+    event GasInfo(bytes32 indexed orderId,uint256 indexed executingGas,uint256 indexed executedGas);
 
     event MessageTransfer(
         address initiator,
@@ -134,10 +143,12 @@ abstract contract BridgeAbstract is
     ) external view virtual override returns (bool exists, bool verifiable, uint256 nodeType) {}
 
     function getMessageFee(
-        uint256 toChain,
-        address feeToken,
-        uint256 gasLimit
-    ) external view returns (uint256 fee, address receiver) {}
+        uint256 _toChain,
+        address _feeToken,
+        uint256 _gasLimit
+    ) external view returns (uint256 fee, address receiver) {
+        (fee, receiver) = _getMessageFee(_toChain, _feeToken, _gasLimit);
+    }
 
     function swapOutToken(
         address _sender, // initiator address
@@ -245,6 +256,144 @@ abstract contract BridgeAbstract is
         _notifyLightClient(_toChain, bytes(""));
     }
 
+    function _messageIn(
+        EVMSwapOutEvent memory _outEvent,
+        MessageData memory _msgData,
+        bool _gasleft,
+        bool _revert
+    ) internal {
+        if(_revert){
+            _retryExecute(_outEvent, _msgData);
+            emit MessageIn(
+                _outEvent.orderId,
+                _outEvent.fromChain,
+                address(0),
+                0,
+                Utils.fromBytes(_msgData.target),
+                _outEvent.from,
+                bytes("")
+            );
+//            emit MessageIn(
+//                _outEvent.fromChain,
+//                _outEvent.toChain,
+//                _outEvent.orderId,
+//                _outEvent.fromAddress,
+//                bytes(""),
+//                true,
+//                bytes("")
+//            );
+        } else {
+            uint256 executingGas = gasleft();
+            (bool success, bytes memory returnData) = _messageExecute(_outEvent, _msgData, _gasleft);
+            emit GasInfo(_outEvent.orderId,executingGas,gasleft());
+            if (success) {
+                emit MessageIn(
+                    _outEvent.orderId,
+                    _outEvent.fromChain,
+                    address(0),
+                    0,
+                    Utils.fromBytes(_msgData.target),
+                    _outEvent.from,
+                    bytes("")
+                );
+            } else {
+                _storeMessageData(_outEvent, returnData);
+            }
+        }
+    }
+
+    function _retryExecute(
+        EVMSwapOutEvent memory _outEvent,
+        MessageData memory _msgData
+    ) internal returns(bytes memory returnData){
+        address target = Utils.fromBytes(_msgData.target);
+        require(AddressUpgradeable.isContract(target),"NotContract");
+        if (_msgData.msgType == MessageType.CALLDATA) {
+            require(callerList[target][_outEvent.fromChain][_outEvent.from],"InvalidCaller");
+            bool success;
+            (success, returnData) = target.call(_msgData.payload);
+            require(success,"MOSV3: retry call failed");
+        } else if (_msgData.msgType == MessageType.MESSAGE) {
+            returnData = IMapoExecutor(target).mapoExecute(
+                _outEvent.fromChain,
+                _outEvent.toChain,
+                _outEvent.from,
+                _outEvent.orderId,
+                _msgData.payload
+            );
+        } else {
+            require(false, "InvalidMessageType");
+        }
+    }
+
+    function _messageExecute(
+        EVMSwapOutEvent memory _outEvent,
+        MessageData memory _msgData,
+        bool _gasleft
+    ) internal returns (bool, bytes memory) {
+        uint256 gasLimit = _msgData.gasLimit;
+        if (_gasleft) {
+            gasLimit = gasleft();
+        }
+        address target = Utils.fromBytes(_msgData.target);
+        if (!AddressUpgradeable.isContract(target)) {
+            return (false, bytes("NotContract"));
+        }
+        if (_msgData.msgType == MessageType.CALLDATA) {
+            if (!callerList[target][_outEvent.fromChain][_outEvent.from]) {
+                return (false, bytes("InvalidCaller"));
+            }
+            (bool success, bytes memory returnData) = target.call{gas: gasLimit}(_msgData.payload);
+            if (!success) {
+                return (false, returnData);
+            } else {
+                if (_msgData.relay) {
+                    bytes memory data = abi.decode(returnData, (bytes));
+                    return (true, data);
+                } else {
+                    return (true, returnData);
+                }
+            }
+        } else if (_msgData.msgType == MessageType.MESSAGE) {
+            try
+            IMapoExecutor(target).mapoExecute{gas: gasLimit}(
+                _outEvent.fromChain,
+                _outEvent.toChain,
+                _outEvent.from,
+                _outEvent.orderId,
+                _msgData.payload
+            )
+            returns (bytes memory returnData) {
+                return (true, returnData);
+            } catch (bytes memory reason) {
+                return (false, reason);
+            }
+        } else {
+            return (false, bytes("InvalidMessageType"));
+        }
+    }
+
+    function _storeMessageData(EVMSwapOutEvent memory _outEvent, bytes memory _reason) internal {
+        if(_outEvent.toChain == selfChainId){
+            storedMessageList[_outEvent.orderId] = keccak256(
+                abi.encodePacked(_outEvent.fromChain, _outEvent.from, _outEvent.swapData)
+            );
+        }else{
+            storedMessageList[_outEvent.orderId] = keccak256(
+                abi.encodePacked(_outEvent.fromChain, _outEvent.toChain,_outEvent.from, _outEvent.swapData)
+            );
+        }
+        emit MessageIn(
+            _outEvent.orderId,
+            _outEvent.fromChain,
+            address(0),
+            0,
+            _outEvent.to,
+            _outEvent.from,
+            _reason
+        );
+    }
+
     function _getOrderId(
         uint256 _fromChain,
         uint256 _toChain,
@@ -344,6 +493,18 @@ abstract contract BridgeAbstract is
     function _isContract(address _addr) internal view returns (bool) {
         return _addr.code.length != 0;
     }
+
+    function _getMessageFee(
+        uint256 _toChain,
+        address _feeToken,
+        uint256 _gasLimit
+    ) internal view returns (uint256 amount, address receiverAddress) {
+
+        (amount, receiverAddress) = feeService.getServiceMessageFee(_toChain, _feeToken,_gasLimit);
+        require(amount > 0, "MOSV3: not support target chain");
+
+    }
+
 
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {
