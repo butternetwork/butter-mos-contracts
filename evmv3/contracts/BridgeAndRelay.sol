@@ -278,10 +278,58 @@ contract BridgeAndRelay is BridgeAbstract {
         if (_chainId != _outEvent.fromChain) revert invalid_chain_id();
         if (_outEvent.amount == 0) {
             // message bridge
+            EVMSwapOutEvent memory outEvent;
+            outEvent.orderId = _outEvent.orderId;
+            outEvent.fromChain = _outEvent.fromChain;
+            outEvent.toChain = _outEvent.toChain;
+            outEvent.from = _outEvent.from;
+            outEvent.swapData = _outEvent.swapData;
+            _swapInMessage(_chainId,outEvent);
         } else {
             // token bridge
             _swapInWithToken(_outEvent);
         }
+    }
+
+    function _swapInMessage(
+        uint256 _chainId,
+        EVMSwapOutEvent memory _outEvent
+    ) internal {
+        _checkOrder(_outEvent.orderId);
+        require(_chainId == _outEvent.fromChain, "MOSV3: Invalid from chain");
+        MessageData memory msgData = abi.decode(_outEvent.swapData, (MessageData));
+        if (_outEvent.toChain == selfChainId) {
+            _messageIn(_outEvent, msgData, true, false);
+        } else {
+            _messageRelay(_outEvent, msgData, false);
+        }
+    }
+
+    function _messageRelay(EVMSwapOutEvent memory _outEvent, MessageData memory _msgData, bool _retry) internal {
+//        if (!_msgData.relay) {
+//            _notifyMessageOut(_outEvent, _outEvent.messageData);
+//            return;
+//        }
+        bytes memory returnData;
+        if(_retry){
+            returnData = _retryExecute(_outEvent, _msgData);
+        } else {
+            uint256 executingGas = gasleft();
+            bool success;
+            (success, returnData) = _messageExecute(_outEvent, _msgData, true);
+            emit GasInfo(_outEvent.orderId,executingGas,gasleft());
+            if (!success) {
+                _storeMessageData(_outEvent, returnData);
+                return;
+            }
+        }
+        MessageData memory msgData = abi.decode(returnData, (MessageData));
+        if (msgData.gasLimit != _msgData.gasLimit || msgData.value != 0) {
+            msgData.gasLimit = _msgData.gasLimit;
+            msgData.value = 0;
+            returnData = abi.encode(msgData);
+        }
+        //_notifyMessageOut(_outEvent, returnData);
     }
 
     function _swapInWithToken(SwapOutEvent memory _outEvent) internal {
@@ -562,7 +610,47 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _toChain,
         bytes memory _messageData,
         address _feeToken
-    ) external payable override returns (bytes32) {
+    ) external payable override returns (bytes32 orderId) {
         // todo
+        uint256 fromChain = selfChainId;
+        require(_toChain != fromChain, "MOSV3: only other chain");
+
+        MessageData memory msgData = abi.decode(_messageData, (MessageData));
+        require(msgData.value == 0, "MOSV3: not support msg value");
+
+        require((msgData.msgType == MessageType.MESSAGE), "MOSV3: unsupported message type");
+
+        // TODO: get fee
+        (uint256 amount, address receiverFeeAddress) = _getMessageFee(_toChain, _feeToken, msgData.gasLimit);
+        if (_feeToken == address(0)) {
+            require(msg.value >= amount, "MOSV3: invalid message fee");
+            if (msg.value > 0) {
+                //payable(receiverFeeAddress).transfer(msg.value);
+                _safeTransferNative(receiverFeeAddress,msg.value);
+            }
+        } else {
+            //SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(_feeToken), msg.sender, receiverFeeAddress, amount);
+            _safeTransferFrom(_feeToken, msg.sender, receiverFeeAddress, amount);
+        }
+
+
+        BridgeParam memory bridgeData;
+        bridgeData.relay = msgData.relay;
+        bridgeData.gasLimit = msgData.gasLimit;
+        bridgeData.swapData = msgData.payload;
+        orderId = _messageOut(
+            MessageType.MESSAGE,
+            msg.sender,
+            address(0),
+            0,
+            address(this),
+            _toChain,
+            msgData.target,
+            bridgeData
+        );
+
+        emit MessageTransfer(msg.sender, address(0), msg.sender, orderId, bytes32(0), _feeToken, 0);
+
+        return orderId;
     }
 }

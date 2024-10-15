@@ -5,7 +5,6 @@ pragma solidity 0.8.20;
 import "./abstract/BridgeAbstract.sol";
 import "./interface/IMintableToken.sol";
 import "./lib/EvmDecoder.sol";
-import {EVMSwapOutEvent} from "./lib/Types.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
 
 contract Bridge is BridgeAbstract {
@@ -26,6 +25,7 @@ contract Bridge is BridgeAbstract {
 
     event SetLightClient(address lightNode);
     event SetRelay(uint256 _chainId, address _relay);
+    event SetFeeService(address indexed feeServiceAddress);
     event DepositOut(
         uint256 indexed fromChain,
         uint256 indexed toChain,
@@ -49,6 +49,12 @@ contract Bridge is BridgeAbstract {
         _checkAddress(_lightNode);
         lightNode = ILightVerifier(_lightNode);
         emit SetLightClient(_lightNode);
+    }
+
+    function setFeeService(address _feeServiceAddress) external onlyRole(MANAGER_ROLE)  {
+        _checkAddress(_feeServiceAddress);
+        feeService = IFeeService(_feeServiceAddress);
+        emit SetFeeService(_feeServiceAddress);
     }
 
     /*
@@ -139,6 +145,18 @@ contract Bridge is BridgeAbstract {
         require((msgData.msgType == MessageType.MESSAGE), "MOSV3: unsupported message type");
 
         // TODO: get fee
+        (uint256 amount, address receiverFeeAddress) = _getMessageFee(_toChain, _feeToken, msgData.gasLimit);
+        if (_feeToken == address(0)) {
+            require(msg.value >= amount, "MOSV3: invalid message fee");
+            if (msg.value > 0) {
+                //payable(receiverFeeAddress).transfer(msg.value);
+                _safeTransferNative(receiverFeeAddress,msg.value);
+            }
+        } else {
+            //SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(_feeToken), msg.sender, receiverFeeAddress, amount);
+            _safeTransferFrom(_feeToken, msg.sender, receiverFeeAddress, amount);
+        }
+
 
         BridgeParam memory bridgeData;
         bridgeData.relay = msgData.relay;
@@ -189,6 +207,9 @@ contract Bridge is BridgeAbstract {
 
         if (MessageType(outEvent.messageType) == MessageType.MESSAGE) {
             // todo: message
+            MessageData memory msgData = abi.decode(outEvent.swapData, (MessageData));
+            _messageIn(outEvent, msgData, false, false);
+
         } else {
             // token bridge
             _swapIn(
@@ -213,4 +234,5 @@ contract Bridge is BridgeAbstract {
         relayChainId = relay & 0xFFFFFFFFFFFFFFFF;
         relayContract = address(uint160(relay >> 96));
     }
+
 }
