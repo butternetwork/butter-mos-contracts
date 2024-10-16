@@ -9,16 +9,17 @@ import "./interface/ITokenRegisterV3.sol";
 import "./lib/EvmDecoder.sol";
 import "./lib/NearDecoder.sol";
 import "./interface/IRelayExecutor.sol";
-import {SwapOutEvent} from "./lib/Types.sol";
+import {MessageOutEvent} from "./lib/Types.sol";
 import "@mapprotocol/protocol/contracts/lib/LogDecode.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightClientManager.sol";
 
 contract BridgeAndRelay is BridgeAbstract {
     struct Rate {
+        uint64 rate;
         address receiver;
-        uint256 rate;
     }
+
     enum ChainType {
         NULL,
         EVM,
@@ -27,6 +28,7 @@ contract BridgeAndRelay is BridgeAbstract {
         SOLANA
     }
 
+    uint256 constant MAX_BASE_POINT = 10000;
     uint256 constant PACK_VERSION = 0x10;
 
     ITokenRegisterV3 public tokenRegister;
@@ -70,16 +72,24 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 amount
     );
 
-    function setLightClientManager(address _managerAddress) external onlyRole(MANAGER_ROLE) {
-        _checkAddress(_managerAddress);
-        lightClientManager = ILightClientManager(_managerAddress);
-        emit SetLightClientManager(_managerAddress);
-    }
+    // --------------------------------------------- manage ----------------------------------------------
 
-    function setTokenRegister(address _register) external onlyRole(MANAGER_ROLE) {
-        _checkAddress(_register);
-        tokenRegister = ITokenRegisterV3(_register);
-        emit SetTokenRegister(_register);
+    function setContract(uint256 _t, address _addr) external onlyRole(MANAGER_ROLE) {
+        _checkAddress(_addr);
+        if (_t == 0) {
+            wToken = _addr;
+        } else if (_t == 1) {
+            lightClientManager = ILightClientManager(_addr);
+        } else if (_t == 2) {
+            feeService = IFeeService(_addr);
+        } else if (_t == 3) {
+            butterRouter = _addr;
+        } else if (_t == 4) {
+            tokenRegister = ITokenRegisterV3(_addr);
+        } else {
+            swapLimit = ISwapOutLimit(_addr);
+        }
+        emit SetContract(_t, _addr);
     }
 
     function registerChain(
@@ -100,23 +110,14 @@ contract BridgeAndRelay is BridgeAbstract {
         _checkAddress(_to);
         if (_id >= 3) revert invalid_rate_id();
 
-        distributeRate[_id] = Rate(_to, _rate);
+        distributeRate[_id] = Rate(uint64(_rate), _to);
 
-        if ((distributeRate[0].rate + distributeRate[1].rate + distributeRate[2].rate) > 1000000)
+        if ((distributeRate[0].rate + distributeRate[1].rate + distributeRate[2].rate) > MAX_BASE_POINT)
             revert invalid_rate_value();
         emit SetDistributeRate(_id, _to, _rate);
     }
 
-    function withdraw(address _vaultToken, uint256 _vaultAmount) external nonReentrant whenNotPaused {
-        if (_vaultToken == address(0)) revert vault_token_not_registered();
-        address token = IVaultTokenV3(_vaultToken).getTokenAddress();
-        address vaultToken = tokenRegister.getVaultToken(token);
-        if (_vaultToken != vaultToken) revert invalid_vault_token();
-        uint256 amount = IVaultTokenV3(vaultToken).getTokenAmount(_vaultAmount);
-        IVaultTokenV3(vaultToken).withdraw(selfChainId, _vaultAmount, msg.sender);
-        _transferOut(token, msg.sender, amount, true);
-    }
-
+    // --------------------------------------------- external view -------------------------------------------
     function getOrderStatus(
         uint256 _chainId,
         uint256 _blockNum,
@@ -125,101 +126,6 @@ contract BridgeAndRelay is BridgeAbstract {
         exists = (orderList[_orderId] == 0x01);
         verifiable = lightClientManager.isVerifiable(_chainId, _blockNum, bytes32(""));
         nodeType = lightClientManager.nodeType(_chainId);
-    }
-
-    function depositToken(
-        address _token,
-        address _to,
-        uint256 _amount
-    ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
-        address from = msg.sender;
-        address token = _transferIn(_token, from, _amount, true);
-        _deposit(token, _toBytes(from), _to, _amount, bytes32(""), selfChainId);
-    }
-
-    function swapOutToken(
-        address _initiator, // initiator address
-        address _token, // src token
-        bytes memory _to,
-        uint256 _amount,
-        uint256 _toChain, // target chain id
-        bytes calldata _bridgeData
-    ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
-        if (_amount == 0) revert zero_amount();
-        address from = msg.sender;
-        address bridgeToken = _transferIn(_token, from, _amount, true);
-
-        BridgeParam memory msgData = abi.decode(_bridgeData, (BridgeParam));
-
-        bytes memory toToken = tokenRegister.getToChainToken(_token, _toChain);
-        if (!_checkBytes(toToken, bytes(""))) revert out_token_not_registered();
-
-        orderId = _messageOut(MessageType.BRIDGE, _initiator, bridgeToken, _amount, address(0), _toChain, _to, msgData);
-
-        (, uint256 outAmount) = _collectFee(
-            _toBytes(from),
-            orderId,
-            _token,
-            _amount,
-            selfChainId,
-            _toChain,
-            _bridgeData.length != 0
-        );
-
-        _emitMessageRelay(
-            uint8(MessageType.BRIDGE),
-            orderId,
-            selfChainId,
-            _toChain,
-            toToken,
-            outAmount,
-            _to,
-            _toBytes(from),
-            _bridgeData
-        );
-    }
-
-    function messageIn(
-        uint256 _chainId,
-        uint256 _logIndex,
-        bytes32 _orderId,
-        bytes memory _receiptProof
-    ) external nonReentrant whenNotPaused {
-        _checkOrder(_orderId);
-
-        (bool success, string memory message, bytes memory logArray) = lightClientManager.verifyProofData(
-            _chainId,
-            _receiptProof
-        );
-        require(success, message);
-        if (chainTypes[_chainId] == ChainType.EVM) {
-            ILightVerifier.txLog memory log = LogDecode.decodeTxLog(logArray, _logIndex);
-            if (log.addr != _fromBytes(mosContracts[_chainId])) revert invalid_mos_contract();
-
-            if (EvmDecoder.MESSAGE_OUT_TOPIC != log.topics[0]) revert invalid_bridge_log();
-            (bool result, SwapOutEvent memory outEvent) = EvmDecoder.decodeMessageOut(log);
-            if (!result) revert invalid_pack_version();
-            _swapIn(_orderId, _chainId, outEvent);
-        } else if (chainTypes[_chainId] == ChainType.NEAR) {
-            (bytes memory executorId, bytes32 topic, bytes memory log) = NearDecoder.getTopic(logArray, _logIndex);
-            if (!_checkBytes(executorId, mosContracts[_chainId])) revert invalid_mos_contract();
-            if (topic == NearDecoder.NEAR_SWAPOUT) {
-                SwapOutEvent memory outEvent = NearDecoder.decodeNearSwapLog(log);
-                _swapIn(_orderId, _chainId, outEvent);
-            } else if (topic == NearDecoder.NEAR_DEPOSITOUT) {
-                DepositOutEvent memory outEvent = NearDecoder.decodeNearDepositLog(log);
-                _depositIn(_orderId, _chainId, outEvent);
-            } else {
-                revert unknown_log();
-            }
-        } else {
-            revert chain_type_error();
-        }
-    }
-
-    function _getFee(uint256 _id, uint256 _amount) internal view returns (uint256, address) {
-        Rate memory rate = distributeRate[_id];
-        return (((_amount * rate.rate) / 1000000), rate.receiver);
     }
 
     function getBridgeTokenInfo(
@@ -264,150 +170,267 @@ contract BridgeAndRelay is BridgeAbstract {
             );
     }
 
-    function relayToken(address _token, uint256 _amount, SwapOutEvent calldata _outEvent) external returns(address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage){
-        require(msg.sender == address(this));
-        (address to, bytes memory relayData) = abi.decode(_outEvent.swapData, (address,bytes));
-        _transferOut(_token, to, _amount, false);
-        (tokenOut, amountOut, target, newMessage) = IRelayExecutor(to).
-                                                        relayExecute(_outEvent.fromChain, _outEvent.toChain, _outEvent.orderId, _token, _amount, _outEvent.from, relayData);
-        _transferIn(tokenOut, to, amountOut, false);
+    // --------------------------------------------- external ----------------------------------------------
+    function withdraw(address _vaultToken, uint256 _vaultAmount) external whenNotPaused {
+        if (_vaultToken == ZERO_ADDRESS) revert vault_token_not_registered();
+        address token = IVaultTokenV3(_vaultToken).getTokenAddress();
+        address vaultToken = tokenRegister.getVaultToken(token);
+        if (_vaultToken != vaultToken) revert invalid_vault_token();
+        uint256 amount = IVaultTokenV3(vaultToken).getTokenAmount(_vaultAmount);
+        IVaultTokenV3(vaultToken).withdraw(selfChainId, _vaultAmount, msg.sender);
+        _tokenTransferOut(token, msg.sender, amount, true);
     }
 
-    function _swapOut(
+    function transferOut(
+        uint256 _toChain,
+        bytes memory _messageData,
+        address _feeToken
+    ) external payable override returns (bytes32 orderId) {
+        uint256 fromChain = selfChainId;
+        MessageData memory msgData = _transferOut(selfChainId, _toChain, _messageData, _feeToken);
+
+        orderId = _messageOut(
+            msgData.relay,
+            MessageType.MESSAGE,
+            msgData.gasLimit,
+            msg.sender,
+            ZERO_ADDRESS,
+            0,
+            ZERO_ADDRESS,
+            _toChain,
+            msgData.target,
+            msgData.payload
+        );
+
+        _emitMessageRelay(
+            uint8(MessageType.MESSAGE),
+            orderId,
+            fromChain,
+            _toChain,
+            _toBytes(ZERO_ADDRESS),
+            0,
+            msgData.target,
+            _toBytes(msg.sender),
+            msgData.payload
+        );
+
+        return orderId;
+    }
+
+    function depositToken(
+        address _token,
+        address _to,
+        uint256 _amount
+    ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
+        address from = msg.sender;
+        address token = _tokenTransferIn(_token, from, _amount, true);
+        _deposit(token, _toBytes(from), _to, _amount, orderId, selfChainId);
+    }
+
+    function swapOutToken(
+        address _initiator, // initiator address
         address _token, // src token
         bytes memory _to,
-        address _from,
         uint256 _amount,
         uint256 _toChain, // target chain id
-        bytes calldata _swapData
-    ) internal returns (bytes32 orderId) {}
+        bytes calldata _bridgeData
+    ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
+        if (_amount == 0) revert zero_amount();
+        address from = msg.sender;
+        address bridgeToken = _tokenTransferIn(_token, from, _amount, true);
 
-    function _swapIn(bytes32 _orderId, uint256 _chainId, SwapOutEvent memory _outEvent) internal {
-        if (_orderId != _outEvent.orderId) revert invalid_order_Id();
-        if (_fromBytes(_outEvent.mosOrRelay) != address(this)) revert invalid_mos_contract();
-        if (_chainId != _outEvent.fromChain) revert invalid_chain_id();
-        if (_outEvent.amount == 0) {
-            // message bridge
-            EVMSwapOutEvent memory outEvent;
-            outEvent.orderId = _outEvent.orderId;
-            outEvent.fromChain = _outEvent.fromChain;
-            outEvent.toChain = _outEvent.toChain;
-            outEvent.from = _outEvent.from;
-            outEvent.swapData = _outEvent.swapData;
-            _swapInMessage(_chainId,outEvent);
-        } else {
-            // token bridge
-            _swapInWithToken(_outEvent);
-        }
+        BridgeParam memory msgData = abi.decode(_bridgeData, (BridgeParam));
+
+        bytes memory toToken = tokenRegister.getToChainToken(_token, _toChain);
+        if (!_checkBytes(toToken, bytes(""))) revert out_token_not_registered();
+
+        orderId = _messageOut(
+            false,
+            MessageType.BRIDGE,
+            msgData.gasLimit,
+            _initiator,
+            bridgeToken,
+            _amount,
+            ZERO_ADDRESS,
+            _toChain,
+            _to,
+            msgData.swapData
+        );
+
+        (, uint256 outAmount) = _collectFee(
+            _toBytes(from),
+            orderId,
+            _token,
+            _amount,
+            selfChainId,
+            _toChain,
+            _bridgeData.length != 0
+        );
+
+        _emitMessageRelay(
+            uint8(MessageType.BRIDGE),
+            orderId,
+            selfChainId,
+            _toChain,
+            toToken,
+            outAmount,
+            _to,
+            _toBytes(from),
+            _bridgeData
+        );
     }
 
-    function _swapInMessage(
+    function messageIn(
         uint256 _chainId,
-        EVMSwapOutEvent memory _outEvent
-    ) internal {
-        _checkOrder(_outEvent.orderId);
-        require(_chainId == _outEvent.fromChain, "MOSV3: Invalid from chain");
-        MessageData memory msgData = abi.decode(_outEvent.swapData, (MessageData));
-        if (_outEvent.toChain == selfChainId) {
-            _messageIn(_outEvent, msgData, true, false);
+        uint256 _logIndex,
+        bytes32 _orderId,
+        bytes memory _receiptProof
+    ) external nonReentrant whenNotPaused {
+        _checkOrder(_orderId);
+
+        (bool success, string memory message, bytes memory logArray) = lightClientManager.verifyProofData(
+            _chainId,
+            _receiptProof
+        );
+        require(success, message);
+        if (chainTypes[_chainId] == ChainType.EVM) {
+            ILightVerifier.txLog memory log = LogDecode.decodeTxLog(logArray, _logIndex);
+            if (log.addr != _fromBytes(mosContracts[_chainId])) revert invalid_mos_contract();
+
+            if (EvmDecoder.MESSAGE_OUT_TOPIC != log.topics[0]) revert invalid_bridge_log();
+            (bool result, MessageOutEvent memory outEvent) = EvmDecoder.decodeMessageOut(log);
+            if (!result) revert invalid_pack_version();
+            _messageIn(_orderId, _chainId, outEvent);
+        } else if (chainTypes[_chainId] == ChainType.NEAR) {
+            (bytes memory executorId, bytes32 topic, bytes memory log) = NearDecoder.getTopic(logArray, _logIndex);
+            if (!_checkBytes(executorId, mosContracts[_chainId])) revert invalid_mos_contract();
+            if (topic != NearDecoder.NEAR_SWAPOUT) revert invalid_bridge_log();
+            MessageOutEvent memory outEvent = NearDecoder.decodeNearSwapLog(log);
+            _messageIn(_orderId, _chainId, outEvent);
         } else {
-            _messageRelay(_outEvent, msgData, false);
+            revert chain_type_error();
         }
     }
 
-    function _messageRelay(EVMSwapOutEvent memory _outEvent, MessageData memory _msgData, bool _retry) internal {
-//        if (!_msgData.relay) {
-//            _notifyMessageOut(_outEvent, _outEvent.messageData);
-//            return;
-//        }
-        bytes memory returnData;
-        if(_retry){
-            returnData = _retryExecute(_outEvent, _msgData);
+    function relayExecute(
+        address _token,
+        uint256 _amount,
+        MessageInEvent calldata _outEvent
+    ) external returns (address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage) {
+        require(msg.sender == address(this));
+        (address to, bytes memory relayData) = abi.decode(_outEvent.swapData, (address, bytes));
+        _tokenTransferOut(_token, to, _amount, false);
+        (tokenOut, amountOut, target, newMessage) = IRelayExecutor(to).relayExecute(
+            _outEvent.fromChain,
+            _outEvent.toChain,
+            _outEvent.orderId,
+            _token,
+            _amount,
+            _outEvent.from,
+            relayData
+        );
+        _tokenTransferIn(tokenOut, to, amountOut, false);
+    }
+
+    // --------------------------------------------- internal ----------------------------------------------
+    function _messageIn(bytes32 _orderId, uint256 _chainId, MessageOutEvent memory _outEvent) internal {
+        if (_orderId != _outEvent.orderId) revert invalid_order_Id();
+        if (_fromBytes(_outEvent.mos) != address(this)) revert invalid_mos_contract();
+        if (_chainId != _outEvent.fromChain) revert invalid_chain_id();
+
+        address token;
+        uint256 outAmount;
+        if (_outEvent.messageType != uint8(MessageType.MESSAGE)) {
+            (token, outAmount) = _swapInToken(_outEvent);
+            if (_outEvent.messageType != uint8(MessageType.DEPOSIT)) {
+                (, outAmount) = _collectFee(
+                    _outEvent.from,
+                    _outEvent.orderId,
+                    token,
+                    outAmount,
+                    _outEvent.fromChain,
+                    _outEvent.toChain,
+                    _outEvent.swapData.length != 0
+                );
+            }
+        }
+
+        MessageInEvent memory _inEvent = MessageInEvent({
+            messageType: _outEvent.messageType,
+            fromChain: _outEvent.fromChain,
+            toChain: _outEvent.toChain,
+            orderId: _outEvent.orderId,
+            mos: _fromBytes(_outEvent.mos),
+            token: token,
+            from: _outEvent.from,
+            to: _outEvent.to,
+            amount: outAmount,
+            gasLimit: _outEvent.gasLimit,
+            swapData: _outEvent.swapData
+        });
+        if (_outEvent.toChain == selfChainId) {
+            if (_outEvent.messageType == uint8(MessageType.MESSAGE)) {
+                _messageIn(_inEvent, true);
+            } else if (_outEvent.messageType == uint8(MessageType.DEPOSIT)) {
+                _deposit(
+                    _inEvent.token,
+                    _inEvent.from,
+                    _fromBytes(_inEvent.to),
+                    _inEvent.amount,
+                    _inEvent.orderId,
+                    _inEvent.fromChain
+                );
+            } else {
+                _swapIn(_inEvent);
+            }
         } else {
-            uint256 executingGas = gasleft();
-            bool success;
-            (success, returnData) = _messageExecute(_outEvent, _msgData, true);
-            emit GasInfo(_outEvent.orderId,executingGas,gasleft());
-            if (!success) {
-                _storeMessageData(_outEvent, returnData);
+            _messageRelay(_outEvent.relay, _inEvent);
+        }
+    }
+
+    function _messageRelay(bool _relay, MessageInEvent memory _inEvent) internal {
+        address token;
+        uint256 outAmount;
+        if (_relay) {
+            // todo: relay execute
+            try this.relayExecute(_inEvent.token, _inEvent.amount, _inEvent) returns (
+                address tokenOut,
+                uint256 amountOut,
+                bytes memory target,
+                bytes memory newMessage
+            ) {
+                token = tokenOut;
+                outAmount = amountOut;
+                _inEvent.to = target;
+                _inEvent.swapData = newMessage;
+            } catch (bytes memory reason) {
+                _storeMessageData(_inEvent, reason);
                 return;
             }
         }
-        MessageData memory msgData = abi.decode(returnData, (MessageData));
-        if (msgData.gasLimit != _msgData.gasLimit || msgData.value != 0) {
-            msgData.gasLimit = _msgData.gasLimit;
-            msgData.value = 0;
-            returnData = abi.encode(msgData);
-        }
-        //_notifyMessageOut(_outEvent, returnData);
+        _notifyLightClient(_inEvent.toChain);
+
+        bytes memory toChainToken = tokenRegister.getToChainToken(token, _inEvent.toChain);
+        if (!_checkBytes(toChainToken, bytes(""))) revert token_not_registered();
+        _emitMessageRelay(
+            _inEvent.messageType,
+            _inEvent.orderId,
+            _inEvent.fromChain,
+            _inEvent.toChain,
+            toChainToken,
+            outAmount,
+            _inEvent.to,
+            _inEvent.from,
+            _inEvent.swapData
+        );
     }
 
-    function _swapInWithToken(SwapOutEvent memory _outEvent) internal {
-        address token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
-        if (token == address(0)) revert token_not_registered();
-        uint256 mapAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
-        if(MessageType(_outEvent.messageType) == MessageType.DEPOSIT) {
-            // if (tokenRegister.checkMintable(token)) {
-            //     IMintableToken(token).mint(address(this), mapAmount);
-            // }
-            _deposit(
-                token,
-                _outEvent.from,
-                _fromBytes(_outEvent.to),
-                mapAmount,
-                _outEvent.orderId,
-                _outEvent.fromChain
-            );
-        } else {
-            uint256 outAmount;
-            (, outAmount) = _collectFee(
-                _outEvent.from,
-                _outEvent.orderId,
-                token,
-                mapAmount,
-                _outEvent.fromChain,
-                _outEvent.toChain,
-                _outEvent.swapData.length != 0
-            );
+    function _swapInToken(MessageOutEvent memory _outEvent) internal returns (address token, uint256 relayAmount) {
+        token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
+        if (token == ZERO_ADDRESS) revert token_not_registered();
+        relayAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
 
-            if (_outEvent.toChain == selfChainId) {
-                _swapIn(
-                    _outEvent.orderId,
-                    token,
-                    _fromBytes(_outEvent.to),
-                    _outEvent.amount,
-                    _outEvent.fromChain,
-                    _outEvent.from,
-                    _outEvent.swapData
-                );
-            } else {
-                if (_outEvent.relay) {
-                    // todo: relay execute
-                    try this.relayToken(token, outAmount, _outEvent) returns (address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage) {
-                        token = tokenOut;
-                        outAmount = amountOut;
-                        _outEvent.to = target;
-                        _outEvent.swapData = newMessage;
-                    } catch  {
-                        _outEvent.swapData = bytes("");
-                    }
-                }
-                _notifyLightClient(_outEvent.toChain, bytes(""));
-                bytes memory toChainToken = tokenRegister.getToChainToken(token, _outEvent.toChain);
-                if (!_checkBytes(toChainToken, bytes(""))) revert token_not_registered();
-                _emitMessageRelay(
-                    _outEvent.messageType,
-                    _outEvent.orderId,
-                    _outEvent.fromChain,
-                    _outEvent.toChain,
-                    toChainToken,
-                    outAmount,
-                    _outEvent.to,
-                    _outEvent.from,
-                    _outEvent.swapData
-                );
-            }
-        }
+        _checkAndMint(token, relayAmount);
     }
 
     function _emitMessageRelay(
@@ -422,11 +445,12 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes memory message
     ) internal {
         uint256 chainAndGasLimit = _getChainAndGasLimit(uint64(fromChain), uint64(toChain), uint64(0));
+        bytes memory messageData;
+
         if (chainTypes[toChain] == ChainType.EVM) {
-            _emitMessageRelayEvm(
-                _type,
-                orderId,
-                chainAndGasLimit,
+            uint256 header = EvmDecoder.encodeMessageHeader(false, _type);
+            messageData = abi.encode(
+                header,
                 _fromBytes(mosContracts[toChain]),
                 _fromBytes(token),
                 amount,
@@ -435,38 +459,8 @@ contract BridgeAndRelay is BridgeAbstract {
                 message
             );
         } else {
-            _emitMessageRelayPacked(orderId, chainAndGasLimit, mosContracts[toChain], token, amount, to, from, message);
+            messageData = _pack(token, mosContracts[toChain], from, to, message, amount);
         }
-    }
-
-    function _emitMessageRelayEvm(
-        uint8 _type,
-        bytes32 orderId,
-        uint256 chainAndGasLimit,
-        address mos,
-        address token,
-        uint256 amount,
-        address to,
-        bytes memory from,
-        bytes memory message
-    ) internal {
-        uint256 header = EvmDecoder.encodeMessageHeader(false, _type);
-        bytes memory messageData = abi.encode(header, mos, token, amount, to, from, message);
-
-        emit MessageRelay(orderId, chainAndGasLimit, messageData);
-    }
-
-    function _emitMessageRelayPacked(
-        bytes32 orderId,
-        uint256 chainAndGasLimit,
-        bytes memory mosRelay,
-        bytes memory token,
-        uint256 amount,
-        bytes memory to,
-        bytes memory from,
-        bytes memory message
-    ) internal {
-        bytes memory messageData = _pack(token, mosRelay, from, to, message, amount);
         emit MessageRelay(orderId, chainAndGasLimit, messageData);
     }
 
@@ -511,24 +505,9 @@ contract BridgeAndRelay is BridgeAbstract {
             amount);
     }
 
-    function _depositIn(bytes32 _orderId, uint256 _chainId, DepositOutEvent memory _depositEvent) internal {
-        if (_fromBytes(_depositEvent.mosOrRelay) != address(this)) revert invalid_mos_contract();
-        if (_orderId != _depositEvent.orderId) revert invalid_order_Id();
-        if (_chainId != _depositEvent.fromChain || selfChainId != _chainId) revert invalid_chain_id();
-        address token = tokenRegister.getRelayChainToken(_depositEvent.fromChain, _depositEvent.token);
-        if (token == address(0)) revert token_not_registered();
-        uint256 mapAmount = tokenRegister.getRelayChainAmount(token, _depositEvent.fromChain, _depositEvent.amount);
-        // if (tokenRegister.checkMintable(token)) {
-        //     IMintableToken(token).mint(address(this), mapAmount);
-        // }
-        _deposit(
-            token,
-            _depositEvent.from,
-            _fromBytes(_depositEvent.to),
-            mapAmount,
-            _depositEvent.orderId,
-            _depositEvent.fromChain
-        );
+    function _getFee(uint256 _id, uint256 _amount) internal view returns (uint256, address) {
+        Rate memory rate = distributeRate[_id];
+        return (((_amount * rate.rate) / MAX_BASE_POINT), rate.receiver);
     }
 
     function _deposit(
@@ -540,7 +519,7 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _fromChain
     ) internal {
         address vaultToken = tokenRegister.getVaultToken(_token);
-        if (vaultToken == address(0)) revert vault_token_not_registered();
+        if (vaultToken == ZERO_ADDRESS) revert vault_token_not_registered();
         IVaultTokenV3(vaultToken).deposit(_fromChain, _amount, _to);
         emit DepositIn(_fromChain, _token, _orderId, _from, _to, _amount);
     }
@@ -555,7 +534,7 @@ contract BridgeAndRelay is BridgeAbstract {
         bool _withSwap
     ) internal returns (uint256 relayOutAmount, uint256 outAmount) {
         address vaultToken = tokenRegister.getVaultToken(_token);
-        if (vaultToken == address(0)) revert vault_token_not_registered();
+        if (vaultToken == ZERO_ADDRESS) revert vault_token_not_registered();
 
         uint256 proportionFee;
         uint256 excludeVaultFee = 0;
@@ -582,7 +561,8 @@ contract BridgeAndRelay is BridgeAbstract {
 
         if (baseFee != 0) {
             address baseFeeReceiver = tokenRegister.getBaseFeeReceiver();
-            _transferOut(_token, baseFeeReceiver, baseFee, true);
+            feeList[baseFeeReceiver][_token] += baseFee;
+            //_tokenTransferOut(_token, baseFeeReceiver, baseFee, true);
             excludeVaultFee += baseFee;
         }
 
@@ -615,15 +595,17 @@ contract BridgeAndRelay is BridgeAbstract {
 
         // messenger fee
         (messageFee, receiver) = _getFee(1, proportionFee);
-        if (messageFee != 0 && receiver != address(0)) {
-            _transferOut(_token, receiver, messageFee, true);
+        if (messageFee != 0 && receiver != ZERO_ADDRESS) {
+            feeList[receiver][_token] += messageFee;
+            //_tokenTransferOut(_token, receiver, messageFee, true);
 
             excludeVaultFee += messageFee;
         }
         // protocol fee
         (protocolFee, receiver) = _getFee(2, proportionFee);
-        if (protocolFee != 0 && receiver != address(0)) {
-            _transferOut(_token, receiver, protocolFee, true);
+        if (protocolFee != 0 && receiver != ZERO_ADDRESS) {
+            feeList[receiver][_token] += protocolFee;
+            //_tokenTransferOut(_token, receiver, protocolFee, true);
 
             excludeVaultFee += protocolFee;
         }
@@ -633,55 +615,7 @@ contract BridgeAndRelay is BridgeAbstract {
         emit CollectFee(_orderId, _token, baseFee, proportionFee, messageFee, vaultFee, protocolFee);
     }
 
-    function _notifyLightClient(uint256 _chainId, bytes memory _data) internal override {
-        lightClientManager.notifyLightClient(_chainId, address(this), _data);
-    }
-
-    function transferOut(
-        uint256 _toChain,
-        bytes memory _messageData,
-        address _feeToken
-    ) external payable override returns (bytes32 orderId) {
-        // todo
-        uint256 fromChain = selfChainId;
-        require(_toChain != fromChain, "MOSV3: only other chain");
-
-        MessageData memory msgData = abi.decode(_messageData, (MessageData));
-        require(msgData.value == 0, "MOSV3: not support msg value");
-
-        require((msgData.msgType == MessageType.MESSAGE), "MOSV3: unsupported message type");
-
-        // TODO: get fee
-        (uint256 amount, address receiverFeeAddress) = _getMessageFee(_toChain, _feeToken, msgData.gasLimit);
-        if (_feeToken == address(0)) {
-            require(msg.value >= amount, "MOSV3: invalid message fee");
-            if (msg.value > 0) {
-                //payable(receiverFeeAddress).transfer(msg.value);
-                _safeTransferNative(receiverFeeAddress,msg.value);
-            }
-        } else {
-            //SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(_feeToken), msg.sender, receiverFeeAddress, amount);
-            _safeTransferFrom(_feeToken, msg.sender, receiverFeeAddress, amount);
-        }
-
-
-        BridgeParam memory bridgeData;
-        bridgeData.relay = msgData.relay;
-        bridgeData.gasLimit = msgData.gasLimit;
-        bridgeData.swapData = msgData.payload;
-        orderId = _messageOut(
-            MessageType.MESSAGE,
-            msg.sender,
-            address(0),
-            0,
-            address(this),
-            _toChain,
-            msgData.target,
-            bridgeData
-        );
-
-        emit MessageTransfer(msg.sender, address(0), msg.sender, orderId, bytes32(0), _feeToken, 0);
-
-        return orderId;
+    function _notifyLightClient(uint256 _chainId) internal override {
+        lightClientManager.notifyLightClient(_chainId, address(this), bytes(""));
     }
 }

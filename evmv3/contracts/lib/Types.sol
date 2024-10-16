@@ -12,14 +12,14 @@ struct DepositOutEvent {
     uint256 amount;
 }
 
-struct SwapOutEvent {
+struct MessageOutEvent {
     bool relay;
     uint8 messageType;
     uint256 fromChain;
     uint256 toChain;
     bytes32 orderId;
-    bytes mosOrRelay;
-    bytes token; // token to transfer
+    bytes mos;
+    bytes token;
     bytes from;
     bytes to;
     uint256 amount;
@@ -27,28 +27,14 @@ struct SwapOutEvent {
     bytes swapData;
 }
 
-struct EVMSwapOutEvent {
+struct MessageInEvent {
     uint8 messageType;
     uint256 fromChain;
     uint256 toChain;
     bytes32 orderId;
     address mos;
-    address token; // token to transfer
+    address token;
     bytes from;
-    address to;
-    uint256 amount;
-    uint256 gasLimit;
-    bytes swapData;
-}
-
-struct MessageOutEvent {
-    uint8 messageType;
-    uint256 fromChain;
-    uint256 toChain;
-    bytes32 orderId;
-    address mos;
-    address token; // token to transfer
-    address from;
     bytes to;
     uint256 amount;
     uint256 gasLimit;

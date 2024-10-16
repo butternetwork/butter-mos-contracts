@@ -3,7 +3,7 @@
 pragma solidity 0.8.20;
 
 import "@mapprotocol/protocol/contracts/lib/RLPReader.sol";
-import {SwapOutEvent, DepositOutEvent} from "./Types.sol";
+import {MessageOutEvent, DepositOutEvent} from "./Types.sol";
 
 library NearDecoder {
     using RLPReader for bytes;
@@ -28,11 +28,11 @@ library NearDecoder {
         topic = keccak256(temp);
     }
 
-    function decodeNearSwapLog(bytes memory log) internal pure returns (SwapOutEvent memory _outEvent) {
+    function decodeNearSwapLog(bytes memory log) internal pure returns (MessageOutEvent memory _outEvent) {
         bytes memory logByts = hexStrToBytes(log);
         RLPReader.RLPItem[] memory logList = logByts.toRlpItem().toList();
         if (logList.length < 9) revert logs_length_too_low();
-        _outEvent = SwapOutEvent({
+        _outEvent = MessageOutEvent({
             relay: true,
             messageType: 0x03,
             fromChain: logList[0].toUint(),
@@ -43,7 +43,7 @@ library NearDecoder {
             to: logList[5].toBytes(),
             amount: logList[6].toUint(),
             swapData: logList[7].toBytes(),
-            mosOrRelay: logList[8].toBytes(),
+            mos: logList[8].toBytes(),
             gasLimit: 0
         });
     }

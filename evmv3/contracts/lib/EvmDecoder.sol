@@ -3,7 +3,7 @@
 pragma solidity 0.8.20;
 
 import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
-import {SwapOutEvent, EVMSwapOutEvent} from "./Types.sol";
+import {MessageOutEvent, MessageInEvent} from "./Types.sol";
 
 library EvmDecoder {
     bytes32 constant MESSAGE_OUT_TOPIC = keccak256(bytes("MessageOut(bytes32,uint256,address,bytes)"));
@@ -24,14 +24,13 @@ library EvmDecoder {
 
     function decodeMessageOut(
         ILightVerifier.txLog memory log
-    ) internal pure returns (bool result, SwapOutEvent memory outEvent) {
+    ) internal pure returns (bool result, MessageOutEvent memory outEvent) {
         if (!_checkEvmPackVersion(log.data)) {
             return (false, outEvent);
         }
 
         outEvent.orderId = log.topics[1];
         (outEvent.fromChain, outEvent.toChain, outEvent.gasLimit) = _decodeChainAndGasLimit(uint256(log.topics[2]));
-
         {
             address mos;
             address token;
@@ -42,7 +41,7 @@ library EvmDecoder {
                 (uint256, address, address, uint256, address, bytes, bytes)
             );
             outEvent.from = abi.encodePacked(from);
-            outEvent.mosOrRelay = abi.encodePacked(mos);
+            outEvent.mos = abi.encodePacked(mos);
             outEvent.token = abi.encodePacked(token);
             outEvent.relay = (((header >> RELAY_BIT_OFFSET) & 0x01) == 0x01);
             outEvent.messageType = uint8(header & 0xFF);
@@ -53,7 +52,7 @@ library EvmDecoder {
 
     function decodeMessageRelay(
         ILightVerifier.txLog memory log
-    ) internal pure returns (bool result, EVMSwapOutEvent memory outEvent) {
+    ) internal pure returns (bool result, MessageInEvent memory outEvent) {
         if (!_checkEvmPackVersion(log.data)) {
             return (false, outEvent);
         }
@@ -62,10 +61,14 @@ library EvmDecoder {
         (outEvent.fromChain, outEvent.toChain, outEvent.gasLimit) = _decodeChainAndGasLimit(uint256(log.topics[2]));
 
         uint256 header;
-        (header, outEvent.mos, outEvent.token, outEvent.amount, outEvent.to, outEvent.from, outEvent.swapData) = abi
-            .decode(log.data, (uint256, address, address, uint256, address, bytes, bytes));
+        address to;
+        (header, outEvent.mos, outEvent.token, outEvent.amount, to, outEvent.from, outEvent.swapData) = abi.decode(
+            log.data,
+            (uint256, address, address, uint256, address, bytes, bytes)
+        );
 
         outEvent.messageType = uint8(header);
+        outEvent.to = abi.encodePacked(to);
 
         return (true, outEvent);
     }

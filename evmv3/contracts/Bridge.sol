@@ -8,15 +8,11 @@ import "./lib/EvmDecoder.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
 
 contract Bridge is BridgeAbstract {
-    //uint256 public relayChainId;
-    //address public relayContract;
+    uint256 constant DEPOSIT_GAS = 200000;
 
     uint256 private relaySlot;
 
     ILightVerifier public lightNode;
-
-    //mapping(address => bool) public mintableTokens;
-    //mapping(uint256 => mapping(address => bool)) public tokenMappingList;
 
     error invalid_relay_chain();
     error invalid_relay_contract();
@@ -25,17 +21,23 @@ contract Bridge is BridgeAbstract {
 
     event SetLightClient(address lightNode);
     event SetRelay(uint256 _chainId, address _relay);
-    event SetFeeService(address indexed feeServiceAddress);
-    // event DepositOut(
-    //     uint256 indexed fromChain,
-    //     uint256 indexed toChain,
-    //     bytes32 orderId,
-    //     address token,
-    //     address relay,
-    //     address from,
-    //     address to,
-    //     uint256 amount
-    // );
+
+    // --------------------------------------------- manage ----------------------------------------------
+    function setContract(uint256 _t, address _addr) external onlyRole(MANAGER_ROLE) {
+        _checkAddress(_addr);
+        if (_t == 0) {
+            wToken = _addr;
+        } else if (_t == 1) {
+            lightNode = ILightVerifier(_addr);
+        } else if (_t == 2) {
+            feeService = IFeeService(_addr);
+        } else if (_t == 3) {
+            butterRouter = _addr;
+        } else {
+            swapLimit = ISwapOutLimit(_addr);
+        }
+        emit SetContract(_t, _addr);
+    }
 
     function setRelay(uint256 _chainId, address _relay) external onlyRole(MANAGER_ROLE) {
         _checkAddress(_relay);
@@ -45,34 +47,7 @@ contract Bridge is BridgeAbstract {
         emit SetRelay(_chainId, _relay);
     }
 
-    function setLightClient(address _lightNode) external onlyRole(MANAGER_ROLE) {
-        _checkAddress(_lightNode);
-        lightNode = ILightVerifier(_lightNode);
-        emit SetLightClient(_lightNode);
-    }
-
-    function setFeeService(address _feeServiceAddress) external onlyRole(MANAGER_ROLE)  {
-        _checkAddress(_feeServiceAddress);
-        feeService = IFeeService(_feeServiceAddress);
-        emit SetFeeService(_feeServiceAddress);
-    }
-
-    /*
-    function registerTokenChains(
-        address _token,
-        uint256[] memory _toChains,
-        bool _enable,
-        bool _mintAble
-    ) external onlyRole(MANAGER_ROLE) {
-        if (_isContract(_token)) revert not_contract();
-        mintableTokens[_token] = _mintAble;
-        for (uint256 i = 0; i < _toChains.length; i++) {
-            uint256 toChain = _toChains[i];
-            tokenMappingList[toChain][_token] = _enable;
-            emit RegisterToken(_token, toChain, _enable, _mintAble);
-        }
-    }*/
-
+    // --------------------------------------------- external view -------------------------------------------
     function getOrderStatus(
         uint256,
         uint256 _blockNum,
@@ -81,6 +56,38 @@ contract Bridge is BridgeAbstract {
         exists = (orderList[_orderId] == 0x01);
         verifiable = lightNode.isVerifiable(_blockNum, bytes32(""));
         nodeType = lightNode.nodeType();
+    }
+
+    // --------------------------------------------- external ----------------------------------------------
+    function transferOut(
+        uint256 _toChain,
+        bytes memory _messageData,
+        address _feeToken
+    ) external payable override whenNotPaused returns (bytes32 orderId) {
+        uint256 fromChain = selfChainId;
+        require(_toChain != fromChain, "MOSV3: only other chain");
+
+        (, address mosRelay) = _getRelay();
+
+        MessageData memory msgData = _transferOut(selfChainId, _toChain, _messageData, _feeToken);
+
+        orderId = _messageOut(
+            msgData.relay,
+            MessageType.MESSAGE,
+            msgData.gasLimit,
+            msg.sender,
+            ZERO_ADDRESS,
+            0,
+            mosRelay,
+            _toChain,
+            msgData.target,
+            msgData.payload
+        );
+
+        // todo: emit extra info
+        //emit MessageTransfer(msg.sender, ZERO_ADDRESS, msg.sender, orderId, bytes32(0), _feeToken, 0);
+
+        return orderId;
     }
 
     function swapOutToken(
@@ -93,14 +100,24 @@ contract Bridge is BridgeAbstract {
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         if (_amount == 0) revert zero_amount();
 
-        BridgeParam memory msgData = abi.decode(_bridgeData, (BridgeParam));
-
         address from = msg.sender;
-        address bridgeToken = _transferIn(_token, from, _amount, true);
+        address bridgeToken = _tokenTransferIn(_token, from, _amount, true);
 
         (, address mosRelay) = _getRelay();
+        BridgeParam memory msgData = abi.decode(_bridgeData, (BridgeParam));
 
-        orderId = _messageOut(MessageType.BRIDGE, _initiator, bridgeToken, _amount, mosRelay, _toChain, _to, msgData);
+        orderId = _messageOut(
+            msgData.relay,
+            MessageType.BRIDGE,
+            msgData.gasLimit,
+            _initiator,
+            bridgeToken,
+            _amount,
+            mosRelay,
+            _toChain,
+            _to,
+            msgData.swapData
+        );
     }
 
     function depositToken(
@@ -113,69 +130,20 @@ contract Bridge is BridgeAbstract {
         (uint256 relayChainId, address mosRelay) = _getRelay();
 
         address from = msg.sender;
-        address bridgeToken = _transferIn(_token, from, _amount, true);
-
-        BridgeParam memory msgData;
+        address bridgeToken = _tokenTransferIn(_token, from, _amount, true);
 
         orderId = _messageOut(
+            false,
             MessageType.DEPOSIT,
+            DEPOSIT_GAS,
             from,
             bridgeToken,
             _amount,
             mosRelay,
             relayChainId,
             _toBytes(_to),
-            msgData
+            bytes("")
         );
-    }
-
-    function transferOut(
-        uint256 _toChain,
-        bytes memory _messageData,
-        address _feeToken
-    ) external payable virtual whenNotPaused returns (bytes32 orderId) {
-        uint256 fromChain = selfChainId;
-        require(_toChain != fromChain, "MOSV3: only other chain");
-
-        (, address mosRelay) = _getRelay();
-
-        MessageData memory msgData = abi.decode(_messageData, (MessageData));
-        require(msgData.value == 0, "MOSV3: not support msg value");
-
-        require((msgData.msgType == MessageType.MESSAGE), "MOSV3: unsupported message type");
-
-        // TODO: get fee
-        (uint256 amount, address receiverFeeAddress) = _getMessageFee(_toChain, _feeToken, msgData.gasLimit);
-        if (_feeToken == address(0)) {
-            require(msg.value >= amount, "MOSV3: invalid message fee");
-            if (msg.value > 0) {
-                //payable(receiverFeeAddress).transfer(msg.value);
-                _safeTransferNative(receiverFeeAddress,msg.value);
-            }
-        } else {
-            //SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(_feeToken), msg.sender, receiverFeeAddress, amount);
-            _safeTransferFrom(_feeToken, msg.sender, receiverFeeAddress, amount);
-        }
-
-
-        BridgeParam memory bridgeData;
-        bridgeData.relay = msgData.relay;
-        bridgeData.gasLimit = msgData.gasLimit;
-        bridgeData.swapData = msgData.payload;
-        orderId = _messageOut(
-            MessageType.MESSAGE,
-            msg.sender,
-            address(0),
-            0,
-            mosRelay,
-            _toChain,
-            msgData.target,
-            bridgeData
-        );
-
-        emit MessageTransfer(msg.sender, address(0), msg.sender, orderId, bytes32(0), _feeToken, 0);
-
-        return orderId;
     }
 
     function messageIn(
@@ -197,8 +165,7 @@ contract Bridge is BridgeAbstract {
         if (mosRelay != log.addr) revert invalid_relay_contract();
         if (EvmDecoder.MESSAGE_OUT_TOPIC != log.topics[0]) revert invalid_bridge_log();
 
-        (bool result, EVMSwapOutEvent memory outEvent) = EvmDecoder.decodeMessageRelay(log);
-
+        (bool result, MessageInEvent memory outEvent) = EvmDecoder.decodeMessageRelay(log);
         if (!result) revert invalid_pack_version();
 
         if (outEvent.mos != address(this)) revert invalid_mos_contract();
@@ -206,26 +173,17 @@ contract Bridge is BridgeAbstract {
         if (_orderId != outEvent.orderId) revert invalid_order_Id();
 
         if (MessageType(outEvent.messageType) == MessageType.MESSAGE) {
-            // todo: message
-            MessageData memory msgData = abi.decode(outEvent.swapData, (MessageData));
-            _messageIn(outEvent, msgData, false, false);
-
+            _messageIn(outEvent, false);
         } else {
             // token bridge
-            _swapIn(
-                outEvent.orderId,
-                outEvent.token,
-                outEvent.to,
-                outEvent.amount,
-                outEvent.fromChain,
-                outEvent.from,
-                outEvent.swapData
-            );
+            _swapIn(outEvent);
         }
     }
 
-    function _notifyLightClient(uint256, bytes memory _data) internal override {
-        lightNode.notifyLightClient(address(this), _data);
+    // --------------------------------------------- internal ----------------------------------------------
+
+    function _notifyLightClient(uint256) internal override {
+        lightNode.notifyLightClient(address(this), bytes(""));
     }
 
     function _getRelay() internal view returns (uint256 relayChainId, address relayContract) {
@@ -234,5 +192,4 @@ contract Bridge is BridgeAbstract {
         relayChainId = relay & 0xFFFFFFFFFFFFFFFF;
         relayContract = address(uint160(relay >> 96));
     }
-
 }

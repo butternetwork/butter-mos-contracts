@@ -14,7 +14,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import {EvmDecoder} from "../lib/EvmDecoder.sol";
-import {EVMSwapOutEvent} from "../lib/Types.sol";
+import {MessageInEvent} from "../lib/Types.sol";
 import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 
 abstract contract BridgeAbstract is
@@ -25,28 +25,29 @@ abstract contract BridgeAbstract is
     IButterBridgeV3,
     IMOSV3
 {
+    address internal constant ZERO_ADDRESS = address(0);
     uint256 constant MINTABLE_TOKEN = 0x01;
 
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
-    uint256 public immutable selfChainId = block.chainid;
+    uint256 internal immutable selfChainId = block.chainid;
 
     uint256 private nonce;
-    address private wToken;
-    address private butterRouter;
-    ISwapOutLimit public swapLimit;
-    IFeeService public feeService;
+
+    address internal wToken;
+    address internal butterRouter;
+    IFeeService internal feeService;
+    ISwapOutLimit internal swapLimit;
 
     mapping(bytes32 => uint256) public orderList;
 
-    mapping(address => mapping(uint256 => mapping(bytes => bool))) public callerList;
-
-    mapping(bytes32 => bytes32) public storedMessageList;
-
-    //
     mapping(address => uint256) public tokenFeatureList;
     mapping(uint256 => mapping(address => uint256)) public tokenMappingList;
+
+    // service fee or bridge fee
+    // address => (token => amount)
+    mapping(address => mapping(address => uint256)) public feeList;
 
     error order_exist();
     error invalid_order_Id();
@@ -60,10 +61,12 @@ abstract contract BridgeAbstract is
     error zero_amount();
     error bridge_same_chain();
     error only_upgrade_role();
+
     event SetContract(uint256 _t, address _addr);
+    event SetFeeService(address indexed feeServiceAddress);
     event RegisterToken(address _token, uint256 _toChain, bool _enable);
     event UpdateToken(address token, address _omniProxy, uint96 feature);
-    event GasInfo(bytes32 indexed orderId,uint256 indexed executingGas,uint256 indexed executedGas);
+    event GasInfo(bytes32 indexed orderId, uint256 indexed executingGas, uint256 indexed executedGas);
 
     event MessageTransfer(
         address initiator,
@@ -94,17 +97,7 @@ abstract contract BridgeAbstract is
         wToken = _wToken;
     }
 
-    function setContract(uint256 _t, address _addr) external onlyRole(MANAGER_ROLE) {
-        if (_addr == address(0)) revert zero_address();
-        if (_t == 0) {
-            wToken = _addr;
-        } else if (_t == 1) {
-            swapLimit = ISwapOutLimit(_addr);
-        } else {
-            butterRouter = _addr;
-        }
-        emit SetContract(_t, _addr);
-    }
+    // --------------------------------------------- manage ----------------------------------------------
 
     function trigger() external onlyRole(MANAGER_ROLE) {
         paused() ? _unpause() : _pause();
@@ -136,6 +129,8 @@ abstract contract BridgeAbstract is
         }
     }
 
+    // --------------------------------------------- external view -------------------------------------------
+
     function getOrderStatus(
         uint256,
         uint256 _blockNum,
@@ -149,6 +144,14 @@ abstract contract BridgeAbstract is
     ) external view returns (uint256 fee, address receiver) {
         (fee, receiver) = _getMessageFee(_toChain, _feeToken, _gasLimit);
     }
+
+    // --------------------------------------------- external ---------------------------------------------
+
+    function transferOut(
+        uint256 _toChain,
+        bytes memory _messageData,
+        address _feeToken
+    ) external payable virtual override returns (bytes32 orderId) {}
 
     function swapOutToken(
         address _sender, // initiator address
@@ -165,36 +168,112 @@ abstract contract BridgeAbstract is
         uint256 _amount
     ) external payable virtual returns (bytes32 orderId) {}
 
-    function _swapIn(
-        bytes32 _orderId,
-        address _token,
-        address _to,
-        uint256 _amount,
+    // --------------------------------------------- internal ---------------------------------------------
+
+    function _transferOut(
         uint256 _fromChain,
-        bytes memory _from,
-        bytes memory _swapData
-    ) internal {
-        address outToken = _token;
-        if (_swapData.length > 0 && _isContract(_to)) {
-            // if swap params is not empty, then we need to do swap on current chain
-            _transferOut(_token, _to, _amount, false);
-            try IButterReceiver(_to).onReceived(_orderId, _token, _amount, _fromChain, _from, _swapData) {} catch {}
+        uint256 _toChain,
+        bytes memory _messageData,
+        address _feeToken
+    ) internal virtual returns (MessageData memory msgData) {
+        require(_toChain != _fromChain, "MOSV3: only other chain");
+
+        msgData = abi.decode(_messageData, (MessageData));
+        require(msgData.value == 0, "MOSV3: not support msg value");
+        require((msgData.msgType == MessageType.MESSAGE), "MOSV3: unsupported message type");
+
+        (uint256 amount, address receiverFeeAddress) = _getMessageFee(_toChain, _feeToken, msgData.gasLimit);
+        if (_feeToken == ZERO_ADDRESS) {
+            require(msg.value >= amount, "MOSV3: invalid message fee");
+            if (msg.value > 0) {
+                // todo: store received amount
+                _safeTransferNative(receiverFeeAddress, msg.value);
+            }
         } else {
-            // transfer token if swap did not happen
-            _transferOut(_token, _to, _amount, true);
-            if (_token == wToken) outToken = address(0);
+            _safeTransferFrom(_feeToken, msg.sender, receiverFeeAddress, amount);
         }
-        emit MessageIn(_orderId, _fromChain, outToken, _amount, _to, _from, bytes(""));
     }
 
-    function _transferIn(
+    function _messageIn(MessageInEvent memory _inEvent, bool _gasleft) internal {
+        address to = _fromBytes(_inEvent.to);
+        uint256 gasLimit = _inEvent.gasLimit;
+
+        uint256 executingGas = gasleft();
+        if (_gasleft) {
+            gasLimit = executingGas;
+        }
+        if (!_isContract(to)) {
+            return _storeMessageData(_inEvent, bytes("NotContract"));
+        }
+
+        try
+            IMapoExecutor(to).mapoExecute{gas: gasLimit}(
+                _inEvent.fromChain,
+                _inEvent.toChain,
+                _inEvent.from,
+                _inEvent.orderId,
+                _inEvent.swapData
+            )
+        {
+            emit MessageIn(
+                _inEvent.orderId,
+                _inEvent.fromChain,
+                ZERO_ADDRESS,
+                0,
+                to,
+                _inEvent.from,
+                bytes(""),
+                true,
+                bytes("")
+            );
+        } catch (bytes memory reason) {
+            emit GasInfo(_inEvent.orderId, executingGas, gasleft());
+            _storeMessageData(_inEvent, reason);
+        }
+    }
+
+    function _swapIn(MessageInEvent memory _inEvent) internal {
+        address outToken = _inEvent.token;
+        address to = _fromBytes(_inEvent.to);
+        if (_inEvent.swapData.length > 0 && _isContract(to)) {
+            // if swap params is not empty, then we need to do swap on current chain
+            _tokenTransferOut(_inEvent.token, to, _inEvent.amount, false);
+            try
+                IButterReceiver(to).onReceived(
+                    _inEvent.orderId,
+                    _inEvent.token,
+                    _inEvent.amount,
+                    _inEvent.fromChain,
+                    _inEvent.from,
+                    _inEvent.swapData
+                )
+            {} catch {}
+        } else {
+            // transfer token if swap did not happen
+            _tokenTransferOut(_inEvent.token, to, _inEvent.amount, true);
+            if (_inEvent.token == wToken) outToken = ZERO_ADDRESS;
+        }
+        emit MessageIn(
+            _inEvent.orderId,
+            _inEvent.fromChain,
+            outToken,
+            _inEvent.amount,
+            to,
+            _inEvent.from,
+            bytes(""),
+            true,
+            bytes("")
+        );
+    }
+
+    function _tokenTransferIn(
         address _token,
         address _from,
         uint256 _amount,
         bool _wrap
     ) internal returns (address inToken) {
         inToken = _token;
-        if (_token == address(0)) {
+        if (_token == ZERO_ADDRESS) {
             if (msg.value < _amount) revert in_amount_low();
             if (_wrap) {
                 _safeDeposit(wToken, _amount);
@@ -206,7 +285,7 @@ abstract contract BridgeAbstract is
         }
     }
 
-    function _transferOut(address _token, address _receiver, uint256 _amount, bool _unwrap) internal {
+    function _tokenTransferOut(address _token, address _receiver, uint256 _amount, bool _unwrap) internal {
         if (_token == wToken && _unwrap) {
             _safeWithdraw(wToken, _amount);
             _safeTransferNative(_receiver, _amount);
@@ -221,175 +300,65 @@ abstract contract BridgeAbstract is
         }
     }
 
-    function _notifyLightClient(uint256 _chainId, bytes memory _data) internal virtual {}
+    function _notifyLightClient(uint256 _chainId) internal virtual {}
 
     function _messageOut(
+        bool _relay,
         MessageType _type,
+        uint256 _gasLimit,
         address _from,
         address _token, // src token
         uint256 _amount,
         address _mos,
         uint256 _toChain, // target chain id
         bytes memory _to,
-        BridgeParam memory _bridge
+        bytes memory _message
     ) internal returns (bytes32 orderId) {
-        uint256 header = EvmDecoder.encodeMessageHeader(_bridge.relay, uint8(_type));
-
+        uint256 header = EvmDecoder.encodeMessageHeader(_relay, uint8(_type));
         if (_type == MessageType.BRIDGE) {
             _checkLimit(_amount, _toChain, _token);
             _checkBridgeable(_token, _toChain);
         }
-
         uint256 fromChain = selfChainId;
         if (_toChain == fromChain) revert bridge_same_chain();
 
         address from = (msg.sender == butterRouter) ? _from : msg.sender;
 
-        uint256 chainAndGasLimit = _getChainAndGasLimit(fromChain, _toChain, _bridge.gasLimit);
+        uint256 chainAndGasLimit = _getChainAndGasLimit(fromChain, _toChain, _gasLimit);
 
         orderId = _getOrderId(fromChain, _toChain, from, _to);
 
-        bytes memory messageData = abi.encode(header, _mos, _token, _amount, from, _to, _bridge.swapData);
+        bytes memory payload = abi.encode(header, _mos, _token, _amount, from, _to, _message);
 
-        emit MessageOut(orderId, chainAndGasLimit, messageData);
+        emit MessageOut(orderId, chainAndGasLimit, payload);
 
-        _notifyLightClient(_toChain, bytes(""));
+        _notifyLightClient(_toChain);
     }
 
-    function _messageIn(
-        EVMSwapOutEvent memory _outEvent,
-        MessageData memory _msgData,
-        bool _gasleft,
-        bool _revert
-    ) internal {
-        if(_revert){
-            _retryExecute(_outEvent, _msgData);
-            emit MessageIn(
-                _outEvent.orderId,
-                _outEvent.fromChain,
-                address(0),
-                0,
-                Utils.fromBytes(_msgData.target),
-                _outEvent.from,
-                bytes("")
-            );
-//            emit MessageIn(
-//                _outEvent.fromChain,
-//                _outEvent.toChain,
-//                _outEvent.orderId,
-//                _outEvent.fromAddress,
-//                bytes(""),
-//                true,
-//                bytes("")
-//            );
-        } else {
-            uint256 executingGas = gasleft();
-            (bool success, bytes memory returnData) = _messageExecute(_outEvent, _msgData, _gasleft);
-            emit GasInfo(_outEvent.orderId,executingGas,gasleft());
-            if (success) {
-                emit MessageIn(
-                    _outEvent.orderId,
+    function _storeMessageData(MessageInEvent memory _outEvent, bytes memory _reason) internal {
+        orderList[_outEvent.orderId] = uint256(
+            keccak256(
+                abi.encodePacked(
                     _outEvent.fromChain,
-                    address(0),
-                    0,
-                    Utils.fromBytes(_msgData.target),
+                    _outEvent.toChain,
+                    _outEvent.token,
+                    _outEvent.amount,
                     _outEvent.from,
-                    bytes("")
-                );
-            } else {
-                _storeMessageData(_outEvent, returnData);
-            }
-        }
-    }
-
-    function _retryExecute(
-        EVMSwapOutEvent memory _outEvent,
-        MessageData memory _msgData
-    ) internal returns(bytes memory returnData){
-        address target = Utils.fromBytes(_msgData.target);
-        require(AddressUpgradeable.isContract(target),"NotContract");
-        if (_msgData.msgType == MessageType.CALLDATA) {
-            require(callerList[target][_outEvent.fromChain][_outEvent.from],"InvalidCaller");
-            bool success;
-            (success, returnData) = target.call(_msgData.payload);
-            require(success,"MOSV3: retry call failed");
-        } else if (_msgData.msgType == MessageType.MESSAGE) {
-            returnData = IMapoExecutor(target).mapoExecute(
-                _outEvent.fromChain,
-                _outEvent.toChain,
-                _outEvent.from,
-                _outEvent.orderId,
-                _msgData.payload
-            );
-        } else {
-            require(false, "InvalidMessageType");
-        }
-    }
-
-    function _messageExecute(
-        EVMSwapOutEvent memory _outEvent,
-        MessageData memory _msgData,
-        bool _gasleft
-    ) internal returns (bool, bytes memory) {
-        uint256 gasLimit = _msgData.gasLimit;
-        if (_gasleft) {
-            gasLimit = gasleft();
-        }
-        address target = Utils.fromBytes(_msgData.target);
-        if (!AddressUpgradeable.isContract(target)) {
-            return (false, bytes("NotContract"));
-        }
-        if (_msgData.msgType == MessageType.CALLDATA) {
-            if (!callerList[target][_outEvent.fromChain][_outEvent.from]) {
-                return (false, bytes("InvalidCaller"));
-            }
-            (bool success, bytes memory returnData) = target.call{gas: gasLimit}(_msgData.payload);
-            if (!success) {
-                return (false, returnData);
-            } else {
-                if (_msgData.relay) {
-                    bytes memory data = abi.decode(returnData, (bytes));
-                    return (true, data);
-                } else {
-                    return (true, returnData);
-                }
-            }
-        } else if (_msgData.msgType == MessageType.MESSAGE) {
-            try
-            IMapoExecutor(target).mapoExecute{gas: gasLimit}(
-                _outEvent.fromChain,
-                _outEvent.toChain,
-                _outEvent.from,
-                _outEvent.orderId,
-                _msgData.payload
+                    _outEvent.to,
+                    _outEvent.swapData
+                )
             )
-            returns (bytes memory returnData) {
-                return (true, returnData);
-            } catch (bytes memory reason) {
-                return (false, reason);
-            }
-        } else {
-            return (false, bytes("InvalidMessageType"));
-        }
-    }
-
-    function _storeMessageData(EVMSwapOutEvent memory _outEvent, bytes memory _reason) internal {
-        if(_outEvent.toChain == selfChainId){
-            storedMessageList[_outEvent.orderId] = keccak256(
-                abi.encodePacked(_outEvent.fromChain, _outEvent.from, _outEvent.swapData)
-            );
-        }else{
-            storedMessageList[_outEvent.orderId] = keccak256(
-                abi.encodePacked(_outEvent.fromChain, _outEvent.toChain,_outEvent.from, _outEvent.swapData)
-            );
-        }
+        );
+        bytes memory payload = abi.encode(_outEvent.toChain, _outEvent.gasLimit, _outEvent.to, _outEvent.swapData);
         emit MessageIn(
             _outEvent.orderId,
             _outEvent.fromChain,
-            address(0),
-            0,
-            _outEvent.to,
+            _outEvent.token,
+            _outEvent.amount,
+            _fromBytes(_outEvent.to),
             _outEvent.from,
+            payload,
+            false,
             _reason
         );
     }
@@ -403,8 +372,17 @@ abstract contract BridgeAbstract is
         return keccak256(abi.encodePacked(address(this), nonce++, _fromChain, _toChain, _from, _to));
     }
 
+    function _getMessageFee(
+        uint256 _toChain,
+        address _feeToken,
+        uint256 _gasLimit
+    ) internal view returns (uint256 amount, address receiverAddress) {
+        (amount, receiverAddress) = feeService.getServiceMessageFee(_toChain, _feeToken, _gasLimit);
+        require(amount > 0, "MOSV3: not support target chain");
+    }
+
     function _checkAddress(address _address) internal pure {
-        if (_address == address(0)) revert zero_address();
+        if (_address == ZERO_ADDRESS) revert zero_address();
     }
 
     function _checkBridgeable(address _token, uint256 _chainId) internal view {
@@ -428,7 +406,7 @@ abstract contract BridgeAbstract is
     }
 
     function _checkLimit(uint256 amount, uint256 tochain, address token) internal {
-        if (address(swapLimit) != address(0)) swapLimit.checkLimit(amount, tochain, token);
+        if (address(swapLimit) != ZERO_ADDRESS) swapLimit.checkLimit(amount, tochain, token);
     }
 
     function _checkOrder(bytes32 _orderId) internal {
@@ -493,18 +471,6 @@ abstract contract BridgeAbstract is
     function _isContract(address _addr) internal view returns (bool) {
         return _addr.code.length != 0;
     }
-
-    function _getMessageFee(
-        uint256 _toChain,
-        address _feeToken,
-        uint256 _gasLimit
-    ) internal view returns (uint256 amount, address receiverAddress) {
-
-        (amount, receiverAddress) = feeService.getServiceMessageFee(_toChain, _feeToken,_gasLimit);
-        require(amount > 0, "MOSV3: not support target chain");
-
-    }
-
 
     /** UUPS *********************************************************/
     function _authorizeUpgrade(address) internal view override {

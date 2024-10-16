@@ -25,45 +25,46 @@ interface IButterBridgeV3 {
 
     event MessageIn(
         bytes32 indexed orderId,
-        uint256 indexed chainAndGasLimit, // fromChain (8 bytes) | toChain (8 bytes) | reserved (8 bytes) | gasLimit (8 bytes)
+        uint256 indexed fromChain,
         address token,
         uint256 amount,
         address to,
         bytes from,
-        bytes payload
+        bytes payload,
+        bool result,
+        bytes reason
     );
 
     event MessageOut(
         bytes32 indexed orderId,
         // fromChain (8 bytes) | toChain (8 bytes) | reserved (8 bytes) | gasLimit (8 bytes)
         uint256 indexed chainAndGasLimit,
-        // address from,
-        // abi.encode(version, mos, token, amount, from, bytes(to), bytes(message))
+        // evm abi encode data - version 0x00
+        // abi.encode((version| relay | messageType), mos, token, amount, from, bytes(to), bytes(message))
         bytes payload
     );
 
     event MessageRelay(
-        bytes32 orderId,
+        bytes32 indexed orderId,
         // fromChain (8 bytes) | toChain (8 bytes) | reserved (8 bytes) | gasLimit (8 bytes)
-        uint256 chainAndGasLimit,
-        bytes payload // abi.encode(version, mos, token, amount, to, bytes(from), bytes(message))
+        uint256 indexed chainAndGasLimit,
+        // version 0x00 - abi encoded, for evm chain
+        //  abi.encode((version | messageType), mos, token, amount, to, bytes(from), bytes(message))
+        // version 0x10 - packed message, for non-evm chain
+        //   version (1 bytes), majorVersion(4bit) | minorVersion(4bit), same major version means the same structure
+        //   reserved (1 bytes)
+        //   token len (1 bytes)
+        //   mos len (1 bytes)
+        //   from len (1 bytes)
+        //   to len (1 bytes)
+        //   payload len (2 bytes)
+        //   reserved (8 bytes)
+        //   token amount (16 bytes)
+        //   token address (tokenLen bytes)
+        //   mos target (targetLen bytes)
+        //   from address (fromLen bytes)
+        //   to address (toLen bytes)
+        //   payload (payloadLen bytes)
+        bytes payload
     );
-
-    //   packed message data
-    //   version (1 bytes), majorVersion(4bit) | minorVersion(4bit), same major version means the same structure
-    //   relay (1 bytes)
-    //   token len (1 bytes)
-    //   mos len (1 bytes)
-    //   from len (1 bytes)
-    //   to len (1 bytes)
-    //   payload len (2 bytes)
-    //   reserved (8 bytes)
-    //   token amount (16 bytes)
-    //
-    //   token address (tokenLen bytes)
-    //   mos target (targetLen bytes)
-    //   from address (fromLen bytes)
-    //   to address (toLen bytes)
-    //   payload (payloadLen bytes)
-    event MessageRelayPacked(bytes32 orderId, uint256 chainAndGasLimit, bytes messageData);
 }

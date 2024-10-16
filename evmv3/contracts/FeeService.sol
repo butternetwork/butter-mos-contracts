@@ -14,7 +14,7 @@ contract FeeService is Ownable2StepUpgradeable, IFeeService {
     event SetBaseGas(uint256 chainId, uint256 basLimit);
     event SetChainGasPrice(uint256 chainId, uint256 chainPrice);
     event SetFeeReceiver(address receiver);
-    event SetTokenDecimals(address token,uint256 decimal);
+    event SetTokenDecimals(address token, uint256 decimal);
 
     constructor() {}
 
@@ -40,9 +40,9 @@ contract FeeService is Ownable2StepUpgradeable, IFeeService {
         emit SetChainGasPrice(_chainId, _chainPrice);
     }
 
-    function setTokenDecimals(address _token,uint256 _decimal) external onlyOwner{
+    function setTokenDecimals(address _token, uint256 _decimal) external onlyOwner {
         tokenDecimals[_token] = _decimal;
-        emit SetTokenDecimals(_token,_decimal);
+        emit SetTokenDecimals(_token, _decimal);
     }
 
     function setFeeReceiver(address _receiver) external onlyOwner {
@@ -54,14 +54,15 @@ contract FeeService is Ownable2StepUpgradeable, IFeeService {
         uint256 _toChain,
         address _feeToken,
         uint256 _gasLimit
-    ) external view override returns (uint256 amount, address receiverAddress){
+    ) external view override returns (uint256 amount, address receiverAddress) {
         require(baseGas[_toChain] > 0, "FeeService: not support target chain");
         receiverAddress = feeReceiver;
-        if(tokenDecimals[_feeToken] >= 18 || tokenDecimals[_feeToken] == 0){
+        if (tokenDecimals[_feeToken] >= 18 || tokenDecimals[_feeToken] == 0) {
             amount = (baseGas[_toChain] + _gasLimit) * chainGasPrice[_toChain][_feeToken];
-        }else {
-            amount = ((baseGas[_toChain] + _gasLimit) * chainGasPrice[_toChain][_feeToken]) / 10 ** (18 - tokenDecimals[_feeToken]);
+        } else {
+            amount =
+                ((baseGas[_toChain] + _gasLimit) * chainGasPrice[_toChain][_feeToken]) /
+                10 ** (18 - tokenDecimals[_feeToken]);
         }
-
     }
 }
