@@ -241,8 +241,8 @@ contract BridgeAndRelay is BridgeAbstract {
 
         BridgeParam memory msgData = abi.decode(_bridgeData, (BridgeParam));
 
-        bytes memory toToken = tokenRegister.getToChainToken(_token, _toChain);
-        if (!_checkBytes(toToken, bytes(""))) revert out_token_not_registered();
+        bytes memory toToken = tokenRegister.getToChainToken(bridgeToken, _toChain);
+        if (_checkBytes(toToken, bytes(""))) revert out_token_not_registered();
 
         orderId = _messageOut(
             false,
@@ -260,11 +260,11 @@ contract BridgeAndRelay is BridgeAbstract {
         (, uint256 outAmount) = _collectFee(
             _toBytes(from),
             orderId,
-            _token,
+            bridgeToken,
             _amount,
             selfChainId,
             _toChain,
-            _bridgeData.length != 0
+            msgData.swapData.length != 0
         );
 
         _emitMessageRelay(
@@ -276,7 +276,7 @@ contract BridgeAndRelay is BridgeAbstract {
             outAmount,
             _to,
             _toBytes(from),
-            _bridgeData
+            msgData.swapData
         );
     }
 
@@ -411,7 +411,7 @@ contract BridgeAndRelay is BridgeAbstract {
         _notifyLightClient(_inEvent.toChain);
 
         bytes memory toChainToken = tokenRegister.getToChainToken(token, _inEvent.toChain);
-        if (!_checkBytes(toChainToken, bytes(""))) revert token_not_registered();
+        if (_checkBytes(toChainToken, bytes(""))) revert token_not_registered();
         _emitMessageRelay(
             _inEvent.messageType,
             _inEvent.orderId,
@@ -425,12 +425,12 @@ contract BridgeAndRelay is BridgeAbstract {
         );
     }
 
-    function _swapInToken(MessageOutEvent memory _outEvent) internal returns (address token, uint256 relayAmount) {
+    function _swapInToken(MessageOutEvent memory _outEvent) internal view returns (address token, uint256 relayAmount) {
         token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
         if (token == ZERO_ADDRESS) revert token_not_registered();
         relayAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
-
-        _checkAndMint(token, relayAmount);
+         
+        // _checkAndMint(token, relayAmount);
     }
 
     function _emitMessageRelay(

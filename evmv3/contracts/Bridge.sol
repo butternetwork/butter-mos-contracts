@@ -163,7 +163,7 @@ contract Bridge is BridgeAbstract {
         require(success, message);
 
         if (mosRelay != log.addr) revert invalid_relay_contract();
-        if (EvmDecoder.MESSAGE_OUT_TOPIC != log.topics[0]) revert invalid_bridge_log();
+        if (EvmDecoder.MESSAGE_RELAY_TOPIC != log.topics[0]) revert invalid_bridge_log();
 
         (bool result, MessageInEvent memory outEvent) = EvmDecoder.decodeMessageRelay(log);
         if (!result) revert invalid_pack_version();

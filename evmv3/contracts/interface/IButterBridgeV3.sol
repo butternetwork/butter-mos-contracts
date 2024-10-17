@@ -21,7 +21,7 @@ interface IButterBridgeV3 {
 
     function depositToken(address _token, address _to, uint256 _amount) external payable returns (bytes32 orderId);
 
-    event CollectFee(bytes32 indexed orderId, address indexed token, uint256 value);
+    // event CollectFee(bytes32 indexed orderId, address indexed token, uint256 value);
 
     event MessageIn(
         bytes32 indexed orderId,

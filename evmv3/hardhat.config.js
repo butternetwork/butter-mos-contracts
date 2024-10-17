@@ -37,6 +37,7 @@ module.exports = {
     hardhat: {
       chainId: 1,
       initialBaseFeePerGas: 0,
+      allowUnlimitedContractSize: true
     },
     Eth: {
       url: "https://eth-mainnet.public.blastapi.io",
