@@ -6,10 +6,10 @@ import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
 import {MessageOutEvent, MessageInEvent} from "./Types.sol";
 
 library EvmDecoder {
-    bytes32 constant MESSAGE_OUT_TOPIC = keccak256(bytes("MessageOut(bytes32,uint256,address,bytes)"));
+    bytes32 constant MESSAGE_OUT_TOPIC = keccak256(bytes("MessageOut(bytes32,uint256,bytes)"));
+    bytes32 constant MESSAGE_RELAY_TOPIC = keccak256(bytes("MessageRelay(bytes32,uint256,bytes)"));
 
     uint256 constant EVM_PACK_VERSION = 0x00;
-
     uint256 constant RELAY_BIT_OFFSET = 64;
 
     function encodeMessageHeader(bool _relay, uint8 _type) internal pure returns (uint256) {
@@ -36,6 +36,7 @@ library EvmDecoder {
             address token;
             address from;
             uint256 header;
+            (log.data) = abi.decode(log.data, (bytes));
             (header, mos, token, outEvent.amount, from, outEvent.to, outEvent.swapData) = abi.decode(
                 log.data,
                 (uint256, address, address, uint256, address, bytes, bytes)
@@ -46,7 +47,6 @@ library EvmDecoder {
             outEvent.relay = (((header >> RELAY_BIT_OFFSET) & 0x01) == 0x01);
             outEvent.messageType = uint8(header & 0xFF);
         }
-
         return (true, outEvent);
     }
 
@@ -62,6 +62,7 @@ library EvmDecoder {
 
         uint256 header;
         address to;
+        (log.data) = abi.decode(log.data, (bytes));
         (header, outEvent.mos, outEvent.token, outEvent.amount, to, outEvent.from, outEvent.swapData) = abi.decode(
             log.data,
             (uint256, address, address, uint256, address, bytes, bytes)
