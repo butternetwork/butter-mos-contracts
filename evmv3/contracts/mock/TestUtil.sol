@@ -30,4 +30,13 @@ contract TestUtil {
     function encodeTxLog(ILightVerifier.txLog memory log) external pure returns(bytes memory receiptProof){
           receiptProof = abi.encode(log);
     }
+
+    function adjustLogs(address _from,bytes memory _to,address _mos,bytes memory _currentLogBytes) external view returns(bytes memory outPut){
+        (uint256 header,address mos,address token,uint256 amount,address from, bytes memory to,bytes memory message) =
+                            abi.decode(_currentLogBytes,(uint256,address,address,uint256,address,bytes,bytes));
+
+        bytes memory out = abi.encode(header, _mos, token, amount, _from, _to, message);
+
+        outPut = abi.encode(out);
+    }
 }
