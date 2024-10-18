@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+  // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.20;
 
@@ -10,7 +10,6 @@ import "./lib/EvmDecoder.sol";
 import "./lib/NearDecoder.sol";
 import "./interface/IRelayExecutor.sol";
 import {MessageOutEvent} from "./lib/Types.sol";
-import "@mapprotocol/protocol/contracts/lib/LogDecode.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightClientManager.sol";
 
@@ -41,12 +40,10 @@ contract BridgeAndRelay is BridgeAbstract {
 
     error invalid_chain_id();
     error unknown_log();
-    error invalid_mos_contract();
     error chain_type_error();
     error invalid_rate_id();
     error vault_token_not_registered();
     error invalid_vault_token();
-    error length_mismatching();
     error invalid_rate_value();
     error out_token_not_registered();
 
@@ -71,6 +68,8 @@ contract BridgeAndRelay is BridgeAbstract {
         address to,
         uint256 amount
     );
+
+    event Withdraw(address token,address reicerver, uint256 vaultAmount, uint256 tokenAmount);
 
     // --------------------------------------------- manage ----------------------------------------------
 
@@ -179,6 +178,7 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 amount = IVaultTokenV3(vaultToken).getTokenAmount(_vaultAmount);
         IVaultTokenV3(vaultToken).withdraw(selfChainId, _vaultAmount, msg.sender);
         _tokenTransferOut(token, msg.sender, amount, true);
+        emit Withdraw(token, msg.sender, _vaultAmount, amount);
     }
 
     function transferOut(
@@ -187,7 +187,7 @@ contract BridgeAndRelay is BridgeAbstract {
         address _feeToken
     ) external payable override returns (bytes32 orderId) {
         uint256 fromChain = selfChainId;
-        MessageData memory msgData = _transferOut(selfChainId, _toChain, _messageData, _feeToken);
+        MessageData memory msgData = _transferOut(fromChain, _toChain, _messageData, _feeToken);
 
         orderId = _messageOut(
             msgData.relay,
@@ -288,28 +288,30 @@ contract BridgeAndRelay is BridgeAbstract {
     ) external nonReentrant whenNotPaused {
         _checkOrder(_orderId);
 
-        (bool success, string memory message, bytes memory logArray) = lightClientManager.verifyProofData(
-            _chainId,
-            _receiptProof
-        );
-        require(success, message);
         if (chainTypes[_chainId] == ChainType.EVM) {
-            ILightVerifier.txLog memory log = LogDecode.decodeTxLog(logArray, _logIndex);
+            (bool success, string memory message, ILightVerifier.txLog memory log) = lightClientManager.verifyProofData(_chainId, _logIndex, _receiptProof);
+            require(success, message);
             if (log.addr != _fromBytes(mosContracts[_chainId])) revert invalid_mos_contract();
-
             if (EvmDecoder.MESSAGE_OUT_TOPIC != log.topics[0]) revert invalid_bridge_log();
             (bool result, MessageOutEvent memory outEvent) = EvmDecoder.decodeMessageOut(log);
             if (!result) revert invalid_pack_version();
             _messageIn(_orderId, _chainId, outEvent);
-        } else if (chainTypes[_chainId] == ChainType.NEAR) {
-            (bytes memory executorId, bytes32 topic, bytes memory log) = NearDecoder.getTopic(logArray, _logIndex);
-            if (!_checkBytes(executorId, mosContracts[_chainId])) revert invalid_mos_contract();
-            if (topic != NearDecoder.NEAR_SWAPOUT) revert invalid_bridge_log();
-            MessageOutEvent memory outEvent = NearDecoder.decodeNearSwapLog(log);
-            _messageIn(_orderId, _chainId, outEvent);
         } else {
-            revert chain_type_error();
-        }
+            (bool success, string memory message, bytes memory logArray) = lightClientManager.verifyProofData(
+                _chainId,
+                _receiptProof
+            );
+            require(success, message);
+            if (chainTypes[_chainId] == ChainType.NEAR) {
+                (bytes memory executorId, bytes32 topic, bytes memory log) = NearDecoder.getTopic(logArray, _logIndex);
+                if (!_checkBytes(executorId, mosContracts[_chainId])) revert invalid_mos_contract();
+                if (topic != NearDecoder.NEAR_SWAPOUT) revert invalid_bridge_log();
+                MessageOutEvent memory outEvent = NearDecoder.decodeNearSwapLog(log);
+                _messageIn(_orderId, _chainId, outEvent);
+            } else {
+                revert chain_type_error();
+            }
+        } 
     }
 
     function relayExecute(
@@ -409,9 +411,13 @@ contract BridgeAndRelay is BridgeAbstract {
             }
         }
         _notifyLightClient(_inEvent.toChain);
-
-        bytes memory toChainToken = tokenRegister.getToChainToken(token, _inEvent.toChain);
-        if (_checkBytes(toChainToken, bytes(""))) revert token_not_registered();
+        bytes memory toChainToken;
+        if(_inEvent.messageType == uint8(MessageType.MESSAGE)){
+            toChainToken = _toBytes(ZERO_ADDRESS);
+        } else {
+            toChainToken = tokenRegister.getToChainToken(token, _inEvent.toChain);
+            if (_checkBytes(toChainToken, bytes(""))) revert token_not_registered();
+        }
         _emitMessageRelay(
             _inEvent.messageType,
             _inEvent.orderId,

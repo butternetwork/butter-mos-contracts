@@ -6,7 +6,6 @@ import "./abstract/BridgeAbstract.sol";
 import "./interface/IMintableToken.sol";
 import "./lib/EvmDecoder.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
-
 contract Bridge is BridgeAbstract {
     uint256 constant DEPOSIT_GAS = 200000;
 
@@ -16,7 +15,6 @@ contract Bridge is BridgeAbstract {
 
     error invalid_relay_chain();
     error invalid_relay_contract();
-    error invalid_mos_contract();
     error invalid_to_chain();
 
     event SetLightClient(address lightNode);
@@ -42,7 +40,7 @@ contract Bridge is BridgeAbstract {
     function setRelay(uint256 _chainId, address _relay) external onlyRole(MANAGER_ROLE) {
         _checkAddress(_relay);
 
-        relaySlot = uint256(uint160(_relay) << 96) | _chainId;
+        relaySlot = (uint256(uint160(_relay)) << 96) | _chainId;
 
         emit SetRelay(_chainId, _relay);
     }
@@ -65,11 +63,10 @@ contract Bridge is BridgeAbstract {
         address _feeToken
     ) external payable override whenNotPaused returns (bytes32 orderId) {
         uint256 fromChain = selfChainId;
-        require(_toChain != fromChain, "MOSV3: only other chain");
 
         (, address mosRelay) = _getRelay();
 
-        MessageData memory msgData = _transferOut(selfChainId, _toChain, _messageData, _feeToken);
+        MessageData memory msgData = _transferOut(fromChain, _toChain, _messageData, _feeToken);
 
         orderId = _messageOut(
             msgData.relay,

@@ -59,8 +59,14 @@ abstract contract BridgeAbstract is
     error zero_address();
     error not_contract();
     error zero_amount();
+    error invalid_mos_contract();
+    error invalid_message_fee();
+    error length_mismatching();
     error bridge_same_chain();
     error only_upgrade_role();
+    error not_support_value();
+    error not_support_target_chain();
+    error unsupported_message_type();
 
     event SetContract(uint256 _t, address _addr);
     event SetFeeService(address indexed feeServiceAddress);
@@ -108,7 +114,7 @@ abstract contract BridgeAbstract is
         uint256[] memory _toChains,
         bool _enable
     ) external onlyRole(MANAGER_ROLE) {
-        require(_isContract(_token), "token is not contract");
+        if(!_isContract(_token)) revert not_contract();
         for (uint256 i = 0; i < _toChains.length; i++) {
             uint256 toChain = _toChains[i];
             uint256 enable = _enable ? 0x01 : 0x00;
@@ -122,7 +128,7 @@ abstract contract BridgeAbstract is
         address[] calldata omniProxys,
         uint96 _feature
     ) external onlyRole(MANAGER_ROLE) {
-        require(_tokens.length == omniProxys.length, "mismatching");
+        if(_tokens.length != omniProxys.length) revert length_mismatching();
         for (uint256 i = 0; i < _tokens.length; i++) {
             tokenFeatureList[_tokens[i]] = (uint256(uint160(omniProxys[i])) << 96) | _feature;
             emit UpdateToken(_tokens[i], omniProxys[i], _feature);
@@ -176,15 +182,15 @@ abstract contract BridgeAbstract is
         bytes memory _messageData,
         address _feeToken
     ) internal virtual returns (MessageData memory msgData) {
-        require(_toChain != _fromChain, "MOSV3: only other chain");
+        if(_toChain == _fromChain) revert bridge_same_chain();
 
         msgData = abi.decode(_messageData, (MessageData));
-        require(msgData.value == 0, "MOSV3: not support msg value");
-        require((msgData.msgType == MessageType.MESSAGE), "MOSV3: unsupported message type");
+        if(msgData.value != 0) revert not_support_value();
+        if(msgData.msgType != MessageType.MESSAGE) revert unsupported_message_type();
 
         (uint256 amount, address receiverFeeAddress) = _getMessageFee(_toChain, _feeToken, msgData.gasLimit);
         if (_feeToken == ZERO_ADDRESS) {
-            require(msg.value >= amount, "MOSV3: invalid message fee");
+            if(msg.value < amount) revert invalid_message_fee();
             if (msg.value > 0) {
                 // todo: store received amount
                 _safeTransferNative(receiverFeeAddress, msg.value);
@@ -378,7 +384,7 @@ abstract contract BridgeAbstract is
         uint256 _gasLimit
     ) internal view returns (uint256 amount, address receiverAddress) {
         (amount, receiverAddress) = feeService.getServiceMessageFee(_toChain, _feeToken, _gasLimit);
-        require(amount > 0, "MOSV3: not support target chain");
+        if(amount == 0) revert not_support_target_chain();
     }
 
     function _checkAddress(address _address) internal pure {
@@ -386,7 +392,7 @@ abstract contract BridgeAbstract is
     }
 
     function _checkBridgeable(address _token, uint256 _chainId) internal view {
-        require((tokenMappingList[_chainId][_token] & 0x0F) == 0x01, "token not registered");
+        if((tokenMappingList[_chainId][_token] & 0x0F) != 0x01) revert token_not_registered();
     }
 
     function _checkAndBurn(address _token, uint256 _amount) internal {
