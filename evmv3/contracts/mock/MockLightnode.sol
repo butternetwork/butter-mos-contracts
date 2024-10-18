@@ -27,7 +27,11 @@ contract MockLightnode is ILightVerifier {
         external
         override
         returns (bool success, string memory message, txLog memory log)
-    {}
+    {
+        success = true;
+        message = "";
+        log = abi.decode(_receiptProofBytes,(txLog));
+    }
 
     function verifyProofData(
         bytes memory _receiptProof

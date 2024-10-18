@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-struct DepositOutEvent {
-    bytes token;
-    bytes from;
-    bytes32 orderId;
-    uint256 fromChain;
-    uint256 toChain;
-    bytes mosOrRelay;
-    bytes to;
-    uint256 amount;
-}
+// struct DepositOutEvent {
+//     bytes token;
+//     bytes from;
+//     bytes32 orderId;
+//     uint256 fromChain;
+//     uint256 toChain;
+//     bytes mosOrRelay;
+//     bytes to;
+//     uint256 amount;
+// }
 
 struct MessageOutEvent {
     bool relay;

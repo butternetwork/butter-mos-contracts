@@ -52,7 +52,7 @@
     "typechain": "^8.1.0"
   },
   "dependencies": {
-    "@mapprotocol/protocol": "^0.8.3",
+    "@mapprotocol/protocol": "^0.8.5",
     "@butternetwork/bridge": "^1.2.0",
     "@openzeppelin/contracts": "^4.9.3"
   },

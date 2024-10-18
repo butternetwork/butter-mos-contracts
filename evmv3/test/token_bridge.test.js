@@ -64,7 +64,7 @@ describe("token-bridge", function () {
         });
 
 
-        it("Bridge depositToken() - native", async function () {
+        it("Bridge depositToken() and relay messageIn - native", async function () {
             let amount = ethers.utils.parseEther("50")
             let result = await bridge.depositToken(ethers.constants.AddressZero, owner.address, amount, {value: amount});
             let receipt = await owner.provider?.getTransactionReceipt(result.hash)
@@ -79,12 +79,21 @@ describe("token-bridge", function () {
                     }
                 }
             });
-            if(log) {
-                console.log(await testUtil.decodeMessageOut(log))
-            }
+
+            if(!log) throw "no_message_out_event";
+            
+            let decode = await testUtil.decodeMessageOut(log);
+            let chainAndGasLimit = await testUtil.getChainAndGasLimit(212, 1, decode.outEvent.gasLimit);
+            log.topics[2] = chainAndGasLimit;
+            let receiptProof = await testUtil.encodeTxLog(log);
+            let b_before = await vaultWToken.balanceOf(owner.address);
+            await expect(await relay.messageIn(212, 0, log.topics[1], receiptProof)).to.be.emit(relay, "DepositIn");
+            let b_after = await vaultWToken.balanceOf(owner.address);
+            expect(b_after).greaterThan(b_before);
+           
         });
 
-        it("Bridge depositToken() - ERC20", async function () {
+        it("Bridge depositToken() and relay messageIn - ERC20", async function () {
             let amount = ethers.utils.parseEther("50")
             await usdt.approve(bridge.address, amount)
             let result = await bridge.depositToken(usdt.address, owner.address, amount);
@@ -100,14 +109,20 @@ describe("token-bridge", function () {
                     }
                 }
             });
-            console.log(log);
+            if(!log) throw "no_message_out_event";
 
-            if(log) {
-                console.log(await testUtil.decodeMessageOut(log))
-            }
+            let decode = await testUtil.decodeMessageOut(log);
+            let chainAndGasLimit = await testUtil.getChainAndGasLimit(212, 1, decode.outEvent.gasLimit);
+            log.topics[2] = chainAndGasLimit;
+            let receiptProof = await testUtil.encodeTxLog(log);
+            let b_before = await vaultUToken.balanceOf(owner.address);
+            await expect(await relay.messageIn(212, 0, log.topics[1], receiptProof)).to.be.emit(relay, "DepositIn");
+            let b_after = await vaultUToken.balanceOf(owner.address);
+            expect(b_after).greaterThan(b_before);
+          
         });
 
-        it("Bridge swapOutToken() - native", async function () {
+        it("Bridge swapOutToken() and relay messageIn - native", async function () {
             let amount = ethers.utils.parseEther("50")
             let BridgeParam = {
                 relay: false,
@@ -130,12 +145,21 @@ describe("token-bridge", function () {
                     }
                 }
             });
-            if(log) {
-                console.log(await testUtil.decodeMessageOut(log))
-            }
+            if(!log) throw "no_message_out_event";
+
+            let deccode = await testUtil.decodeMessageOut(log);
+            let chainAndGasLimit = await testUtil.getChainAndGasLimit(212, 1, deccode.outEvent.gasLimit);
+            log.topics[2] = chainAndGasLimit;
+            let receiptProof = await testUtil.encodeTxLog(log);
+            await expect(await relay.depositToken(ethers.constants.AddressZero, owner.address, amount,{value: amount})).to.be.emit(relay,"DepositIn")
+            let b_before = await owner.getBalance();
+            await expect(await relay.messageIn(212, 0, log.topics[1], receiptProof)).to.be.emit(relay, "MessageIn");
+            let b_after = await owner.getBalance();
+            expect(b_after).greaterThan(b_before);
+
         });
 
-        it("Bridge swapOutToken() - ERC20", async function () {
+        it("Bridge swapOutToken() and relay messageIn - ERC20", async function () {
             let amount = ethers.utils.parseEther("50")
             await usdt.approve(bridge.address, amount)
             let BridgeParam = {
@@ -159,13 +183,20 @@ describe("token-bridge", function () {
                     }
                 }
             });
-            if(log) {
-                console.log(await testUtil.decodeMessageOut(log))
-            }
+            if(!log) throw "no_message_out_event";
+            let decode = await testUtil.decodeMessageOut(log);
+            let chainAndGasLimit = await testUtil.getChainAndGasLimit(212, 1, decode.outEvent.gasLimit);
+            log.topics[2] = chainAndGasLimit;
+            let receiptProof = await testUtil.encodeTxLog(log);
+            let b_before = await usdt.balanceOf(owner.address);
+            await expect(await relay.messageIn(212, 0, log.topics[1], receiptProof)).to.be.emit(relay, "MessageIn");
+            let b_after = await usdt.balanceOf(owner.address);
+            expect(b_after).greaterThan(b_before);
+           
         });
 
 
-        it("relay swapOutToken() - native", async function () {
+        it("relay swapOutToken() and bridge messageIn - native", async function () {
             let amount = ethers.utils.parseEther("50")
             let BridgeParam = {
                 relay: false,
@@ -188,12 +219,19 @@ describe("token-bridge", function () {
                     }
                 }
             });
-            if(log) {
-                console.log(await testUtil.decodeMessageRelay(log))
-            }
+            if(!log) throw "no_message_relay_event";
+            let decode = await testUtil.decodeMessageOut(log);
+            let chainAndGasLimit = await testUtil.getChainAndGasLimit(212, 1, decode.outEvent.gasLimit);
+            log.topics[2] = chainAndGasLimit;
+            let receiptProof = await testUtil.encodeTxLog(log);
+            await bridge.depositToken(ethers.constants.AddressZero, owner.address, amount,{value: amount});
+            let b_before = await owner.getBalance();
+            await expect(await bridge.messageIn(212, 0, log.topics[1], receiptProof)).to.be.emit(bridge, "MessageIn");
+            let b_after = await owner.getBalance();
+            expect(b_after).greaterThan(b_before);
         });
 
-        it("relay swapOutToken() - ERC20", async function () {
+        it("relay swapOutToken() and bridge messageIn - ERC20", async function () {
             let amount = ethers.utils.parseEther("50")
             await usdt.approve(relay.address, amount)
             let BridgeParam = {
@@ -217,9 +255,16 @@ describe("token-bridge", function () {
                     }
                 }
             });
-            if(log) {
-                console.log(await testUtil.decodeMessageRelay(log))
-            }
+            if(!log) throw "no_message_relay_event";
+            let decode = await testUtil.decodeMessageOut(log);
+            let chainAndGasLimit = await testUtil.getChainAndGasLimit(212, 1, decode.outEvent.gasLimit);
+            log.topics[2] = chainAndGasLimit;
+            let receiptProof = await testUtil.encodeTxLog(log);
+            let b_before = await usdt.balanceOf(owner.address);
+            await expect(await bridge.messageIn(212, 0, log.topics[1], receiptProof)).to.be.emit(bridge, "MessageIn");
+            let b_after = await usdt.balanceOf(owner.address);
+            expect(b_after).greaterThan(b_before);
+
         });
 
         it("relay deposit and withdraw - native", async function () {

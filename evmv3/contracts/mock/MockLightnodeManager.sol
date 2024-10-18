@@ -67,4 +67,38 @@ contract MockLightnodeManager is ILightClientManager {
     function nodeType(
         uint256 _chainId
     ) external view override returns (uint256) {}
+
+    function verifyProofDataWithCache(
+        uint256 _chainId,
+        bool _cache,
+        uint256 _logIndex,
+        bytes calldata _receiptProofBytes
+    )
+        external
+        override
+        returns (
+            bool success,
+            string memory message,
+            ILightVerifier.txLog memory log
+        )
+    {}
+
+    function verifyProofData(
+        uint256 _chainId,
+        uint256 _logIndex,
+        bytes calldata _receiptProof
+    )
+        external
+        view
+        override
+        returns (
+            bool success,
+            string memory message,
+            ILightVerifier.txLog memory log
+        )
+    {
+        success = true;
+        message = "";
+        log = abi.decode(_receiptProof,(ILightVerifier.txLog));
+    }
 }

@@ -23,7 +23,11 @@ contract TestUtil {
         uint256 _fromChain,
         uint256 _toChain,
         uint256 _gasLimit
-    ) external pure returns (uint256 chainAndGasLimit) {
-        chainAndGasLimit = ((_fromChain << 192) | (_toChain << 128) | _gasLimit);
+    ) external pure returns (bytes32 chainAndGasLimit) {
+        chainAndGasLimit = bytes32(((_fromChain << 192) | (_toChain << 128) | _gasLimit));
+    }
+
+    function encodeTxLog(ILightVerifier.txLog memory log) external pure returns(bytes memory receiptProof){
+          receiptProof = abi.encode(log);
     }
 }
