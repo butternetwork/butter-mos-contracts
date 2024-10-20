@@ -104,7 +104,6 @@ contract Echo is Ownable, IMapoExecutor {
         return newData;
     }
 
-
     function mapoExecute(
         uint256 _fromChain,
         uint256,

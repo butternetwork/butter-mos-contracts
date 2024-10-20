@@ -35,7 +35,7 @@ task("relay:deploy", "mos relay deploy")
     let data = await BridgeAndRelay.interface.encodeFunctionData("initialize", [wrapped, deployer.address]);
     let proxy_salt = process.env.BRIDGE_PROXY_SALT;
 
-    let bridge = await create(hre, deployer, "BridgeProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
+    let bridge = await create(hre, deployer, "OmniServiceProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
 
     let relay = BridgeAndRelay.attach(bridge);
     await (await relay.setOmniContract(1, client)).wait();
@@ -72,21 +72,21 @@ task("relay:upgrade", "upgrade bridge evm contract in proxy")
   });
 
 task("bridge:setContract", "set contract")
-    .addParam("type", "contract type, 0-wtoken, 1-lightnode, 2-feeservice, 3-router, 4-register, 5-limit")
-    .addParam("contract", "contract address")
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
+  .addParam("type", "contract type, 0-wtoken, 1-lightnode, 2-feeservice, 3-router, 4-register, 5-limit")
+  .addParam("contract", "contract address")
+  .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
 
-        console.log("deployer address is:", deployer.address);
+    console.log("deployer address is:", deployer.address);
 
-        let bridge = await getBridge(hre.network.name, true);
+    let bridge = await getBridge(hre.network.name, true);
 
-        {
-            await (await bridge.setOmniContract(taskArgs.type, taskArgs.contract)).wait();
-            console.log("contract", await bridge.getOmniContract(taskArgs.type));
-        }
-    });
+    {
+      await (await bridge.setOmniContract(taskArgs.type, taskArgs.contract)).wait();
+      console.log("contract", await bridge.getOmniContract(taskArgs.type));
+    }
+  });
 
 task("relay:setDistributeRate", "set distribute rate")
   .addParam("id", "distribute id, 0 - vault, 1 - relayer, 2 - protocol")
@@ -116,7 +116,6 @@ task("relay:registerChain", "register Chain")
     await (await relay.registerChain([taskArgs.chain], [taskArgs.address], taskArgs.type)).wait();
     console.log(`register chain ${taskArgs.chain} address ${taskArgs.address} success`);
   });
-
 
 task("relay:grantRole", "grant Role")
   .addParam("role", "role address")
@@ -167,7 +166,7 @@ task("relay:updateToken", "update token bridge and fee to target chain")
     let chainList = Object.keys(feeList);
     for (let i = 0; i < chainList.length; i++) {
       let chain = await getChain(chainList[i]);
-      let chainFee = feeList[chain.chain];
+      let chainFee = feeList[chain.name];
 
       let targetToken = await getToken(chain.chainId, taskArgs.token);
       // console.log(`target ${chain.chainId}, ${targetToken}, ${chainFee.decimals}`)

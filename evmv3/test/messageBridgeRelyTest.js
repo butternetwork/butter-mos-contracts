@@ -33,7 +33,7 @@ describe("ServiceRelayV3 start test", () => {
 
         let data = await relay.interface.encodeFunctionData("initialize", [wrapped.address,owner.address]);
 
-        let proxyContract = await ethers.getContractFactory("BridgeProxy");
+        let proxyContract = await ethers.getContractFactory("OmniServiceProxy");
         let proxy = await proxyContract.deploy(relay.address, data);
         await proxy.deployed();
         relay = relayContract.attach(proxy.address);

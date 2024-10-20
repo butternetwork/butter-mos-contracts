@@ -111,7 +111,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     function initialize(address _defaultAdmin) public initializer checkAddress(_defaultAdmin) {
         __AccessControlEnumerable_init();
         _grantRole(MANAGER_ROLE, _defaultAdmin);
-         _grantRole(UPGRADER_ROLE, _defaultAdmin);
+        _grantRole(UPGRADER_ROLE, _defaultAdmin);
         _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
     }
 

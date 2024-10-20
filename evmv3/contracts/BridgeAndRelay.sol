@@ -1,4 +1,4 @@
-  // SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.20;
 
@@ -69,7 +69,7 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 amount
     );
 
-    event Withdraw(address token,address reicerver, uint256 vaultAmount, uint256 tokenAmount);
+    event Withdraw(address token, address reicerver, uint256 vaultAmount, uint256 tokenAmount);
 
     // --------------------------------------------- manage ----------------------------------------------
 
@@ -305,7 +305,11 @@ contract BridgeAndRelay is BridgeAbstract {
         _checkOrder(_orderId);
 
         if (chainTypes[_chainId] == ChainType.EVM) {
-            (bool success, string memory message, ILightVerifier.txLog memory log) = lightClientManager.verifyProofData(_chainId, _logIndex, _receiptProof);
+            (bool success, string memory message, ILightVerifier.txLog memory log) = lightClientManager.verifyProofData(
+                _chainId,
+                _logIndex,
+                _receiptProof
+            );
             require(success, message);
             if (log.addr != _fromBytes(mosContracts[_chainId])) revert invalid_mos_contract();
             if (EvmDecoder.MESSAGE_OUT_TOPIC != log.topics[0]) revert invalid_bridge_log();
@@ -327,7 +331,7 @@ contract BridgeAndRelay is BridgeAbstract {
             } else {
                 revert chain_type_error();
             }
-        } 
+        }
     }
 
     function relayExecute(
@@ -428,7 +432,7 @@ contract BridgeAndRelay is BridgeAbstract {
         }
         _notifyLightClient(_inEvent.toChain);
         bytes memory toChainToken;
-        if(_inEvent.messageType == uint8(MessageType.MESSAGE)){
+        if (_inEvent.messageType == uint8(MessageType.MESSAGE)) {
             toChainToken = _toBytes(ZERO_ADDRESS);
         } else {
             toChainToken = tokenRegister.getToChainToken(token, _inEvent.toChain);
@@ -451,7 +455,7 @@ contract BridgeAndRelay is BridgeAbstract {
         token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
         if (token == ZERO_ADDRESS) revert token_not_registered();
         relayAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
-         
+
         // _checkAndMint(token, relayAmount);
     }
 

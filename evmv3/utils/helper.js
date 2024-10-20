@@ -100,13 +100,13 @@ async function getTokenList(network) {
   } else {
     let rawdata = fs.readFileSync(p);
     tokens = JSON.parse(rawdata);
-    if (!tokens[chainId]) {
+    if (!tokens[network]) {
       throw "no tokens ..";
     }
   }
-  let tokenList = Object.keys(tokens[network]);
+  //let tokenList = Object.keys(tokens[network]);
 
-  return tokenList;
+  return tokens[network];
 }
 
 async function getToken(network, token) {
@@ -128,14 +128,13 @@ async function getToken(network, token) {
       return token;
     }
   }
-  let tokens = await getTokenList(chain.chain);
+  let tokens = await getTokenList(chain.name);
   if (tokens[token]) {
     return tokens[token];
   }
 
   throw "token not support ..";
 }
-
 
 async function getFeeConfig(subject) {
   let configFile = "../constants/" + subject + ".json";

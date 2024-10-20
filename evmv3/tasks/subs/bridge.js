@@ -54,7 +54,7 @@ task("bridge:deploy", "bridge deploy")
     }
     let data = await Bridge.interface.encodeFunctionData("initialize", [wrapped, deployer.address]);
     let proxy_salt = process.env.BRIDGE_PROXY_SALT;
-    let proxy = await create(hre, deployer, "BridgeProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
+    let proxy = await create(hre, deployer, "OmniServiceProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
 
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
       // bridge_addr = await fromHex(bridge_addr, networkName);
@@ -75,7 +75,7 @@ task("bridge:deploy", "bridge deploy")
 
     //await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, true);
 
-    //await verify(proxy, [implAddr, data], "contracts/BridgeProxy.sol:BridgeProxy", hre.network.config.chainId, true);
+    //await verify(proxy, [implAddr, data], "contracts/OmniServiceProxy.sol:OmniServiceProxy", hre.network.config.chainId, true);
   });
 
 task("bridge:upgrade", "upgrade bridge evm contract in proxy")
@@ -106,7 +106,7 @@ task("bridge:upgrade", "upgrade bridge evm contract in proxy")
   });
 
 task("bridge:setOmniContract", "set contract")
-    .addParam("type", "contract type, 0-wtoken, 1-lightnode, 2-feeservice, 3-router, 4-register, 5-limit")
+  .addParam("type", "contract type, 0-wtoken, 1-lightnode, 2-feeservice, 3-router, 4-register, 5-limit")
   .addParam("contract", "contract address")
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
@@ -124,7 +124,6 @@ task("bridge:setOmniContract", "set contract")
       console.log("contract", await bridge.getOmniContract(taskArgs.type));
     }
   });
-
 
 task("bridge:setReceiver", "set native fee receiver")
   .addParam("receiver", "receiver address")
@@ -341,14 +340,14 @@ task("bridge:updateToken", "update token to target chain")
 
     let chain = await getChain(hre.network.config.chainId);
     let feeList = await getFeeList(taskArgs.token);
-    let feeInfo = feeList[chain.chain];
+    let feeInfo = feeList[chain.name];
 
     let isMintable = feeInfo.mintable === undefined ? false : feeInfo.mintable;
     let isOmniToken = feeInfo.morc20 === undefined ? false : feeInfo.morc20;
     let omniProxy = feeInfo.proxy === undefined ? ethers.constants.AddressZero : feeInfo.proxy;
     await hre.run("bridge:updateTokenFeature", {
       token: taskArgs.token,
-      mintable: isMintable
+      mintable: isMintable,
     });
 
     let chainList = await getChainList(hre.network.config.chainId);
@@ -520,7 +519,6 @@ task("bridge:list", "List bridge info")
       console.log("relay chain:\t", relay[0]);
       console.log("relay contract:\t", relay[1]);
       console.log("Impl:\t", await bridge.getImplementation());
-
     }
   });
 

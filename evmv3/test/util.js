@@ -27,7 +27,7 @@ async function deploy() {
     let TokenRegisterV3 = await ethers.getContractFactory("TokenRegisterV3");
     let tokenRegisterV3 = await TokenRegisterV3.deploy();
     let registerData = await tokenRegisterV3.interface.encodeFunctionData("initialize", [wallet.address]);
-    let BridgeProxy = await ethers.getContractFactory("BridgeProxy");
+    let BridgeProxy = await ethers.getContractFactory("OmniServiceProxy");
     let register_proxy = await BridgeProxy.deploy(tokenRegisterV3.address, registerData);
     // console.log("register:", register_proxy.address)
     let register = TokenRegisterV3.attach(register_proxy.address);

@@ -114,7 +114,7 @@ abstract contract BridgeAbstract is
         uint256[] memory _toChains,
         bool _enable
     ) external onlyRole(MANAGER_ROLE) {
-        if(!_isContract(_token)) revert not_contract();
+        if (!_isContract(_token)) revert not_contract();
         for (uint256 i = 0; i < _toChains.length; i++) {
             uint256 toChain = _toChains[i];
             uint256 enable = _enable ? 0x01 : 0x00;
@@ -181,15 +181,15 @@ abstract contract BridgeAbstract is
         bytes memory _messageData,
         address _feeToken
     ) internal virtual returns (MessageData memory msgData) {
-        if(_toChain == _fromChain) revert bridge_same_chain();
+        if (_toChain == _fromChain) revert bridge_same_chain();
 
         msgData = abi.decode(_messageData, (MessageData));
-        if(msgData.value != 0) revert not_support_value();
-        if(msgData.msgType != MessageType.MESSAGE) revert unsupported_message_type();
+        if (msgData.value != 0) revert not_support_value();
+        if (msgData.msgType != MessageType.MESSAGE) revert unsupported_message_type();
 
         (uint256 amount, address receiverFeeAddress) = _getMessageFee(_toChain, _feeToken, msgData.gasLimit);
         if (_feeToken == ZERO_ADDRESS) {
-            if(msg.value < amount) revert invalid_message_fee();
+            if (msg.value < amount) revert invalid_message_fee();
             if (msg.value > 0) {
                 // todo: store received amount
                 _safeTransferNative(receiverFeeAddress, msg.value);
@@ -383,7 +383,7 @@ abstract contract BridgeAbstract is
         uint256 _gasLimit
     ) internal view returns (uint256 amount, address receiverAddress) {
         (amount, receiverAddress) = feeService.getServiceMessageFee(_toChain, _feeToken, _gasLimit);
-        if(amount == 0) revert not_support_target_chain();
+        if (amount == 0) revert not_support_target_chain();
     }
 
     function _checkAddress(address _address) internal pure {
@@ -391,7 +391,7 @@ abstract contract BridgeAbstract is
     }
 
     function _checkBridgeable(address _token, uint256 _chainId) internal view {
-        if((tokenMappingList[_chainId][_token] & 0x0F) != 0x01) revert token_not_registered();
+        if ((tokenMappingList[_chainId][_token] & 0x0F) != 0x01) revert token_not_registered();
     }
 
     function _checkAndBurn(address _token, uint256 _amount) internal {

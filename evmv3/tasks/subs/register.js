@@ -46,7 +46,7 @@ task("register:deploy", "mos relay deploy").setAction(async (taskArgs, hre) => {
   let data = await TokenRegisterV2.interface.encodeFunctionData("initialize", [deployer.address]);
   let proxy_salt = process.env.REGISTER_PROXY_SALT;
 
-  let proxy = await create(hre, deployer, "BridgeProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
+  let proxy = await create(hre, deployer, "OmniServiceProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
 
   let deployment = await readFromFile(hre.network.name);
   deployment[hre.network.name]["registerProxy"] = proxy;
@@ -326,7 +326,7 @@ task("register:updateTokenChains", "update token target chain")
     // console.log(`token ${taskArgs.token}  address: ${tokenAddr}`);
 
     let chain = await getChain(hre.network.config.chainId);
-    let feeInfo = await getFeeInfo(chain.chain, taskArgs.token);
+    let feeInfo = await getFeeInfo(chain.name, taskArgs.token);
 
     let chainList = await getChainList();
     let addList = [];
@@ -535,9 +535,9 @@ task("register:update", "update token bridge and fee to target chain")
     }
 
     for (let chain of chainList) {
-      console.log(`\n============ update chain [${chain.chain}] ============`);
+      console.log(`\n============ update chain [${chain.name}] ============`);
 
-      let feeList = await getFeeList(chain.chain);
+      let feeList = await getFeeList(chain.name);
 
       let tokenList = Object.keys(feeList);
       for (let tokenName of tokenList) {

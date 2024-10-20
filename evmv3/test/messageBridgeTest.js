@@ -42,7 +42,7 @@ describe("Bridge start test", () => {
 
         let data = await bridge.interface.encodeFunctionData("initialize", [wrapped.address,owner.address]);
 
-        let proxyContract = await ethers.getContractFactory("BridgeProxy");
+        let proxyContract = await ethers.getContractFactory("OmniServiceProxy");
         let proxy = await proxyContract.deploy(bridge.address, data);
         await proxy.deployed();
         bridge = bridgeContract.attach(proxy.address);
