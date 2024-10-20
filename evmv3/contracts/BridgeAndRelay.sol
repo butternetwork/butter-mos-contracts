@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.20;
+pragma solidity 0.8.25;
 
 import "./interface/IVaultTokenV3.sol";
 import "./abstract/BridgeAbstract.sol";
@@ -73,7 +73,7 @@ contract BridgeAndRelay is BridgeAbstract {
 
     // --------------------------------------------- manage ----------------------------------------------
 
-    function setOmniContract(uint256 _t, address _addr) external onlyRole(MANAGER_ROLE) {
+    function setServiceContract(uint256 _t, address _addr) external onlyRole(MANAGER_ROLE) {
         _checkAddress(_addr);
         if (_t == 0) {
             wToken = _addr;
@@ -117,7 +117,7 @@ contract BridgeAndRelay is BridgeAbstract {
     }
 
     // --------------------------------------------- external view -------------------------------------------
-    function getOmniContract(uint256 _type) external view returns (address) {
+    function getServiceContract(uint256 _type) external view returns (address) {
         if (_type == 0) {
             return wToken;
         } else if (_type == 1) {

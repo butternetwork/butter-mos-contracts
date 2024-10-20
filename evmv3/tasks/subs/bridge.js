@@ -59,14 +59,14 @@ task("bridge:deploy", "bridge deploy")
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
       // bridge_addr = await fromHex(bridge_addr, networkName);
       let bridge = await getTronContract("Bridge", hre.artifacts, networkName, proxy);
-      await bridge.setOmniContract(1, client).send();
-      console.log("wToken", await bridge.getOmniContract(0).call());
-      console.log("client", await bridge.getOmniContract(1).call());
+      await bridge.setServiceContract(1, client).send();
+      console.log("wToken", await bridge.getServiceContract(0).call());
+      console.log("client", await bridge.getServiceContract(1).call());
     } else {
       let bridge = Bridge.attach(proxy);
-      await (await bridge.setOmniContract(1, client)).wait();
-      console.log("wToken", await bridge.getOmniContract(0));
-      console.log("client", await bridge.getOmniContract(1));
+      await (await bridge.setServiceContract(1, client)).wait();
+      console.log("wToken", await bridge.getServiceContract(0));
+      console.log("client", await bridge.getServiceContract(1));
     }
 
     let deployment = await readFromFile(hre.network.name);
@@ -105,7 +105,7 @@ task("bridge:upgrade", "upgrade bridge evm contract in proxy")
     await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, true);
   });
 
-task("bridge:setOmniContract", "set contract")
+task("bridge:setContract", "set contract")
   .addParam("type", "contract type, 0-wtoken, 1-lightnode, 2-feeservice, 3-router, 4-register, 5-limit")
   .addParam("contract", "contract address")
   .setAction(async (taskArgs, hre) => {
@@ -117,11 +117,11 @@ task("bridge:setOmniContract", "set contract")
     let bridge = await getBridge(hre.network.name, true);
 
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      await bridge.setOmniContract(taskArgs.type, taskArgs.contract).send();
-      console.log("contract:", await bridge.getOmniContract(taskArgs.type).call());
+      await bridge.setServiceContract(taskArgs.type, taskArgs.contract).send();
+      console.log("contract:", await bridge.getServiceContract(taskArgs.type).call());
     } else {
-      await (await bridge.setOmniContract(taskArgs.type, taskArgs.contract)).wait();
-      console.log("contract", await bridge.getOmniContract(taskArgs.type));
+      await (await bridge.setServiceContract(taskArgs.type, taskArgs.contract)).wait();
+      console.log("contract", await bridge.getServiceContract(taskArgs.type));
     }
   });
 
@@ -513,8 +513,8 @@ task("bridge:list", "List bridge info")
 
       let selfChainId = await bridge.selfChainId();
       console.log("selfChainId:\t", selfChainId.toString());
-      console.log("wToken address:\t", await bridge.getOmniContract(0));
-      console.log("light node:\t", await bridge.getOmniContract(1));
+      console.log("wToken address:\t", await bridge.getServiceContract(0));
+      console.log("light node:\t", await bridge.getServiceContract(1));
       let relay = await bridge.getRelay();
       console.log("relay chain:\t", relay[0]);
       console.log("relay contract:\t", relay[1]);

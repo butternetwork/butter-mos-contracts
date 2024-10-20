@@ -18,6 +18,8 @@ contract Echo is Ownable, IMapoExecutor {
 
     error on_permission();
 
+    constructor() Ownable(msg.sender) {}
+
     function setList(string memory _key, string memory _val) external returns (bool) {
         require(WhiteList[msg.sender], " have no right ");
         EchoList[_key] = _val;

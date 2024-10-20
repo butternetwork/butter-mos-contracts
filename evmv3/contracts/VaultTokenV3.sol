@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.20;
+pragma solidity 0.8.25;
 
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import "./interface/IVaultTokenV3.sol";
 
 contract VaultTokenV3 is IVaultTokenV3, AccessControlEnumerable, ERC20Burnable {
-    using SafeMath for uint256;
     using SafeCast for uint256;
 
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -34,9 +33,9 @@ contract VaultTokenV3 is IVaultTokenV3, AccessControlEnumerable, ERC20Burnable {
      */
     constructor(address _underlying, string memory _name, string memory _symbol) ERC20(_name, _symbol) {
         require(_underlying != address(0), "underlying address is zero");
-        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
-        _setupRole(MANAGER_ROLE, _msgSender());
+        _grantRole(MANAGER_ROLE, _msgSender());
 
         underlying = _underlying;
 
@@ -49,7 +48,7 @@ contract VaultTokenV3 is IVaultTokenV3, AccessControlEnumerable, ERC20Burnable {
     }
 
     function addManager(address _manager) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _setupRole(MANAGER_ROLE, _manager);
+        _grantRole(MANAGER_ROLE, _manager);
     }
 
     function removeManager(address _manager) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -65,7 +64,7 @@ contract VaultTokenV3 is IVaultTokenV3, AccessControlEnumerable, ERC20Burnable {
             return _amount;
         }
         uint256 allVToken = totalSupply();
-        return _amount.mul(allVToken).div(totalVault);
+        return _amount * allVToken / totalVault;
     }
 
     function getTokenAmount(uint256 _amount) public view override returns (uint256) {
@@ -73,7 +72,7 @@ contract VaultTokenV3 is IVaultTokenV3, AccessControlEnumerable, ERC20Burnable {
         if (allVToken == 0) {
             return _amount;
         }
-        return _amount.mul(totalVault).div(allVToken);
+        return _amount * totalVault / allVToken;
     }
 
     function getTokenAddress() public view override returns (address) {

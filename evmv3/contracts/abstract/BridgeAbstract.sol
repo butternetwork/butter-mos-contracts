@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.20;
+pragma solidity 0.8.25;
 
 import "../interface/IButterBridgeV3.sol";
 import "../interface/IMOSV3.sol";
@@ -9,19 +9,21 @@ import "../interface/IMapoExecutor.sol";
 import "../interface/ISwapOutLimit.sol";
 import "../interface/IButterReceiver.sol";
 import "../interface/IFeeService.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import {EvmDecoder} from "../lib/EvmDecoder.sol";
 import {MessageInEvent} from "../lib/Types.sol";
 import "@mapprotocol/protocol/contracts/utils/Utils.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 abstract contract BridgeAbstract is
+    Initializable,
     UUPSUpgradeable,
-    PausableUpgradeable,
-    ReentrancyGuardUpgradeable,
-    AccessControlEnumerableUpgradeable,
+    Pausable,
+    ReentrancyGuard,
+    AccessControlEnumerable,
     IButterBridgeV3,
     IMOSV3
 {
@@ -94,9 +96,9 @@ abstract contract BridgeAbstract is
     function initialize(address _wToken, address _defaultAdmin) public initializer {
         _checkAddress(_wToken);
         _checkAddress(_defaultAdmin);
-        __Pausable_init();
-        __ReentrancyGuard_init();
-        __AccessControlEnumerable_init();
+        //__Pausable_init();
+        //__ReentrancyGuard_init();
+        //__AccessControlEnumerable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
         _grantRole(MANAGER_ROLE, _defaultAdmin);
         _grantRole(UPGRADER_ROLE, _defaultAdmin);
@@ -483,6 +485,7 @@ abstract contract BridgeAbstract is
     }
 
     function getImplementation() external view returns (address) {
-        return _getImplementation();
+        return ERC1967Utils.getImplementation();
+        // return _getImplementation();
     }
 }

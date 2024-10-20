@@ -38,10 +38,10 @@ task("relay:deploy", "mos relay deploy")
     let bridge = await create(hre, deployer, "OmniServiceProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
 
     let relay = BridgeAndRelay.attach(bridge);
-    await (await relay.setOmniContract(1, client)).wait();
+    await (await relay.setServiceContract(1, client)).wait();
 
-    console.log("wToken", await relay.getOmniContract(0));
-    console.log("mos", await relay.getOmniContract(1));
+    console.log("wToken", await relay.getServiceContract(0));
+    console.log("mos", await relay.getServiceContract(1));
 
     let deployment = await readFromFile(hre.network.name);
     deployment[hre.network.name]["bridgeProxy"] = bridge;
@@ -83,8 +83,8 @@ task("bridge:setContract", "set contract")
     let bridge = await getBridge(hre.network.name, true);
 
     {
-      await (await bridge.setOmniContract(taskArgs.type, taskArgs.contract)).wait();
-      console.log("contract", await bridge.getOmniContract(taskArgs.type));
+      await (await bridge.setServiceContract(taskArgs.type, taskArgs.contract)).wait();
+      console.log("contract", await bridge.getServiceContract(taskArgs.type));
     }
   });
 
