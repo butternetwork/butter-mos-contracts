@@ -31,7 +31,7 @@ async function getBridge(network, abstract) {
 
 task("bridge:deploy", "bridge deploy")
   .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
-  .addOptionalParam("mos", "omni-chain service address", "", types.string)
+  .addOptionalParam("client", "omni-chain service address", "", types.string)
   .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
   .setAction(async (taskArgs, hre) => {
     const { deploy } = hre.deployments;
@@ -41,10 +41,10 @@ task("bridge:deploy", "bridge deploy")
 
     let chain = await getChain(hre.network.config.chainId);
 
-    let mos = taskArgs.mos === "" ? chain.mos : taskArgs.mos;
+    let client = taskArgs.client === "" ? chain.lightNode : taskArgs.client;
     let wrapped = taskArgs.wrapped === "" ? chain.wToken : taskArgs.wrapped;
     console.log("wrapped token:", wrapped);
-    console.log("mos address:", mos);
+    console.log("lightclient address:", client);
 
     let implAddr = await create(hre, deployer, "Bridge", [], [], "");
 
@@ -59,23 +59,23 @@ task("bridge:deploy", "bridge deploy")
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
       // bridge_addr = await fromHex(bridge_addr, networkName);
       let bridge = await getTronContract("Bridge", hre.artifacts, networkName, proxy);
-      await bridge.setOmniService(mos).send();
-      console.log("wToken", await bridge.wToken().call());
-      console.log("mos", await bridge.mos().call());
+      await bridge.setOmniContract(1, client).send();
+      console.log("wToken", await bridge.getOmniContract(0).call());
+      console.log("client", await bridge.getOmniContract(1).call());
     } else {
       let bridge = Bridge.attach(proxy);
-      await (await bridge.setOmniService(mos)).wait();
-      console.log("wToken", await bridge.wToken());
-      console.log("mos", await bridge.mos());
+      await (await bridge.setOmniContract(1, client)).wait();
+      console.log("wToken", await bridge.getOmniContract(0));
+      console.log("client", await bridge.getOmniContract(1));
     }
 
     let deployment = await readFromFile(hre.network.name);
     deployment[hre.network.name]["bridgeProxy"] = proxy;
     await writeToFile(deployment);
 
-    await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, true);
+    //await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, true);
 
-    await verify(proxy, [implAddr, data], "contracts/BridgeProxy.sol:BridgeProxy", hre.network.config.chainId, true);
+    //await verify(proxy, [implAddr, data], "contracts/BridgeProxy.sol:BridgeProxy", hre.network.config.chainId, true);
   });
 
 task("bridge:upgrade", "upgrade bridge evm contract in proxy")
@@ -105,8 +105,9 @@ task("bridge:upgrade", "upgrade bridge evm contract in proxy")
     await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, true);
   });
 
-task("bridge:setMos", "set omni service")
-  .addParam("mos", "omni service address")
+task("bridge:setOmniContract", "set contract")
+    .addParam("type", "contract type, 0-wtoken, 1-lightnode, 2-feeservice, 3-router, 4-register, 5-limit")
+  .addParam("contract", "contract address")
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
@@ -116,32 +117,14 @@ task("bridge:setMos", "set omni service")
     let bridge = await getBridge(hre.network.name, true);
 
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      await bridge.setOmniService(taskArgs.mos).send();
-      console.log("mos", await bridge.mos().call());
+      await bridge.setOmniContract(taskArgs.type, taskArgs.contract).send();
+      console.log("contract:", await bridge.getOmniContract(taskArgs.type).call());
     } else {
-      await (await bridge.setOmniService(taskArgs.mos)).wait();
-      console.log("mos", await bridge.mos());
+      await (await bridge.setOmniContract(taskArgs.type, taskArgs.contract)).wait();
+      console.log("contract", await bridge.getOmniContract(taskArgs.type));
     }
   });
 
-task("bridge:setButterRouter", "set butter router address")
-  .addParam("router", "butter router address")
-  .setAction(async (taskArgs, hre) => {
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-
-    console.log("deployer address is:", deployer.address);
-
-    let bridge = await getBridge(hre.network.name, true);
-
-    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      await bridge.setButterRouter(taskArgs.router).send();
-      console.log("butterRouter", await bridge.butterRouter().call());
-    } else {
-      await (await bridge.setButterRouter(taskArgs.router)).wait();
-      console.log("butterRouter", await bridge.butterRouter());
-    }
-  });
 
 task("bridge:setReceiver", "set native fee receiver")
   .addParam("receiver", "receiver address")
@@ -160,7 +143,7 @@ task("bridge:setReceiver", "set native fee receiver")
       console.log("receiver address", await bridge.nativeFeeReceiver());
     }
   });
-
+/*
 task("bridge:setBaseGas", "set base gas")
   .addOptionalParam("chain", "target chain id, 0 for default", 0, types.int)
   .addParam("type", "Out type, 0 - swap, 1 - deposit, 2 - morc20")
@@ -224,17 +207,9 @@ task("bridge:registerChain", "register Chain")
 
     let bridge = await getBridge(hre.network.name, false);
 
-    let chainList = taskArgs.chains.split(",");
-    let addressList = taskArgs.addresses.split(",");
-
-    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-    } else {
-      await bridge.registerChain(chainList, addressList);
-    }
-
     console.log(`register chain [${chainList}] address [${addressList}] success`);
   });
-
+*/
 task("bridge:setRelay", "set relay")
   .addParam("chain", "register address")
   .addParam("address", "register address")
@@ -292,8 +267,6 @@ task("bridge:registerTokenChains", "register token Chains")
 task("bridge:updateTokenFeature", "update tokens")
   .addParam("token", "tokens")
   .addOptionalParam("mintable", "mintalbe token", false, types.boolean)
-  .addOptionalParam("omnitoken", "omni token", false, types.boolean)
-  .addOptionalParam("proxy", "omni proxy", "0x0000000000000000000000000000000000000000", types.string)
   .setAction(async (taskArgs, hre) => {
     if (outputAddr) {
       const accounts = await ethers.getSigners();
@@ -305,21 +278,8 @@ task("bridge:updateTokenFeature", "update tokens")
 
     let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
     let isMintable = await bridge.isMintable(tokenAddr);
-    let isOmniToken = await bridge.isOmniToken(tokenAddr);
-    let proxy = ethers.constants.AddressZero;
-    if (isOmniToken) {
-      proxy = await bridge.getOmniProxy(tokenAddr);
-      if (proxy.toLowerCase() === tokenAddr.toLowerCase()) {
-        // not omni token proxy
-        proxy = ethers.constants.AddressZero;
-      }
-    }
 
-    if (
-      isMintable === taskArgs.mintable &&
-      isOmniToken === taskArgs.omnitoken &&
-      proxy.toLowerCase() === taskArgs.proxy.toLowerCase()
-    ) {
+    if (isMintable === taskArgs.mintable) {
       console.log(`token [${taskArgs.token}] feature no update`);
       return;
     }
@@ -328,18 +288,15 @@ task("bridge:updateTokenFeature", "update tokens")
     if (taskArgs.mintable) {
       feature += 0x01;
     }
-    if (taskArgs.omnitoken) {
-      feature += 0x02;
-    }
 
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      await bridge.updateTokens([tokenAddr], [taskArgs.proxy], feature).send();
+      await bridge.updateTokens([tokenAddr], feature).send();
     } else {
-      await (await bridge.updateTokens([tokenAddr], [taskArgs.proxy], feature)).wait();
+      await (await bridge.updateTokens([tokenAddr], feature)).wait();
     }
-    console.log(`set token [${taskArgs.token}] feature [${feature.toString(16)}] with proxy [${taskArgs.proxy}]`);
+    console.log(`set token [${taskArgs.token}] feature [${feature.toString(16)}]`);
   });
-
+/*
 task("bridge:updateTokenNativeFees", "update token native fees")
   .addParam("token", "token")
   .addParam("fee", "native fee")
@@ -369,7 +326,7 @@ task("bridge:updateTokenNativeFees", "update token native fees")
     }
     // console.log(`set token [${taskArgs.token}] default native fee [${tokenNativeFee}]`);
   });
-
+*/
 task("bridge:updateToken", "update token to target chain")
   .addParam("token", "token name")
   .setAction(async (taskArgs, hre) => {
@@ -391,18 +348,10 @@ task("bridge:updateToken", "update token to target chain")
     let omniProxy = feeInfo.proxy === undefined ? ethers.constants.AddressZero : feeInfo.proxy;
     await hre.run("bridge:updateTokenFeature", {
       token: taskArgs.token,
-      mintable: isMintable,
-      omnitoken: isOmniToken,
-      proxy: omniProxy,
+      mintable: isMintable
     });
 
-    let nativeFee = feeInfo.defaultNativeFee === undefined ? "0.0" : feeInfo.defaultNativeFee;
-    await hre.run("bridge:updateTokenNativeFees", {
-      token: taskArgs.token,
-      fee: nativeFee.toString(),
-    });
-
-    let chainList = await getChainList();
+    let chainList = await getChainList(hre.network.config.chainId);
     let addList = [];
     let removeList = [];
     for (let i = 0; i < feeInfo.target.length; i++) {
@@ -565,17 +514,13 @@ task("bridge:list", "List bridge info")
 
       let selfChainId = await bridge.selfChainId();
       console.log("selfChainId:\t", selfChainId.toString());
-      console.log("wToken address:\t", await bridge.wToken());
-      console.log("mos:\t", await bridge.mos());
-      console.log("relay chain:\t", await bridge.relayChainId());
-      console.log("relay contract:\t", await bridge.relayContract());
+      console.log("wToken address:\t", await bridge.getOmniContract(0));
+      console.log("light node:\t", await bridge.getOmniContract(1));
+      let relay = await bridge.getRelay();
+      console.log("relay chain:\t", relay[0]);
+      console.log("relay contract:\t", relay[1]);
       console.log("Impl:\t", await bridge.getImplementation());
 
-      console.log("fee receiver:\t", await bridge.nativeFeeReceiver());
-
-      console.log("base fee swap:\t", await bridge.baseGasLookup(0, 0));
-      console.log("base fee deposit:\t", await bridge.baseGasLookup(0, 1));
-      console.log("base fee intertransfer:\t", await bridge.baseGasLookup(0, 2));
     }
   });
 

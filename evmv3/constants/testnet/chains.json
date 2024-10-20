@@ -1,0 +1,49 @@
+[
+    {
+        "name": "Makalu",
+        "chainId": "212",
+        "type": "evm",
+        "wToken": "0x2eD27dF9B4c903aB53666CcA59AFB431F7D15e91",
+        "feeService": "0x0000000000000000000000000000000000000000",
+        "lightNode": "0xDD3A69f8f59d892476B0be0260932b4f8d8268Ff"
+    },
+    {
+        "name": "Sepolia",
+        "chainId": "11155111",
+        "type": "evm",
+        "wToken": "0xf531B8F309Be94191af87605CfBf600D71C2cFe0",
+        "feeService": "0x0000000000000000000000000000000000000000",
+        "lightNode": "0x8089418B53F18DF3691f5D9Eae3f6e088B6F30DE"
+    },
+    {
+        "name": "BscTest",
+        "chainId": "97",
+        "type": "evm",
+        "wToken": "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+        "feeService": "0x0000000000000000000000000000000000000000",
+        "lightNode": "0x0e4ad88ee4bda767576a0a56c72589b5bd287cbf"
+    },
+    {
+        "name": "ArbitrumSepolia",
+        "chainId": "421614",
+        "wToken": "0x0091f4e75a03C11cB9be8E3717219005eb780D89",
+        "feeService": "0x0000000000000000000000000000000000000000",
+        "lightNode": "0x8089418B53F18DF3691f5D9Eae3f6e088B6F30DE"
+    },
+    {
+        "name": "DodoTest",
+        "chainId": "53457",
+        "type": "evm",
+        "wToken": "0x3a64Ec3606FF7310E8fAd6FcC008e39705fB496d",
+        "feeService": "0x0000000000000000000000000000000000000000",
+        "lightNode": "0x8089418B53F18DF3691f5D9Eae3f6e088B6F30DE"
+    },
+    {
+        "name": "TronTest",
+        "chainId": "3448148188",
+        "type": "evm",
+        "wToken": "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a",
+        "feeService": "0x0000000000000000000000000000000000000000",
+        "lightNode": "THC5GuvTQtjCpqB8Lg1aPeenvYntDwv7gS"
+    }
+]

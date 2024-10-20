@@ -17,11 +17,10 @@ contract Bridge is BridgeAbstract {
     error invalid_relay_contract();
     error invalid_to_chain();
 
-    event SetLightClient(address lightNode);
     event SetRelay(uint256 _chainId, address _relay);
 
     // --------------------------------------------- manage ----------------------------------------------
-    function setContract(uint256 _t, address _addr) external onlyRole(MANAGER_ROLE) {
+    function setOmniContract(uint256 _t, address _addr) external onlyRole(MANAGER_ROLE) {
         _checkAddress(_addr);
         if (_t == 0) {
             wToken = _addr;
@@ -34,6 +33,7 @@ contract Bridge is BridgeAbstract {
         } else {
             swapLimit = ISwapOutLimit(_addr);
         }
+
         emit SetContract(_t, _addr);
     }
 
@@ -46,6 +46,24 @@ contract Bridge is BridgeAbstract {
     }
 
     // --------------------------------------------- external view -------------------------------------------
+    function getOmniContract(uint256 _type) external view returns (address) {
+        if (_type == 0) {
+            return wToken;
+        } else if (_type == 1) {
+            return address(lightNode);
+        } else if (_type == 2) {
+            return address(feeService);
+        } else if (_type == 3) {
+            return butterRouter;
+        } else {
+            return address(swapLimit);
+        }
+    }
+
+    function getRelay() external view returns (uint256, address) {
+        return _getRelay();
+    }
+
     function getOrderStatus(
         uint256,
         uint256 _blockNum,

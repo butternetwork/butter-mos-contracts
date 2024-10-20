@@ -31,7 +31,7 @@ abstract contract BridgeAbstract is
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
-    uint256 internal immutable selfChainId = block.chainid;
+    uint256 public immutable selfChainId = block.chainid;
 
     uint256 private nonce;
 
@@ -71,7 +71,7 @@ abstract contract BridgeAbstract is
     event SetContract(uint256 _t, address _addr);
     event SetFeeService(address indexed feeServiceAddress);
     event RegisterToken(address _token, uint256 _toChain, bool _enable);
-    event UpdateToken(address token, address _omniProxy, uint96 feature);
+    event UpdateToken(address token, uint256 feature);
     event GasInfo(bytes32 indexed orderId, uint256 indexed executingGas, uint256 indexed executedGas);
 
     event MessageTransfer(
@@ -123,19 +123,18 @@ abstract contract BridgeAbstract is
         }
     }
 
-    function updateTokens(
-        address[] calldata _tokens,
-        address[] calldata omniProxys,
-        uint96 _feature
-    ) external onlyRole(MANAGER_ROLE) {
-        if(_tokens.length != omniProxys.length) revert length_mismatching();
+    function updateTokens(address[] calldata _tokens, uint256 _feature) external onlyRole(MANAGER_ROLE) {
         for (uint256 i = 0; i < _tokens.length; i++) {
-            tokenFeatureList[_tokens[i]] = (uint256(uint160(omniProxys[i])) << 96) | _feature;
-            emit UpdateToken(_tokens[i], omniProxys[i], _feature);
+            tokenFeatureList[_tokens[i]] = _feature;
+            emit UpdateToken(_tokens[i], _feature);
         }
     }
 
     // --------------------------------------------- external view -------------------------------------------
+
+    function isMintable(address _token) external view returns (bool) {
+        return _isMintable(_token);
+    }
 
     function getOrderStatus(
         uint256,

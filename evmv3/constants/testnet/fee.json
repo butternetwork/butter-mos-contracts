@@ -1,0 +1,48 @@
+{
+	"Makalu": {
+		"native": {
+			"Sepolia": "100.0",
+			"BscTest": "20.0",
+			"ArbitrumSepolia": "50.0",
+			"DodoTest": "2.0",
+			"TronTest": "1.0"
+		}
+	},
+	"Sepolia": {
+		"native": {
+			"Makalu": "0.01",
+			"BscTest": "0.2",
+			"ArbitrumSepolia": "0.5",
+			"DodoTest": "0.02"
+		}
+	},
+	"BscTest": {
+		"native": {
+			"Makalu": "0.05",
+			"Sepolia": "5.0",
+			"ArbitrumSepolia": "2.5",
+			"DodoTest": "0.1"
+		}
+	},
+	"ArbitrumSepolia": {
+		"native": {
+			"Makalu": "0.01",
+			"Sepolia": "1.0",
+			"BscTest": "0.2",
+			"DodoTest": "0.02"
+		}
+	},
+	"DodoTest": {
+		"native": {
+			"Makalu": "0.5",
+			"Sepolia": "50.0",
+			"BscTest": "10.0",
+			"ArbitrumSepolia": "25.0"
+		}
+	},
+	"TronTest": {
+		"native": {
+			"Makalu": "0.1"
+		}
+	}
+}

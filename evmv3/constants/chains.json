@@ -3,8 +3,11 @@
         "chain": "Mapo",
         "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "22776",
+        "type": "evm",
         "wToken": "0x13cb04d4a5dfb6398fc5ab005a6c84337256ee23",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "feeService": "0x0000000000000000000000000000000000000000",
+        "lightNode": "0x624E6F327c4F91F1Fa6285711245c215de264d49"
     },
     {
         "chain": "Eth",

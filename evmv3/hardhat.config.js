@@ -154,7 +154,7 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     ArbitrumSepolia: {
-      url: "https://public.stackup.sh/api/v1/node/arbitrum-sepolia",
+      url: "https://sepolia-rollup.arbitrum.io/rpc",
       chainId: 421614,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },

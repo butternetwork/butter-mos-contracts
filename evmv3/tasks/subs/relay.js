@@ -17,17 +17,16 @@ async function getRelay(network) {
 
 task("relay:deploy", "mos relay deploy")
   .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
-  .addOptionalParam("mos", "omni-chain service address", "", types.string)
+  .addOptionalParam("client", "light client address", "", types.string)
   .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
   .setAction(async (taskArgs, hre) => {
-    const { deploy } = hre.deployments;
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
     let chain = await getChain(hre.network.config.chainId);
 
-    let mos = taskArgs.mos === "" ? chain.mos : taskArgs.mos;
+    let client = taskArgs.client === "" ? chain.lightNode : taskArgs.client;
     let wrapped = taskArgs.wrapped === "" ? chain.wToken : taskArgs.wrapped;
 
     let implAddr = await create(hre, deployer, "BridgeAndRelay", [], [], "");
@@ -39,10 +38,10 @@ task("relay:deploy", "mos relay deploy")
     let bridge = await create(hre, deployer, "BridgeProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
 
     let relay = BridgeAndRelay.attach(bridge);
-    await (await relay.setOmniService(mos)).wait();
+    await (await relay.setOmniContract(1, client)).wait();
 
-    console.log("wToken", await relay.wToken());
-    console.log("mos", await relay.mos());
+    console.log("wToken", await relay.getOmniContract(0));
+    console.log("mos", await relay.getOmniContract(1));
 
     let deployment = await readFromFile(hre.network.name);
     deployment[hre.network.name]["bridgeProxy"] = bridge;
@@ -72,31 +71,22 @@ task("relay:upgrade", "upgrade bridge evm contract in proxy")
     console.log("new impl", await relay.getImplementation());
   });
 
-task("relay:setTokenRegister", "set token register")
-  .addParam("register", "register address")
-  .setAction(async (taskArgs, hre) => {
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-    console.log("deployer address:", deployer.address);
+task("bridge:setContract", "set contract")
+    .addParam("type", "contract type, 0-wtoken, 1-lightnode, 2-feeservice, 3-router, 4-register, 5-limit")
+    .addParam("contract", "contract address")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
 
-    let relay = await getRelay(hre.network.name);
+        console.log("deployer address is:", deployer.address);
 
-    await (await relay.setTokenRegister(taskArgs.register)).wait();
-    console.log("tokenRegister:", await relay.tokenRegister());
-  });
+        let bridge = await getBridge(hre.network.name, true);
 
-task("relay:setButterRouter", "set butter router address")
-  .addParam("router", "butter router address")
-  .setAction(async (taskArgs, hre) => {
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-    console.log("deployer address:", deployer.address);
-
-    let relay = await getRelay(hre.network.name);
-
-    await (await relay.setButterRouter(taskArgs.router)).wait();
-    console.log("butterRouter:", await relay.butterRouter());
-  });
+        {
+            await (await bridge.setOmniContract(taskArgs.type, taskArgs.contract)).wait();
+            console.log("contract", await bridge.getOmniContract(taskArgs.type));
+        }
+    });
 
 task("relay:setDistributeRate", "set distribute rate")
   .addParam("id", "distribute id, 0 - vault, 1 - relayer, 2 - protocol")
@@ -127,18 +117,6 @@ task("relay:registerChain", "register Chain")
     console.log(`register chain ${taskArgs.chain} address ${taskArgs.address} success`);
   });
 
-task("relay:setNear", "set distribute rate")
-  .addParam("chain", "near chain id")
-  .addParam("adaptor", "near mos v2 adapter")
-  .setAction(async (taskArgs, hre) => {
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-    console.log("deployer address:", deployer.address);
-
-    let relay = await getRelay(hre.network.name);
-
-    await (await relay.setNear(taskArgs.chain, taskArgs.adaptor)).wait();
-  });
 
 task("relay:grantRole", "grant Role")
   .addParam("role", "role address")

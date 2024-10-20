@@ -27,7 +27,12 @@ function getRole(role) {
 }
 
 async function getFeeList(chain) {
-  let p = path.join(__dirname, "../constants/fee.json");
+  let p;
+  if (isTestnet(network)) {
+    p = path.join(__dirname, "../constants/testnet/fee.json");
+  } else {
+    p = path.join(__dirname, "../constants/fee.json");
+  }
   let tokenFees;
   if (!fs.existsSync(p)) {
     throw "not fee ..";
@@ -42,27 +47,17 @@ async function getFeeList(chain) {
 }
 
 async function getFeeInfo(chain, token) {
-  let p = path.join(__dirname, "../constants/fee.json");
-  let tokenFees;
-  if (!fs.existsSync(p)) {
-    throw "not fee ..";
-  }
+  let feeList = await getFeeList(chain);
 
-  let rawdata = fs.readFileSync(p);
-  tokenFees = JSON.parse(rawdata);
-  if (!tokenFees[chain]) {
-    throw "not target chain fee ..";
-  }
-
-  if (!tokenFees[chain][token]) {
+  if (!feeList[token]) {
     throw "not token fee ..";
   }
 
-  return tokenFees[chain][token];
+  return feeList[token];
 }
 
 async function getChain(network) {
-  let chains = await getChainList();
+  let chains = await getChainList(network);
 
   for (let i = 0; i < chains.length; i++) {
     if (chains[i].chain === network || chains[i].chainId == network) {
@@ -73,11 +68,16 @@ async function getChain(network) {
   throw "can't find the chain";
 }
 
-async function getChainList() {
-  let p = path.join(__dirname, "../constants/chains.json");
+async function getChainList(network) {
+  let p;
+  if (isTestnet(network)) {
+    p = path.join(__dirname, "../constants/testnet/chains.json");
+  } else {
+    p = path.join(__dirname, "../constants/chains.json");
+  }
   let chains;
   if (!fs.existsSync(p)) {
-    throw "not chains ..";
+    throw "no chains ..";
   } else {
     let rawdata = fs.readFileSync(p);
     chains = JSON.parse(rawdata);
@@ -86,8 +86,14 @@ async function getChainList() {
   return chains;
 }
 
-async function getTokenList(chainId) {
-  let p = path.join(__dirname, "../constants/tokens.json");
+async function getTokenList(network) {
+  let p;
+  if (isTestnet(network)) {
+    p = path.join(__dirname, "../constants/testnet/tokens.json");
+  } else {
+    p = path.join(__dirname, "../constants/tokens.json");
+  }
+
   let tokens;
   if (!fs.existsSync(p)) {
     throw "not tokens ..";
@@ -98,7 +104,7 @@ async function getTokenList(chainId) {
       throw "no tokens ..";
     }
   }
-  let tokenList = Object.keys(tokens[chainId]);
+  let tokenList = Object.keys(tokens[network]);
 
   return tokenList;
 }
@@ -122,30 +128,14 @@ async function getToken(network, token) {
       return token;
     }
   }
-  let tokens = await getTokensFromFile(chain.chain);
-  if (tokens[chain.chain][token]) {
-    return tokens[chain.chain][token];
+  let tokens = await getTokenList(chain.chain);
+  if (tokens[token]) {
+    return tokens[token];
   }
 
   throw "token not support ..";
 }
 
-async function getTokensFromFile(network) {
-  let p = path.join(__dirname, "../constants/tokens.json");
-  let tokens;
-  if (!fs.existsSync(p)) {
-    tokens = {};
-    tokens[network] = {};
-  } else {
-    let rawdata = fs.readFileSync(p);
-    tokens = JSON.parse(rawdata);
-    if (!tokens[network]) {
-      tokens[network] = {};
-    }
-  }
-
-  return tokens;
-}
 
 async function getFeeConfig(subject) {
   let configFile = "../constants/" + subject + ".json";
@@ -157,6 +147,40 @@ async function getFeeConfig(subject) {
     configs = JSON.parse(rawdata);
   }
   return configs;
+}
+
+function isRelayChain(network) {
+  let networks = [22776, "Mapo", "Map", 212, "Makalu"];
+  return networks.includes(network);
+}
+
+function isTron(network) {
+  let networks = [728126428, "Tron", 3448148188, "TronTest"];
+  return networks.includes(network);
+}
+
+function isTestnet(chainId) {
+  let testnets = [
+    212,
+    "Makalu",
+    11155111,
+    "Sepolia",
+    97,
+    "BscTest",
+    300,
+    "zkSyncTest",
+    421614,
+    "ArbitrumSepolia",
+    53457,
+    "DodoTest",
+    11155420,
+    "OpSepolia",
+    80002,
+    "Amoy",
+    3448148188,
+    "TronTest",
+  ];
+  return testnets.includes(chainId);
 }
 
 module.exports = {
