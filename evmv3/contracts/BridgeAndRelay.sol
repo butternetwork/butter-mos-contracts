@@ -193,7 +193,7 @@ contract BridgeAndRelay is BridgeAbstract {
         if (_vaultToken != vaultToken) revert invalid_vault_token();
         uint256 amount = IVaultTokenV3(vaultToken).getTokenAmount(_vaultAmount);
         IVaultTokenV3(vaultToken).withdraw(selfChainId, _vaultAmount, msg.sender);
-        _tokenTransferOut(token, msg.sender, amount, true);
+        _tokenTransferOut(token, msg.sender, amount, true, false);
         emit Withdraw(token, msg.sender, _vaultAmount, amount);
     }
 
@@ -239,7 +239,7 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _amount
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         address from = msg.sender;
-        address token = _tokenTransferIn(_token, from, _amount, true);
+        address token = _tokenTransferIn(_token, from, _amount, true, false);
         _deposit(token, _toBytes(from), _to, _amount, orderId, selfChainId);
     }
 
@@ -253,7 +253,7 @@ contract BridgeAndRelay is BridgeAbstract {
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         if (_amount == 0) revert zero_amount();
         address from = msg.sender;
-        address bridgeToken = _tokenTransferIn(_token, from, _amount, true);
+        address bridgeToken = _tokenTransferIn(_token, from, _amount, true, false);
 
         BridgeParam memory msgData = abi.decode(_bridgeData, (BridgeParam));
 
@@ -282,6 +282,8 @@ contract BridgeAndRelay is BridgeAbstract {
             _toChain,
             msgData.swapData.length != 0
         );
+
+        _checkAndMint(bridgeToken, outAmount);
 
         _emitMessageRelay(
             uint8(MessageType.BRIDGE),
@@ -341,7 +343,7 @@ contract BridgeAndRelay is BridgeAbstract {
     ) external returns (address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage) {
         require(msg.sender == address(this));
         (address to, bytes memory relayData) = abi.decode(_outEvent.swapData, (address, bytes));
-        _tokenTransferOut(_token, to, _amount, false);
+        _tokenTransferOut(_token, to, _amount, false, false);
         (tokenOut, amountOut, target, newMessage) = IRelayExecutor(to).relayExecute(
             _outEvent.fromChain,
             _outEvent.toChain,
@@ -351,7 +353,7 @@ contract BridgeAndRelay is BridgeAbstract {
             _outEvent.from,
             relayData
         );
-        _tokenTransferIn(tokenOut, to, amountOut, false);
+        _tokenTransferIn(tokenOut, to, amountOut, false, false);
     }
 
     // --------------------------------------------- internal ----------------------------------------------
@@ -411,8 +413,8 @@ contract BridgeAndRelay is BridgeAbstract {
     }
 
     function _messageRelay(bool _relay, MessageInEvent memory _inEvent) internal {
-        address token;
-        uint256 outAmount;
+        address token = _inEvent.token;
+        uint256 relayOutAmount = _inEvent.amount;
         if (_relay) {
             // todo: relay execute
             try this.relayExecute(_inEvent.token, _inEvent.amount, _inEvent) returns (
@@ -422,7 +424,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 bytes memory newMessage
             ) {
                 token = tokenOut;
-                outAmount = amountOut;
+                relayOutAmount = amountOut;
                 _inEvent.to = target;
                 _inEvent.swapData = newMessage;
             } catch (bytes memory reason) {
@@ -432,12 +434,16 @@ contract BridgeAndRelay is BridgeAbstract {
         }
         _notifyLightClient(_inEvent.toChain);
         bytes memory toChainToken;
+        uint256 outAmount;
         if (_inEvent.messageType == uint8(MessageType.MESSAGE)) {
             toChainToken = _toBytes(ZERO_ADDRESS);
         } else {
             toChainToken = tokenRegister.getToChainToken(token, _inEvent.toChain);
             if (_checkBytes(toChainToken, bytes(""))) revert token_not_registered();
         }
+
+        _checkAndBurn(token, relayOutAmount);
+        outAmount = tokenRegister.getToChainAmount(token, relayOutAmount, _inEvent.toChain);
         _emitMessageRelay(
             _inEvent.messageType,
             _inEvent.orderId,
@@ -451,12 +457,12 @@ contract BridgeAndRelay is BridgeAbstract {
         );
     }
 
-    function _swapInToken(MessageOutEvent memory _outEvent) internal view returns (address token, uint256 relayAmount) {
+    function _swapInToken(MessageOutEvent memory _outEvent) internal returns (address token, uint256 relayAmount) {
         token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
         if (token == ZERO_ADDRESS) revert token_not_registered();
         relayAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
 
-        // _checkAndMint(token, relayAmount);
+        _checkAndMint(token, relayAmount);
     }
 
     function _emitMessageRelay(

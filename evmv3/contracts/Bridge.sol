@@ -116,7 +116,7 @@ contract Bridge is BridgeAbstract {
         if (_amount == 0) revert zero_amount();
 
         address from = msg.sender;
-        address bridgeToken = _tokenTransferIn(_token, from, _amount, true);
+        address bridgeToken = _tokenTransferIn(_token, from, _amount, true, true);
 
         (, address mosRelay) = _getRelay();
         BridgeParam memory msgData = abi.decode(_bridgeData, (BridgeParam));
@@ -145,7 +145,7 @@ contract Bridge is BridgeAbstract {
         (uint256 relayChainId, address mosRelay) = _getRelay();
 
         address from = msg.sender;
-        address bridgeToken = _tokenTransferIn(_token, from, _amount, true);
+        address bridgeToken = _tokenTransferIn(_token, from, _amount, true, true);
 
         orderId = _messageOut(
             false,
@@ -191,6 +191,7 @@ contract Bridge is BridgeAbstract {
             _messageIn(outEvent, false);
         } else {
             // token bridge
+            _checkAndMint(outEvent.token, outEvent.amount);
             _swapIn(outEvent);
         }
     }

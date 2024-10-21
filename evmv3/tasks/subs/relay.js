@@ -67,7 +67,7 @@ task("relay:upgrade", "upgrade bridge evm contract in proxy")
     let relay = await getRelay(hre.network.name);
 
     console.log("pre impl", await relay.getImplementation());
-    await (await relay.upgradeTo(implAddr)).wait();
+    await (await relay.upgradeToAndCall(implAddr, "0x")).wait();
     console.log("new impl", await relay.getImplementation());
   });
 

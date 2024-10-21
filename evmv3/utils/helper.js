@@ -28,17 +28,16 @@ function getRole(role) {
 
 async function getFeeList(chain) {
   let p;
-  if (isTestnet(network)) {
+  if (isTestnet(chain)) {
     p = path.join(__dirname, "../constants/testnet/fee.json");
   } else {
     p = path.join(__dirname, "../constants/fee.json");
   }
-  let tokenFees;
   if (!fs.existsSync(p)) {
     throw "not fee ..";
   }
   let rawdata = fs.readFileSync(p);
-  tokenFees = JSON.parse(rawdata);
+  let tokenFees = JSON.parse(rawdata);
   if (!tokenFees[chain]) {
     throw "not fee ..";
   }
@@ -60,7 +59,7 @@ async function getChain(network) {
   let chains = await getChainList(network);
 
   for (let i = 0; i < chains.length; i++) {
-    if (chains[i].chain === network || chains[i].chainId == network) {
+    if (chains[i].name === network || chains[i].chainId == network) {
       return chains[i];
     }
   }

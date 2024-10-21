@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
-import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 library Helper {
-    using SafeERC20Upgradeable for IERC20Upgradeable;
+    using SafeERC20 for IERC20;
     address internal constant ZERO_ADDRESS = address(0);
     address internal constant NATIVE_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -17,19 +17,19 @@ library Helper {
         if (_isNative(_token)) {
             return _account.balance;
         } else {
-            return IERC20Upgradeable(_token).balanceOf(_account);
+            return IERC20(_token).balanceOf(_account);
         }
     }
 
     function _transfer(uint256 _chainId, address _token, address _to, uint256 _amount) internal {
         if (_isNative(_token)) {
-            AddressUpgradeable.sendValue(payable(_to), _amount);
+            Address.sendValue(payable(_to), _amount);
         } else {
             if (_chainId == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
                 // Tron USDT
                 _token.call(abi.encodeWithSelector(0xa9059cbb, _to, _amount));
             } else {
-                IERC20Upgradeable(_token).safeTransfer(_to, _amount);
+                IERC20(_token).safeTransfer(_to, _amount);
             }
         }
     }

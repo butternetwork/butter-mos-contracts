@@ -5,12 +5,11 @@ pragma solidity 0.8.25;
 import "./interface/IVaultTokenV3.sol";
 import "./interface/ITokenRegisterV3.sol";
 import "@mapprotocol/protocol/contracts/utils/Utils.sol";
-import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 
-contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, Initializable, AccessControlEnumerable {
+contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     uint256 constant MAX_RATE_UNI = 1000000;
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
@@ -110,7 +109,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, Initializable, Ac
     }
 
     function initialize(address _defaultAdmin) public initializer checkAddress(_defaultAdmin) {
-        //__AccessControlEnumerable_init();
+        __AccessControlEnumerable_init();
         _grantRole(MANAGER_ROLE, _defaultAdmin);
         _grantRole(UPGRADER_ROLE, _defaultAdmin);
         _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);

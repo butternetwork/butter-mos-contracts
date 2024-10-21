@@ -328,7 +328,7 @@ task("register:updateTokenChains", "update token target chain")
     let chain = await getChain(hre.network.config.chainId);
     let feeInfo = await getFeeInfo(chain.name, taskArgs.token);
 
-    let chainList = await getChainList();
+    let chainList = await getChainList(hre.network.name);
     let addList = [];
     let removeList = [];
     for (let i = 0; i < chainList.length; i++) {
@@ -528,7 +528,7 @@ task("register:update", "update token bridge and fee to target chain")
 
     let chainList = [];
     if (taskArgs.chain === "") {
-      chainList = await getChainList();
+      chainList = await getChainList(hre.network.name);
     } else {
       let chain = await getChain(taskArgs.chain);
       chainList.push(chain);
@@ -565,9 +565,9 @@ task("register:update", "update token bridge and fee to target chain")
         console.log(`\nUpdate token [${tokenName}] ...`);
         let feeInfo = feeList[tokenName];
         let tokenAddr = await getToken(hre.network.config.chainId, tokenName);
-        let token = await ethers.getContractAt("IERC20MetadataUpgradeable", tokenAddr);
+        let token = await ethers.getContractAt("IERC20Metadata", tokenAddr);
         let decimals = await token.decimals();
-        // console.log(`token ${taskArgs.token} address: ${token.address}, decimals ${decimals}`);
+        //console.log(`token ${taskArgs.token} address: ${token.address}, decimals ${decimals}`);
 
         await hre.run("register:updateTokenChains", {
           token: tokenName,
@@ -575,8 +575,8 @@ task("register:update", "update token bridge and fee to target chain")
           v2: taskArgs.v2,
         });
 
-        let targetToken = await getToken(chain.chainId, tokenName);
-        // console.log(`target ${chain.chainId}, ${targetToken}, ${chainFee.decimals}`)
+        let targetToken = await getToken(chain.name, tokenName);
+        console.log(`target ${chain.chainId}, ${targetToken}`)
         await hre.run("register:mapToken", {
           token: tokenAddr,
           chain: chain.chainId,
@@ -835,7 +835,7 @@ task("register:list", "List token infos")
     let totalSupply = await vault.totalSupply();
     console.log(`total vault supply: ${totalSupply}`);
 
-    let chainList = await getChainList();
+    let chainList = await getChainList(hre.network.name);
     console.log(`chains:`);
     for (let i = 0; i < chainList.length; i++) {
       let tokenInfo = await register.getTargetToken(chainId, chainList[i].chainId, tokenAddr);

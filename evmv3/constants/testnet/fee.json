@@ -1,48 +1,100 @@
 {
-	"Makalu": {
-		"native": {
-			"Sepolia": "100.0",
-			"BscTest": "20.0",
-			"ArbitrumSepolia": "50.0",
-			"DodoTest": "2.0",
-			"TronTest": "1.0"
-		}
-	},
-	"Sepolia": {
-		"native": {
-			"Makalu": "0.01",
-			"BscTest": "0.2",
-			"ArbitrumSepolia": "0.5",
-			"DodoTest": "0.02"
-		}
-	},
-	"BscTest": {
-		"native": {
-			"Makalu": "0.05",
-			"Sepolia": "5.0",
-			"ArbitrumSepolia": "2.5",
-			"DodoTest": "0.1"
-		}
-	},
-	"ArbitrumSepolia": {
-		"native": {
-			"Makalu": "0.01",
-			"Sepolia": "1.0",
-			"BscTest": "0.2",
-			"DodoTest": "0.02"
-		}
-	},
-	"DodoTest": {
-		"native": {
-			"Makalu": "0.5",
-			"Sepolia": "50.0",
-			"BscTest": "10.0",
-			"ArbitrumSepolia": "25.0"
-		}
-	},
-	"TronTest": {
-		"native": {
-			"Makalu": "0.1"
-		}
-	}
+    "Makalu": {
+        "native": {
+            "gas": "10",
+            "bridgeLimit": "500000",
+            "swapLimit": "1000000"
+        },
+        "eth": {
+            "mintable": true,
+            "decimals": 18,
+            "base": {"bridge": "0.001", "swap": "0.001"},
+            "fee": { "rate": "0.0001", "min": "0", "max": "0.01" },
+            "target": ["Sepolia", "BscTest", "ArbitrumSepolia"]
+        },
+        "usdc": {
+            "mintable": true,
+            "decimals": 18,
+            "base": {"bridge": "0.01", "swap": "0.02"},
+            "fee": { "rate": "0.0002", "min": "0", "max": "0.1" },
+            "target": ["Sepolia", "BscTest", "ArbitrumSepolia"]
+        }
+    },
+    "Sepolia": {
+        "native": {
+            "gas": "10",
+            "bridgeLimit": "500000",
+            "swapLimit": "1000000"
+        },
+        "eth": {
+            "mintable": false,
+            "decimals": 18,
+            "base": {"bridge": "0.01", "swap": "0.01"},
+            "fee": { "rate": "0.0001", "min": "0", "max": "0.01" },
+            "target": ["Makalu", "BscTest", "ArbitrumSepolia"]
+        },
+        "usdc": {
+            "mintable": false,
+            "decimals": 6,
+            "base": {"bridge": "0.1", "swap": "0.2"},
+            "fee": { "rate": "0.0002", "min": "0", "max": "0.1" },
+            "target": ["Makalu", "BscTest", "ArbitrumSepolia"]
+        }
+    },
+    "BscTest": {
+        "native": {
+            "gas": "3",
+            "bridgeLimit": "1200000",
+            "swapLimit": "2000000"
+        },
+        "eth": {
+            "mintable": false,
+            "decimals": 18,
+            "base": {"bridge": "0.0015", "swap": "0.0015"},
+            "fee": { "rate": "0.0001", "min": "0", "max": "0.01" },
+            "target": ["Makalu", "Sepolia", "ArbitrumSepolia"]
+        },
+        "usdc": {
+            "mintable": false,
+            "decimals": 18,
+            "base": {"bridge": "0.015", "swap": "0.025"},
+            "fee": { "rate": "0.0002", "min": "0", "max": "0.1" },
+            "target": ["Makalu", "Sepolia", "ArbitrumSepolia"]
+        }
+    },
+    "ArbitrumSepolia": {
+        "native": {
+            "gas": "100",
+            "bridgeLimit": "1200000",
+            "swapLimit": "2000000"
+        },
+        "eth": {
+            "mintable": false,
+            "decimals": 18,
+            "base": {"bridge": "0.0012", "swap": "0.0012"},
+            "fee": { "rate": "0.0001", "min": "0", "max": "0.01" },
+            "target": ["Makalu", "Sepolia", "BscTest"]
+        },
+        "usdc": {
+            "mintable": false,
+            "decimals": 6,
+            "base": {"bridge": "0.012", "swap": "0.022"},
+            "fee": { "rate": "0.0002", "min": "0", "max": "0.1" },
+            "target": ["Makalu", "Sepolia", "BscTest"]
+        }
+    },
+    "DodoTest": {
+        "native": {
+            "gas": "10",
+            "bridgeLimit": "500000",
+            "swapLimit": "1000000"
+        }
+    },
+    "TronTest": {
+        "native": {
+            "gas": "10",
+            "bridgeLimit": "500000",
+            "swapLimit": "1000000"
+        }
+    }
 }

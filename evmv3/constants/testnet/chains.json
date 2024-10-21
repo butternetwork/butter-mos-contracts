@@ -27,6 +27,7 @@
         "name": "ArbitrumSepolia",
         "chainId": "421614",
         "wToken": "0x0091f4e75a03C11cB9be8E3717219005eb780D89",
+        "auth": "0xed23134a11106eee505425F9F7ce322D38Ec323b",
         "feeService": "0x0000000000000000000000000000000000000000",
         "lightNode": "0x8089418B53F18DF3691f5D9Eae3f6e088B6F30DE"
     },

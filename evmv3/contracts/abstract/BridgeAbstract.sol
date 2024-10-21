@@ -9,21 +9,21 @@ import "../interface/IMapoExecutor.sol";
 import "../interface/ISwapOutLimit.sol";
 import "../interface/IButterReceiver.sol";
 import "../interface/IFeeService.sol";
-import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import {EvmDecoder} from "../lib/EvmDecoder.sol";
 import {MessageInEvent} from "../lib/Types.sol";
-import "@mapprotocol/protocol/contracts/utils/Utils.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+//import "@mapprotocol/protocol/contracts/utils/Utils.sol";
+//import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 
 abstract contract BridgeAbstract is
-    Initializable,
     UUPSUpgradeable,
-    Pausable,
-    ReentrancyGuard,
-    AccessControlEnumerable,
+    PausableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    //AccessManagedUpgradeable,
+    AccessControlEnumerableUpgradeable,
     IButterBridgeV3,
     IMOSV3
 {
@@ -71,9 +71,9 @@ abstract contract BridgeAbstract is
     error unsupported_message_type();
 
     event SetContract(uint256 _t, address _addr);
-    event SetFeeService(address indexed feeServiceAddress);
     event RegisterToken(address _token, uint256 _toChain, bool _enable);
     event UpdateToken(address token, uint256 feature);
+    event WithdrawFee(address receiver, address token, uint256 amount);
     event GasInfo(bytes32 indexed orderId, uint256 indexed executingGas, uint256 indexed executedGas);
 
     event MessageTransfer(
@@ -96,9 +96,10 @@ abstract contract BridgeAbstract is
     function initialize(address _wToken, address _defaultAdmin) public initializer {
         _checkAddress(_wToken);
         _checkAddress(_defaultAdmin);
-        //__Pausable_init();
-        //__ReentrancyGuard_init();
-        //__AccessControlEnumerable_init();
+        __Pausable_init();
+        __ReentrancyGuard_init();
+        //__AccessManaged_init(_authority);
+        __AccessControlEnumerable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
         _grantRole(MANAGER_ROLE, _defaultAdmin);
         _grantRole(UPGRADER_ROLE, _defaultAdmin);
@@ -106,7 +107,6 @@ abstract contract BridgeAbstract is
     }
 
     // --------------------------------------------- manage ----------------------------------------------
-
     function trigger() external onlyRole(MANAGER_ROLE) {
         paused() ? _unpause() : _pause();
     }
@@ -133,7 +133,6 @@ abstract contract BridgeAbstract is
     }
 
     // --------------------------------------------- external view -------------------------------------------
-
     function isMintable(address _token) external view returns (bool) {
         return _isMintable(_token);
     }
@@ -153,6 +152,13 @@ abstract contract BridgeAbstract is
     }
 
     // --------------------------------------------- external ---------------------------------------------
+    function withdrawFee(address receiver, address token) external payable {
+        uint256 amount = feeList[receiver][token];
+        if (amount > 0) {
+            _tokenTransferOut(token, receiver, amount, true, false);
+        }
+        emit WithdrawFee(receiver, token, amount);
+    }
 
     function transferOut(
         uint256 _toChain,
@@ -190,15 +196,9 @@ abstract contract BridgeAbstract is
         if (msgData.msgType != MessageType.MESSAGE) revert unsupported_message_type();
 
         (uint256 amount, address receiverFeeAddress) = _getMessageFee(_toChain, _feeToken, msgData.gasLimit);
-        if (_feeToken == ZERO_ADDRESS) {
-            if (msg.value < amount) revert invalid_message_fee();
-            if (msg.value > 0) {
-                // todo: store received amount
-                _safeTransferNative(receiverFeeAddress, msg.value);
-            }
-        } else {
-            _safeTransferFrom(_feeToken, msg.sender, receiverFeeAddress, amount);
-        }
+
+        _tokenTransferIn(_feeToken, msg.sender, amount, false, false);
+        feeList[receiverFeeAddress][_feeToken] += amount;
     }
 
     function _messageIn(MessageInEvent memory _inEvent, bool _gasleft) internal {
@@ -244,7 +244,7 @@ abstract contract BridgeAbstract is
         address to = _fromBytes(_inEvent.to);
         if (_inEvent.swapData.length > 0 && _isContract(to)) {
             // if swap params is not empty, then we need to do swap on current chain
-            _tokenTransferOut(_inEvent.token, to, _inEvent.amount, false);
+            _tokenTransferOut(_inEvent.token, to, _inEvent.amount, false, false);
             try
                 IButterReceiver(to).onReceived(
                     _inEvent.orderId,
@@ -257,7 +257,7 @@ abstract contract BridgeAbstract is
             {} catch {}
         } else {
             // transfer token if swap did not happen
-            _tokenTransferOut(_inEvent.token, to, _inEvent.amount, true);
+            _tokenTransferOut(_inEvent.token, to, _inEvent.amount, true, false);
             if (_inEvent.token == wToken) outToken = ZERO_ADDRESS;
         }
         emit MessageIn(
@@ -277,7 +277,8 @@ abstract contract BridgeAbstract is
         address _token,
         address _from,
         uint256 _amount,
-        bool _wrap
+        bool _wrap,
+        bool _checkBurn
     ) internal returns (address inToken) {
         inToken = _token;
         if (_token == ZERO_ADDRESS) {
@@ -288,12 +289,17 @@ abstract contract BridgeAbstract is
             }
         } else {
             _safeTransferFrom(_token, _from, address(this), _amount);
-            _checkAndBurn(_token, _amount);
+            if (_checkBurn) {
+                _checkAndBurn(_token, _amount);
+            }
         }
     }
 
-    function _tokenTransferOut(address _token, address _receiver, uint256 _amount, bool _unwrap) internal {
-        if (_token == wToken && _unwrap) {
+    function _tokenTransferOut(address _token, address _receiver, uint256 _amount, bool _unwrap, bool _checkMint) internal {
+        if (_token == ZERO_ADDRESS) {
+            _safeTransferNative(_receiver, _amount);
+        }
+        else if (_token == wToken && _unwrap) {
             _safeWithdraw(wToken, _amount);
             _safeTransferNative(_receiver, _amount);
         } else {
@@ -301,7 +307,9 @@ abstract contract BridgeAbstract is
                 // Tron USDT
                 _token.call(abi.encodeWithSelector(0xa9059cbb, _receiver, _amount));
             } else {
-                _checkAndMint(_token, _amount);
+                if (_checkMint) {
+                    _checkAndMint(_token, _amount);
+                }
                 _safeTransfer(_token, _receiver, _amount);
             }
         }

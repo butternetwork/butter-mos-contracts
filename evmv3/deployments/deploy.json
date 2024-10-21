@@ -39,15 +39,19 @@
 		"bridgeProxy": "TYMpgB8Q9vSoGtkyE3hXsvUrpte3KCDGj6"
 	},
 	"Makalu": {
-		"registerProxy": "0x7FE188d4AC3EA61b3234Ff9c0a6a063046c10afE",
+		"registerProxy": "0x8638C9F6c9925e354d02E5Aa0089DF7670EEFFc9",
+		"registerV3": "0x8638C9F6c9925e354d02E5Aa0089DF7670EEFFc9",
 		"vault": {
 			"btc": "0x4f430A3a643410Eb150467F7c78591677E328168",
 			"eth": "0xBe0f579F50093cE233Ad966a8fc1F6D67220Ec89",
 			"usdt": "0x0B29E2c5838eFFA249ADFC7Dc4ecEAe3E300ce21",
 			"usdc": "0x835A7913d92a0D759D63c01E225D2F808A6a78e1"
-		}
+		},
+		"bridgeProxy": "0x19B48B57Ad204c14f571114852221abC1070d5Fc",
+		"authority": "0x17bac7d76Af549D34Eb1553b3E90968eb7D00C87"
 	},
 	"ArbitrumSepolia": {
-		"bridgeProxy": "0xe12b04e15E34cC0AB09Df4e9f172De9Dd5032AE3"
+		"bridgeProxy": "0x72c7FCA9e0211f10308F4c553662D801cD5f6f6B",
+		"authority": "0xed23134a11106eee505425F9F7ce322D38Ec323b"
 	}
 }

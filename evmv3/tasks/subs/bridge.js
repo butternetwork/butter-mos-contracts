@@ -32,7 +32,7 @@ async function getBridge(network, abstract) {
 task("bridge:deploy", "bridge deploy")
   .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
   .addOptionalParam("client", "omni-chain service address", "", types.string)
-  .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
+  .addOptionalParam("auth", "authority address", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const { deploy } = hre.deployments;
     const accounts = await ethers.getSigners();
@@ -43,6 +43,7 @@ task("bridge:deploy", "bridge deploy")
 
     let client = taskArgs.client === "" ? chain.lightNode : taskArgs.client;
     let wrapped = taskArgs.wrapped === "" ? chain.wToken : taskArgs.wrapped;
+    let authority = taskArgs.auth === "" ? chain.auth : taskArgs.auth;
     console.log("wrapped token:", wrapped);
     console.log("lightclient address:", client);
 
@@ -94,18 +95,18 @@ task("bridge:upgrade", "upgrade bridge evm contract in proxy")
 
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
       console.log("pre impl", await bridge.getImplementation().call());
-      await bridge.upgradeTo(implAddr).send();
+      await bridge.upgradeToAndCall(implAddr, "0x").send();
       console.log("new impl", await bridge.getImplementation().call());
     } else {
       console.log("pre impl", await bridge.getImplementation());
-      await bridge.upgradeTo(implAddr);
+      await bridge.upgradeToAndCall(implAddr, "0x");
       console.log("new impl", await bridge.getImplementation());
     }
 
     await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, true);
   });
 
-task("bridge:setContract", "set contract")
+task("bridge:setServiceContract", "set contract")
   .addParam("type", "contract type, 0-wtoken, 1-lightnode, 2-feeservice, 3-router, 4-register, 5-limit")
   .addParam("contract", "contract address")
   .setAction(async (taskArgs, hre) => {
@@ -224,8 +225,9 @@ task("bridge:setRelay", "set relay")
       await bridge.setRelay(taskArgs.chain, taskArgs.address).send();
     } else {
       await (await bridge.setRelay(taskArgs.chain, taskArgs.address)).wait();
-      console.log("relay chain", await bridge.relayChainId());
-      console.log("relay address", await bridge.relayContract());
+      let relay = await bridge.getRelay();
+      console.log("relay chain", relay[0]);
+      console.log("relay address", relay[1]);
     }
   });
 
