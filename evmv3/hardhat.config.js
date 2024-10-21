@@ -138,9 +138,9 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TRON_PRIVATE_KEY] : [],
     },
 
-    MaticTest: {
-      url: `https://polygon-mumbai.blockpi.network/v1/rpc/public`,
-      chainId: 80001,
+    sepolia: {
+      url: `https://eth-sepolia.api.onfinality.io/public`,
+      chainId: 11155111,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     BscTest: {

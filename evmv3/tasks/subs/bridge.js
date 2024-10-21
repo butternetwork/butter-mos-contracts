@@ -115,7 +115,7 @@ task("bridge:setServiceContract", "set contract")
 
     console.log("deployer address is:", deployer.address);
 
-    let bridge = await getBridge(hre.network.name, true);
+    let bridge = await getBridge(hre.network.name, false);
 
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
       await bridge.setServiceContract(taskArgs.type, taskArgs.contract).send();

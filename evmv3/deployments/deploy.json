@@ -47,11 +47,20 @@
 			"usdt": "0x0B29E2c5838eFFA249ADFC7Dc4ecEAe3E300ce21",
 			"usdc": "0x835A7913d92a0D759D63c01E225D2F808A6a78e1"
 		},
-		"bridgeProxy": "0x19B48B57Ad204c14f571114852221abC1070d5Fc",
-		"authority": "0x17bac7d76Af549D34Eb1553b3E90968eb7D00C87"
+		"bridgeProxy": "0x7Bf57B8cF64cb4341A238914A61F751E0ea57D26",
+		"authority": "0x17bac7d76Af549D34Eb1553b3E90968eb7D00C87",
+		"feeService": "0x39a732bb61B20e4586E937cdba7161a1eD3cf77E"
 	},
 	"ArbitrumSepolia": {
 		"bridgeProxy": "0x72c7FCA9e0211f10308F4c553662D801cD5f6f6B",
 		"authority": "0xed23134a11106eee505425F9F7ce322D38Ec323b"
+	},
+	"BscTest": {
+		"bridgeProxy": "0x7Bf57B8cF64cb4341A238914A61F751E0ea57D26",
+		"feeService": "0x39a732bb61B20e4586E937cdba7161a1eD3cf77E"
+	},
+	"sepolia": {
+		"bridgeProxy": "0x7Bf57B8cF64cb4341A238914A61F751E0ea57D26",
+		"feeService": "0x39a732bb61B20e4586E937cdba7161a1eD3cf77E"
 	}
 }
