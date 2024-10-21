@@ -48,7 +48,7 @@ contract BridgeAndRelay is BridgeAbstract {
     error out_token_not_registered();
 
     event SetLightClientManager(address lightClient);
-    event SetTokenRegister(address tokenRegister);
+    // event SetTokenRegister(address tokenRegister);
     event RegisterChain(uint256 chainId, bytes bridge, ChainType chainType);
     event SetDistributeRate(uint256 id, address to, uint256 rate);
     event CollectFee(

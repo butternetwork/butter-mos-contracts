@@ -71,7 +71,7 @@ task("relay:upgrade", "upgrade bridge evm contract in proxy")
     console.log("new impl", await relay.getImplementation());
   });
 
-task("bridge:setContract", "set contract")
+task("relay:setServiceContract", "set contract")
   .addParam("type", "contract type, 0-wtoken, 1-lightnode, 2-feeservice, 3-router, 4-register, 5-limit")
   .addParam("contract", "contract address")
   .setAction(async (taskArgs, hre) => {
@@ -80,7 +80,7 @@ task("bridge:setContract", "set contract")
 
     console.log("deployer address is:", deployer.address);
 
-    let bridge = await getBridge(hre.network.name, true);
+    let bridge = await getRelay(hre.network.name, true);
 
     {
       await (await bridge.setServiceContract(taskArgs.type, taskArgs.contract)).wait();
@@ -216,16 +216,18 @@ task("relay:list", "List relay infos")
     let tokenmanager = await relay.tokenRegister();
     let selfChainId = await relay.selfChainId();
     console.log("selfChainId:\t", selfChainId.toString());
-    console.log("mos:", await relay.mos());
+    // console.log("mos:", await relay.mos());
     console.log("Impl:\t", await relay.getImplementation());
-    console.log("wToken address:\t", await relay.wToken());
+    console.log("wToken address:\t", await relay.getServiceContract(0));
+    console.log("fee Service:\t", await relay.getServiceContract(2));
+    console.log("light Client Manager:\t", await relay.getServiceContract(1));
     console.log("Token manager:\t", await relay.tokenRegister());
 
-    console.log("fee receiver:\t", await relay.nativeFeeReceiver());
+    // console.log("fee receiver:\t", await relay.nativeFeeReceiver());
 
-    console.log("base fee swap:\t", await relay.baseGasLookup(0, 0));
-    console.log("base fee deposit:\t", await relay.baseGasLookup(0, 1));
-    console.log("base fee intertransfer:\t", await relay.baseGasLookup(0, 2));
+    // console.log("base fee swap:\t", await relay.baseGasLookup(0, 0));
+    // console.log("base fee deposit:\t", await relay.baseGasLookup(0, 1));
+    // console.log("base fee intertransfer:\t", await relay.baseGasLookup(0, 2));
 
     let vaultFee = await relay.distributeRate(0);
     let relayFee = await relay.distributeRate(1);
@@ -234,11 +236,13 @@ task("relay:list", "List relay infos")
     console.log(`distribute relay rate: rate(${relayFee[1]}), receiver(${relayFee[0]})`);
     console.log(`distribute protocol rate: rate(${protocolFee[1]}), receiver(${protocolFee[0]})`);
 
-    let chainList = await getChainList();
+    let chainList = await getChainList(chainId);
+    console.log(chainId)
     console.log("\nRegister chains:");
     let chains = [selfChainId];
     for (let i = 0; i < chainList.length; i++) {
-      let contract = await relay.bridges(chainList[i].chainId);
+      console.log(chainList[i].chainId)
+      let contract = await relay.mosContracts(chainList[i].chainId);
       if (contract !== "0x") {
         let chaintype = await relay.chainTypes(chainList[i].chainId);
         console.log(`type(${chaintype}) ${chainList[i].chainId}\t => ${contract} `);
