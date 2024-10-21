@@ -273,7 +273,7 @@ contract BridgeAndRelay is BridgeAbstract {
             msgData.swapData
         );
 
-        (, uint256 outAmount) = _collectFee(
+        (uint256 relayOutAmount, uint256 outAmount) = _collectFee(
             _toBytes(from),
             orderId,
             bridgeToken,
@@ -283,7 +283,7 @@ contract BridgeAndRelay is BridgeAbstract {
             msgData.swapData.length != 0
         );
 
-        _checkAndMint(bridgeToken, outAmount);
+        _checkAndBurn(bridgeToken, relayOutAmount);
 
         _emitMessageRelay(
             uint8(MessageType.BRIDGE),

@@ -61,9 +61,9 @@ describe("Bridge start test", () => {
 
         await bridge.setRelay(212,bridge.address);
 
-        await bridge.setContract(2,feeService.address);
+        await bridge.setServiceContract(2,feeService.address);
 
-        await bridge.setContract(1,lightNode.address);
+        await bridge.setServiceContract(1,lightNode.address);
 
         await echo.setWhiteList(bridge.address);
 

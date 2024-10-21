@@ -33,7 +33,7 @@ describe("token-bridge", function () {
             let TokenRegisterV3 = await ethers.getContractFactory("TokenRegisterV3");
             let tokenRegisterV3 = await TokenRegisterV3.deploy();
 
-            await register.upgradeTo(tokenRegisterV3.address);
+            await register.upgradeToAndCall(tokenRegisterV3.address, "0x");
 
             let register_new_impl = await register.getImplementation();
             expect(register_new_impl).eq(tokenRegisterV3.address);
@@ -45,7 +45,7 @@ describe("token-bridge", function () {
             let Bridge = await ethers.getContractFactory("Bridge");
             let b = await Bridge.deploy();
 
-            await bridge.upgradeTo(b.address);
+            await bridge.upgradeToAndCall(b.address, "0x");
 
             let bridge_new_impl = await bridge.getImplementation();
             expect(bridge_new_impl).eq(b.address);
@@ -57,7 +57,7 @@ describe("token-bridge", function () {
             let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
             let r = await BridgeAndRelay.deploy();
 
-            await relay.upgradeTo(r.address);
+            await relay.upgradeToAndCall(r.address, "0x");
 
             let relay_new_impl = await relay.getImplementation();
             expect(relay_new_impl).eq(r.address);

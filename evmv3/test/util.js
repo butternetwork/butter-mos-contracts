@@ -66,15 +66,16 @@ async function deploy() {
     let b = Bridge.attach(b_proxy.address);
     await b.registerTokenChains(wtoken.address, [212, 97], true);
     await b.registerTokenChains(usdt.address, [212, 97], true);
-    await b.updateTokens([wtoken.address, usdt.address], [ethers.constants.AddressZero, ethers.constants.AddressZero], [0, 1]);
+    await b.updateTokens([wtoken.address], 0);
+    await b.updateTokens([usdt.address], 1);
 
     // deploy lightnode
     let MockLightnode = await ethers.getContractFactory("MockLightnode");
     let lightnode = await MockLightnode.deploy();
     // console.log("lightnode:", lightnode.address)
-    await b.setContract(0, wtoken.address);
-    await b.setContract(1, lightnode.address);
-    await b.setContract(2, feeService.address);
+    await b.setServiceContract(0, wtoken.address);
+    await b.setServiceContract(1, lightnode.address);
+    await b.setServiceContract(2, feeService.address);
     
     // deploy lightManager
     let MockLightnodeManager = await ethers.getContractFactory("MockLightnodeManager");
@@ -90,17 +91,18 @@ async function deploy() {
     let relay = BridgeAndRelay.attach(relay_proxy.address);
     await relay.registerTokenChains(wtoken.address, [212, 97], true);
     await relay.registerTokenChains(usdt.address, [212, 97], true);
-    await relay.updateTokens([wtoken.address, usdt.address], [ethers.constants.AddressZero, ethers.constants.AddressZero], [0, 1]);
+    await relay.updateTokens([wtoken.address], 0);
+    await relay.updateTokens([usdt.address], 1);
 
     await relay.registerChain([212, 97], [b.address, b.address], 1);
     await relay.setDistributeRate(0, wallet.address, 100);
     await relay.setDistributeRate(1, wallet.address, 200);
     await relay.setDistributeRate(2, wallet.address, 300);
 
-    await relay.setContract(0, wtoken.address);
-    await relay.setContract(1, lightnodeManager.address);
-    await relay.setContract(2, feeService.address);
-    await relay.setContract(4, register.address);
+    await relay.setServiceContract(0, wtoken.address);
+    await relay.setServiceContract(1, lightnodeManager.address);
+    await relay.setServiceContract(2, feeService.address);
+    await relay.setServiceContract(4, register.address);
     await b.setRelay(212, relay.address);
     await vaultWToken.grantRole(await vaultWToken.MANAGER_ROLE(), relay.address);
     await vaultUToken.grantRole(await vaultUToken.MANAGER_ROLE(), relay.address);
