@@ -45,8 +45,8 @@ describe("ServiceRelayV3 start test", () => {
 
         await relay.registerChain([5], ["0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"], "1");
 
-        await relay.setContract(2,feeService.address);
-        await relay.setContract(1,lightNode.address);
+        await relay.setServiceContract(2,feeService.address);
+        await relay.setServiceContract(1,lightNode.address);
 
         //await echo.setWhiteList(relay.address);
 

@@ -19,7 +19,7 @@ contract FeeService is Ownable2StepUpgradeable, IFeeService {
     constructor() {}
 
     function initialize() public initializer {
-        __Ownable2Step_init();
+        __Ownable_init(msg.sender);
     }
 
     function getFeeInfo(
