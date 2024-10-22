@@ -69,6 +69,7 @@ abstract contract BridgeAbstract is
     error not_support_value();
     error not_support_target_chain();
     error unsupported_message_type();
+    error retry_verify_fail();
 
     event SetContract(uint256 _t, address _addr);
     event RegisterToken(address _token, uint256 _toChain, bool _enable);
@@ -295,11 +296,16 @@ abstract contract BridgeAbstract is
         }
     }
 
-    function _tokenTransferOut(address _token, address _receiver, uint256 _amount, bool _unwrap, bool _checkMint) internal {
+    function _tokenTransferOut(
+        address _token,
+        address _receiver,
+        uint256 _amount,
+        bool _unwrap,
+        bool _checkMint
+    ) internal {
         if (_token == ZERO_ADDRESS) {
             _safeTransferNative(_receiver, _amount);
-        }
-        else if (_token == wToken && _unwrap) {
+        } else if (_token == wToken && _unwrap) {
             _safeWithdraw(wToken, _amount);
             _safeTransferNative(_receiver, _amount);
         } else {
@@ -378,6 +384,38 @@ abstract contract BridgeAbstract is
         );
     }
 
+    function _getStoredMessage(
+        uint8 _type,
+        uint256 _fromChain,
+        bytes32 _orderId,
+        uint256 _toChain,
+        address _token,
+        uint256 _amount,
+        bytes calldata _toAddress,
+        bytes calldata _fromAddress,
+        bytes calldata _swapData
+    ) internal returns (MessageInEvent memory inEvent) {
+        bytes32 retryHash = keccak256(
+            abi.encodePacked(_fromChain, _toChain, _token, _amount, _fromAddress, _toAddress, _swapData)
+        );
+        if (uint256(retryHash) != orderList[_orderId]) revert retry_verify_fail();
+
+        inEvent = MessageInEvent({
+            messageType: _type,
+            fromChain: _fromChain,
+            toChain: _toChain,
+            orderId: _orderId,
+            mos: address(0),
+            token: _token,
+            from: _fromAddress,
+            to: _toAddress,
+            amount: _amount,
+            gasLimit: gasleft(),
+            swapData: _swapData
+        });
+        orderList[_orderId] = 0x01;
+    }
+
     function _getOrderId(
         uint256 _fromChain,
         uint256 _toChain,
@@ -425,7 +463,7 @@ abstract contract BridgeAbstract is
     }
 
     function _checkOrder(bytes32 _orderId) internal {
-        if (orderList[_orderId] == 0x01) revert order_exist();
+        if (orderList[_orderId] >= 0x01) revert order_exist();
         orderList[_orderId] = 0x01;
     }
 

@@ -196,6 +196,31 @@ contract Bridge is BridgeAbstract {
         }
     }
 
+    function retryMessageIn(
+        uint256 _fromChain,
+        bytes32 _orderId,
+        uint256 _toChain,
+        address _token,
+        uint256 _amount,
+        bytes calldata _toAddress,
+        bytes calldata _fromAddress,
+        bytes calldata _swapData
+    ) external nonReentrant whenNotPaused {
+        MessageInEvent memory outEvent = _getStoredMessage(
+            1,
+            _fromChain,
+            _orderId,
+            _toChain,
+            _token,
+            _amount,
+            _toAddress,
+            _fromAddress,
+            _swapData
+        );
+
+        _messageIn(outEvent, true);
+    }
+
     // --------------------------------------------- internal ----------------------------------------------
 
     function _notifyLightClient(uint256) internal override {
