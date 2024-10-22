@@ -28,9 +28,7 @@ contract Bridge is BridgeAbstract {
             lightNode = ILightVerifier(_addr);
         } else if (_t == 2) {
             feeService = IFeeService(_addr);
-        } else if (_t == 3) {
-            butterRouter = _addr;
-        } else {
+        } else if (_t == 5) {
             swapLimit = ISwapOutLimit(_addr);
         }
 
@@ -53,11 +51,10 @@ contract Bridge is BridgeAbstract {
             return address(lightNode);
         } else if (_type == 2) {
             return address(feeService);
-        } else if (_type == 3) {
-            return butterRouter;
-        } else {
+        } else if (_type == 5) {
             return address(swapLimit);
         }
+        return ZERO_ADDRESS;
     }
 
     function getRelay() external view returns (uint256, address) {

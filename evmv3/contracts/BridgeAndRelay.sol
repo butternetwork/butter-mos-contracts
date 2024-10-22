@@ -81,11 +81,9 @@ contract BridgeAndRelay is BridgeAbstract {
             lightClientManager = ILightClientManager(_addr);
         } else if (_t == 2) {
             feeService = IFeeService(_addr);
-        } else if (_t == 3) {
-            butterRouter = _addr;
         } else if (_t == 4) {
             tokenRegister = ITokenRegisterV3(_addr);
-        } else {
+        } else if (_t == 5) {
             swapLimit = ISwapOutLimit(_addr);
         }
         emit SetContract(_t, _addr);
@@ -124,13 +122,12 @@ contract BridgeAndRelay is BridgeAbstract {
             return address(lightClientManager);
         } else if (_type == 2) {
             return address(feeService);
-        } else if (_type == 3) {
-            return butterRouter;
         } else if (_type == 4) {
             return address(tokenRegister);
-        } else {
+        } else if (_type == 5) {
             return address(swapLimit);
         }
+        return ZERO_ADDRESS;
     }
 
     function getOrderStatus(

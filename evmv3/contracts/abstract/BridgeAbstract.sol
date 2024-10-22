@@ -39,16 +39,16 @@ abstract contract BridgeAbstract is
 
     address internal wToken;
     // todo
-    address internal butterRouter;
+    // address internal butterRouter;
     IFeeService internal feeService;
     ISwapOutLimit internal swapLimit;
+
+    mapping(address => uint256) public trustList;
 
     mapping(bytes32 => uint256) public orderList;
 
     mapping(address => uint256) public tokenFeatureList;
     mapping(uint256 => mapping(address => uint256)) public tokenMappingList;
-
-    // mapping(address => uint256) public trustList;
 
     // service fee or bridge fee
     // address => (token => amount)
@@ -74,9 +74,10 @@ abstract contract BridgeAbstract is
     error unsupported_message_type();
     error retry_verify_fail();
 
-    event SetContract(uint256 _t, address _addr);
-    event RegisterToken(address _token, uint256 _toChain, bool _enable);
+    event SetContract(uint256 t, address addr);
+    event RegisterToken(address token, uint256 toChain, bool enable);
     event UpdateToken(address token, uint256 feature);
+    event UpdateTrust(address trustAddress, bool enable);
     event WithdrawFee(address receiver, address token, uint256 amount);
     event GasInfo(bytes32 indexed orderId, uint256 indexed executingGas, uint256 indexed executedGas);
 
@@ -115,11 +116,7 @@ abstract contract BridgeAbstract is
         paused() ? _unpause() : _pause();
     }
 
-    function registerTokenChains(
-        address _token,
-        uint256[] memory _toChains,
-        bool _enable
-    ) external onlyRole(MANAGER_ROLE) {
+    function registerTokenChains(address _token, uint256[] memory _toChains, bool _enable) external onlyRole(MANAGER_ROLE) {
         if (!_isContract(_token)) revert not_contract();
         for (uint256 i = 0; i < _toChains.length; i++) {
             uint256 toChain = _toChains[i];
@@ -134,6 +131,12 @@ abstract contract BridgeAbstract is
             tokenFeatureList[_tokens[i]] = _feature;
             emit UpdateToken(_tokens[i], _feature);
         }
+    }
+
+    function setTrustAddress(address _addr, bool _enable) external onlyRole(MANAGER_ROLE) {
+        uint256 enable = _enable ? 0x01 : 0x00;
+        trustList[_addr] = enable;
+        emit UpdateTrust(_addr, _enable);
     }
 
     // --------------------------------------------- external view -------------------------------------------
@@ -355,7 +358,8 @@ abstract contract BridgeAbstract is
         uint256 fromChain = selfChainId;
         if (_toChain == fromChain) revert bridge_same_chain();
 
-        address from = (msg.sender == butterRouter) ? _from : msg.sender;
+        // address from = (msg.sender == butterRouter) ? _from : msg.sender;
+        address from = (trustList[msg.sender] == 0x01) ? _from : msg.sender;
 
         uint256 chainAndGasLimit = _getChainAndGasLimit(fromChain, _toChain, _gasLimit);
 
