@@ -38,6 +38,7 @@ abstract contract BridgeAbstract is
     uint256 private nonce;
 
     address internal wToken;
+    // todo
     address internal butterRouter;
     IFeeService internal feeService;
     ISwapOutLimit internal swapLimit;
@@ -46,6 +47,8 @@ abstract contract BridgeAbstract is
 
     mapping(address => uint256) public tokenFeatureList;
     mapping(uint256 => mapping(address => uint256)) public tokenMappingList;
+
+    // mapping(address => uint256) public trustList;
 
     // service fee or bridge fee
     // address => (token => amount)
@@ -181,6 +184,15 @@ abstract contract BridgeAbstract is
         address to,
         uint256 _amount
     ) external payable virtual returns (bytes32 orderId) {}
+
+    function retryMessageIn(
+        uint256 _fromChain,
+        bytes32 _orderId,
+        address _token,
+        uint256 _amount,
+        bytes calldata _fromAddress,
+        bytes calldata _swapData
+    ) external virtual {}
 
     // --------------------------------------------- internal ---------------------------------------------
 
@@ -360,17 +372,25 @@ abstract contract BridgeAbstract is
         orderList[_outEvent.orderId] = uint256(
             keccak256(
                 abi.encodePacked(
+                    _outEvent.messageType,
                     _outEvent.fromChain,
                     _outEvent.toChain,
                     _outEvent.token,
                     _outEvent.amount,
+                    _outEvent.gasLimit,
                     _outEvent.from,
                     _outEvent.to,
                     _outEvent.swapData
                 )
             )
         );
-        bytes memory payload = abi.encode(_outEvent.toChain, _outEvent.gasLimit, _outEvent.to, _outEvent.swapData);
+        bytes memory payload = abi.encode(
+            _outEvent.messageType,
+            _outEvent.toChain,
+            _outEvent.gasLimit,
+            _outEvent.to,
+            _outEvent.swapData
+        );
         emit MessageIn(
             _outEvent.orderId,
             _outEvent.fromChain,
@@ -385,34 +405,39 @@ abstract contract BridgeAbstract is
     }
 
     function _getStoredMessage(
-        uint8 _type,
         uint256 _fromChain,
         bytes32 _orderId,
-        uint256 _toChain,
         address _token,
         uint256 _amount,
-        bytes calldata _toAddress,
         bytes calldata _fromAddress,
         bytes calldata _swapData
     ) internal returns (MessageInEvent memory inEvent) {
+        (inEvent.messageType, inEvent.toChain, inEvent.gasLimit, inEvent.to, inEvent.swapData) = abi.decode(
+            _swapData,
+            (uint8, uint256, uint256, bytes, bytes)
+        );
+
         bytes32 retryHash = keccak256(
-            abi.encodePacked(_fromChain, _toChain, _token, _amount, _fromAddress, _toAddress, _swapData)
+            abi.encodePacked(
+                inEvent.messageType,
+                _fromChain,
+                inEvent.toChain,
+                _token,
+                _amount,
+                inEvent.gasLimit,
+                _fromAddress,
+                inEvent.to,
+                inEvent.swapData
+            )
         );
         if (uint256(retryHash) != orderList[_orderId]) revert retry_verify_fail();
 
-        inEvent = MessageInEvent({
-            messageType: _type,
-            fromChain: _fromChain,
-            toChain: _toChain,
-            orderId: _orderId,
-            mos: address(0),
-            token: _token,
-            from: _fromAddress,
-            to: _toAddress,
-            amount: _amount,
-            gasLimit: gasleft(),
-            swapData: _swapData
-        });
+        inEvent.fromChain = _fromChain;
+        inEvent.orderId = _orderId;
+        inEvent.token = _token;
+        inEvent.amount = _amount;
+        inEvent.from = _fromAddress;
+
         orderList[_orderId] = 0x01;
     }
 

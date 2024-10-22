@@ -464,13 +464,15 @@ task("bridge:transferOut", "Cross-chain transfer token")
     let bridge = await getBridge(hre.network.name, true);
 
     let value;
-    let fee = await bridge.getNativeFee(tokenAddr, 0, targetChainId);
+    //let fee = await bridge.getNativeFee(tokenAddr, 0, targetChainId);
+
+    let fee = value = ethers.utils.parseUnits("0", 18);
 
     if (tokenAddr === "0x0000000000000000000000000000000000000000") {
       value = ethers.utils.parseUnits(taskArgs.value, 18);
       fee = fee.add(value);
     } else {
-      let token = await ethers.getContractAt("IERC20MetadataUpgradeable", tokenAddr);
+      let token = await ethers.getContractAt("IERC20Metadata", tokenAddr);
       let decimals = await token.decimals();
       value = ethers.utils.parseUnits(taskArgs.value, decimals);
 

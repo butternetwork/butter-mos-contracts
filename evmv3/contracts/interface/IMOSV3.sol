@@ -52,4 +52,13 @@ interface IMOSV3 {
         bytes memory messageData,
         address feeToken
     ) external payable returns (bytes32);
+
+    function retryMessageIn(
+        uint256 _fromChain,
+        bytes32 _orderId,
+        address _token,
+        uint256 _amount,
+        bytes calldata _fromAddress,
+        bytes calldata _swapData
+    ) external;
 }

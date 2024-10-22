@@ -332,7 +332,7 @@ task("register:updateTokenChains", "update token target chain")
     let addList = [];
     let removeList = [];
     for (let i = 0; i < chainList.length; i++) {
-      if (feeInfo.target.includes(chainList[i].chain)) {
+      if (feeInfo.target.includes(chainList[i].name)) {
         addList.push(chainList[i].chainId);
       } else {
         removeList.push(chainList[i].chainId);
@@ -386,12 +386,12 @@ task("register:setToChainWhitelistFee", "set to chain token outFee")
     let info = await register.getToChainCallerFeeRate(token, fromChain.chainId, toChain.chainId, taskArgs.sender);
     if (taskArgs.whitelist === info[0] && rate.eq(info[1])) {
       console.log(
-        `caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.chain}] to [${toChain.chain}] rate no update`,
+        `caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.name}] to [${toChain.name}] rate no update`,
       );
       return;
     } else if (taskArgs.whitelist === info[0] && taskArgs.whitelist === false) {
       console.log(
-        `caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.chain}] to [${toChain.chain}] rate no update`,
+        `caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.name}] to [${toChain.name}] rate no update`,
       );
       return;
     }
@@ -411,7 +411,7 @@ task("register:setToChainWhitelistFee", "set to chain token outFee")
         { gasLimit: 100000 },
       );
       console.log(
-        `set caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.chain}] to [${toChain.chain}] rate success`,
+        `set caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.name}] to [${toChain.name}] rate success`,
       );
     }
   });
@@ -437,16 +437,16 @@ task("register:setFromChainWhitelistFee", "set to chain token outFee")
     let rate = ethers.utils.parseUnits(taskArgs.rate, 6);
 
     let sender = taskArgs.sender;
-    if (fromChain.chain === "Tron") {
+    if (fromChain.name === "Tron") {
       sender = toHex(taskArgs.sender, "Tron");
     }
 
     let info = await register.getFromChainCallerFeeRate(token, fromChain.chainId, sender);
     if (taskArgs.whitelist === info[0] && rate.eq(info[1])) {
-      console.log(`caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.chain}] rate no update`);
+      console.log(`caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.name}] rate no update`);
       return;
     } else if (taskArgs.whitelist === info[0] && taskArgs.whitelist === false) {
-      console.log(`caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.chain}] rate no update`);
+      console.log(`caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.name}] rate no update`);
       return;
     }
 
@@ -456,7 +456,7 @@ task("register:setFromChainWhitelistFee", "set to chain token outFee")
       await register.setFromChainWhitelistFeeRate(token, fromChain.chainId, sender, rate, taskArgs.whitelist, {
         gasLimit: 100000,
       });
-      console.log(`set caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.chain}] rate success`);
+      console.log(`set caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.name}] rate success`);
     }
 
     // await register.setTokenFee(taskArgs.token, taskArgs.from, taskArgs.lowest, taskArgs.highest, taskArgs.rate);
@@ -682,11 +682,11 @@ task("register:getFee", "get token fees")
     let fromChain = await getChain(taskArgs.from);
     let toChain = await getChain(taskArgs.to);
 
-    let token = await getToken(fromChain.chain, taskArgs.token);
+    let token = await getToken(fromChain.name, taskArgs.token);
     let relayToken = await getToken(hre.network.config.chainId, taskArgs.token);
 
     let fromToken = token;
-    if (fromChain.chain === "Tron" || fromChain.chain === "TronTest") {
+    if (fromChain.name === "Tron" || fromChain.name === "TronTest") {
       fromToken = await toHex(token, "Tron");
     } else if (token.substr(0, 2) !== "0x") {
       let hex = await stringToHex(token);
@@ -703,15 +703,15 @@ task("register:getFee", "get token fees")
     let toTokenInfo = await register.getTargetToken(fromChain.chainId, toChain.chainId, fromToken);
 
     console.log(
-      `from [${fromChain.chain}] address [${fromTokenInfo[0]}] decimals [${fromTokenInfo[1]}] mintable [${fromTokenInfo[2]}]`,
+      `from [${fromChain.name}] address [${fromTokenInfo[0]}] decimals [${fromTokenInfo[1]}] mintable [${fromTokenInfo[2]}]`,
     );
     console.log(
-      `to [${toChain.chain}] address [${toTokenInfo[0]}] decimals [${toTokenInfo[1]}] mintable [${toTokenInfo[2]}]`,
+      `to [${toChain.name}] address [${toTokenInfo[0]}] decimals [${toTokenInfo[1]}] mintable [${toTokenInfo[2]}]`,
     );
 
     let info = await register.getTargetFeeInfo(relayToken, fromChain.chainId);
     console.log(
-      `[${fromChain.chain}] out fee: min(${ethers.utils.formatUnits(
+      `[${fromChain.name}] out fee: min(${ethers.utils.formatUnits(
         info[3][0],
         "ether",
       )}), max(${ethers.utils.formatUnits(info[3][1], "ether")}), rate(${ethers.utils.formatUnits(info[3][2], 6)})`,
@@ -719,12 +719,12 @@ task("register:getFee", "get token fees")
 
     info = await register.getTargetFeeInfo(relayToken, toChain.chainId);
     console.log(
-      `[${toChain.chain}] base fee: bridge(${ethers.utils.formatUnits(
+      `[${toChain.name}] base fee: bridge(${ethers.utils.formatUnits(
         info[1][1],
       )}) swap(${ethers.utils.formatUnits(info[1][0])})`,
     );
     console.log(
-      `[${toChain.chain}] in fee: min(${ethers.utils.formatUnits(info[2][0])}), max(${ethers.utils.formatUnits(
+      `[${toChain.name}] in fee: min(${ethers.utils.formatUnits(info[2][0])}), max(${ethers.utils.formatUnits(
         info[2][1],
       )}), rate(${ethers.utils.formatUnits(info[2][2], 6)})`,
     );
@@ -768,7 +768,7 @@ task("register:getFee", "get token fees")
       false,
     );
 
-    console.log(`token [${taskArgs.token}] [${fromChain.chain}] => [${toChain.chain}]`);
+    console.log(`token [${taskArgs.token}] [${fromChain.name}] => [${toChain.name}]`);
     console.log(
       `bridge: fromChain fee [${ethers.utils.formatUnits(
         bridgeInfo[0],
@@ -841,7 +841,7 @@ task("register:list", "List token infos")
       let tokenInfo = await register.getTargetToken(chainId, chainList[i].chainId, tokenAddr);
       let info = await register.getTargetFeeInfo(tokenAddr, chainList[i].chainId);
 
-      console.log(`${chainList[i].chain}(${chainList[i].chainId})\t => ${info[0]}`);
+      console.log(`${chainList[i].name}(${chainList[i].chainId})\t => ${info[0]}`);
 
       console.log(`\t decimals(${tokenInfo[1]}) mintalbe (${tokenInfo[2]}) (${tokenInfo[0]})`);
 

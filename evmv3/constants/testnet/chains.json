@@ -4,7 +4,8 @@
         "chainId": "212",
         "type": "evm",
         "wToken": "0x2eD27dF9B4c903aB53666CcA59AFB431F7D15e91",
-        "feeService": "0x0000000000000000000000000000000000000000",
+        "mos": "0x7Bf57B8cF64cb4341A238914A61F751E0ea57D26",
+        "feeService": "0x39a732bb61B20e4586E937cdba7161a1eD3cf77E",
         "lightNode": "0xDD3A69f8f59d892476B0be0260932b4f8d8268Ff"
     },
     {
@@ -12,7 +13,8 @@
         "chainId": "11155111",
         "type": "evm",
         "wToken": "0xf531B8F309Be94191af87605CfBf600D71C2cFe0",
-        "feeService": "0x0000000000000000000000000000000000000000",
+        "mos": "0x7Bf57B8cF64cb4341A238914A61F751E0ea57D26",
+        "feeService": "0x39a732bb61B20e4586E937cdba7161a1eD3cf77E",
         "lightNode": "0x8089418B53F18DF3691f5D9Eae3f6e088B6F30DE"
     },
     {
@@ -20,8 +22,9 @@
         "chainId": "97",
         "type": "evm",
         "wToken": "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
-        "feeService": "0x0000000000000000000000000000000000000000",
-        "lightNode": "0x0e4ad88ee4bda767576a0a56c72589b5bd287cbf"
+        "mos": "0x7Bf57B8cF64cb4341A238914A61F751E0ea57D26",
+        "feeService": "0x39a732bb61B20e4586E937cdba7161a1eD3cf77E",
+        "lightNode": "0xA58780b540A80B98a65d1B31A3FB1F05Cb86a350"
     },
     {
         "name": "ArbitrumSepolia",

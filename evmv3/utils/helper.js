@@ -191,4 +191,6 @@ module.exports = {
   stringToHex,
   getFeeList,
   getFeeConfig,
+  isRelayChain,
+  isTron
 };
