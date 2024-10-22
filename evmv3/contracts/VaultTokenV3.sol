@@ -64,7 +64,7 @@ contract VaultTokenV3 is IVaultTokenV3, AccessControlEnumerable, ERC20Burnable {
             return _amount;
         }
         uint256 allVToken = totalSupply();
-        return _amount * allVToken / totalVault;
+        return (_amount * allVToken) / totalVault;
     }
 
     function getTokenAmount(uint256 _amount) public view override returns (uint256) {
@@ -72,7 +72,7 @@ contract VaultTokenV3 is IVaultTokenV3, AccessControlEnumerable, ERC20Burnable {
         if (allVToken == 0) {
             return _amount;
         }
-        return _amount * totalVault / allVToken;
+        return (_amount * totalVault) / allVToken;
     }
 
     function getTokenAddress() public view override returns (address) {
