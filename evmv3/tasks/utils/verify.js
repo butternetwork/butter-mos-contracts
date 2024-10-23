@@ -36,6 +36,9 @@ function needVerify(chainId) {
     59144, // linea
     534352, // scoll
     5000, // mantle
+    11155111, // sepolia
+    97, // bsctest
+    421614, // arbitrum sepolia
   ];
   if (needs.includes(chainId)) {
     return true;

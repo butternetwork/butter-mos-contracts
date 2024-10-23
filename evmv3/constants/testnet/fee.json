@@ -18,6 +18,13 @@
             "base": {"bridge": "0.01", "swap": "0.02"},
             "fee": { "rate": "0.0002", "min": "0", "max": "0.1" },
             "target": ["Sepolia", "BscTest", "ArbitrumSepolia"]
+        },
+        "butter": {
+            "mintable": false,
+            "decimals": 18,
+            "base": {"bridge": "0.1", "swap": "0.2"},
+            "fee": { "rate": "0.001", "min": "0", "max": "1" },
+            "target": ["Sepolia", "BscTest", "ArbitrumSepolia", "DodoTest"]
         }
     },
     "Sepolia": {
@@ -39,6 +46,13 @@
             "base": {"bridge": "0.1", "swap": "0.2"},
             "fee": { "rate": "0.0002", "min": "0", "max": "0.1" },
             "target": ["Makalu", "BscTest", "ArbitrumSepolia"]
+        },
+        "butter": {
+            "mintable": true,
+            "decimals": 18,
+            "base": {"bridge": "1", "swap": "2"},
+            "fee": { "rate": "0.001", "min": "0", "max": "5" },
+            "target": ["Makalu", "BscTest", "ArbitrumSepolia", "DodoTest"]
         }
     },
     "BscTest": {
@@ -60,6 +74,13 @@
             "base": {"bridge": "0.015", "swap": "0.025"},
             "fee": { "rate": "0.0002", "min": "0", "max": "0.1" },
             "target": ["Makalu", "Sepolia", "ArbitrumSepolia"]
+        },
+        "butter": {
+            "mintable": true,
+            "decimals": 18,
+            "base": {"bridge": "1", "swap": "2"},
+            "fee": { "rate": "0.001", "min": "0", "max": "5" },
+            "target": ["Sepolia", "Makalu", "ArbitrumSepolia", "DodoTest"]
         }
     },
     "ArbitrumSepolia": {
@@ -81,6 +102,13 @@
             "base": {"bridge": "0.012", "swap": "0.022"},
             "fee": { "rate": "0.0002", "min": "0", "max": "0.1" },
             "target": ["Makalu", "Sepolia", "BscTest"]
+        },
+        "butter": {
+            "mintable": true,
+            "decimals": 18,
+            "base": {"bridge": "1", "swap": "2"},
+            "fee": { "rate": "0.001", "min": "0", "max": "5" },
+            "target": ["Sepolia", "BscTest", "Makalu", "DodoTest"]
         }
     },
     "DodoTest": {
@@ -88,6 +116,13 @@
             "gas": "10",
             "bridgeLimit": "500000",
             "swapLimit": "1000000"
+        },
+        "butter": {
+            "mintable": true,
+            "decimals": 18,
+            "base": {"bridge": "0.1", "swap": "0.2"},
+            "fee": { "rate": "0.001", "min": "0", "max": "2" },
+            "target": ["Makalu", "Sepolia", "BscTest", "ArbitrumSepolia"]
         }
     },
     "TronTest": {

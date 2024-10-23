@@ -32,7 +32,8 @@ async function getBridge(network, abstract) {
 task("bridge:deploy", "bridge deploy")
   .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
   .addOptionalParam("client", "omni-chain service address", "", types.string)
-  .addOptionalParam("auth", "authority address", "", types.string)
+    .addOptionalParam("auth", "auth address", "", types.string)
+    .addOptionalParam("fee", "fee service address", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const { deploy } = hre.deployments;
     const accounts = await ethers.getSigners();
@@ -44,6 +45,7 @@ task("bridge:deploy", "bridge deploy")
     let client = taskArgs.client === "" ? chain.lightNode : taskArgs.client;
     let wrapped = taskArgs.wrapped === "" ? chain.wToken : taskArgs.wrapped;
     let authority = taskArgs.auth === "" ? chain.auth : taskArgs.auth;
+      let feeService = taskArgs.fee === "" ? chain.feeService : taskArgs.fee;
     console.log("wrapped token:", wrapped);
     console.log("lightclient address:", client);
 
@@ -53,7 +55,7 @@ task("bridge:deploy", "bridge deploy")
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
       wrapped = await toHex(wrapped, hre.network.name);
     }
-    let data = await Bridge.interface.encodeFunctionData("initialize", [wrapped, deployer.address]);
+    let data = await Bridge.interface.encodeFunctionData("initialize", [wrapped, authority]);
     let proxy_salt = process.env.BRIDGE_PROXY_SALT;
     let proxy = await create(hre, deployer, "OmniServiceProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
 
@@ -66,17 +68,19 @@ task("bridge:deploy", "bridge deploy")
     } else {
       let bridge = Bridge.attach(proxy);
       await (await bridge.setServiceContract(1, client)).wait();
+        await (await bridge.setServiceContract(2, feeService)).wait();
       console.log("wToken", await bridge.getServiceContract(0));
       console.log("client", await bridge.getServiceContract(1));
+        console.log("feeService", await bridge.getServiceContract(2));
     }
 
     let deployment = await readFromFile(hre.network.name);
     deployment[hre.network.name]["bridgeProxy"] = proxy;
     await writeToFile(deployment);
 
-    //await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, true);
+    await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, true);
 
-    //await verify(proxy, [implAddr, data], "contracts/OmniServiceProxy.sol:OmniServiceProxy", hre.network.config.chainId, true);
+    await verify(proxy, [implAddr, data], "contracts/OmniServiceProxy.sol:OmniServiceProxy", hre.network.config.chainId, true);
   });
 
 task("bridge:upgrade", "upgrade bridge evm contract in proxy")
@@ -247,7 +251,7 @@ task("bridge:registerTokenChains", "register token Chains")
     let updateList = [];
     for (let i = 0; i < chainList.length; i++) {
       let bridgeable = await bridge.tokenMappingList(chainList[i], tokenAddr);
-      if (taskArgs.enable === bridgeable) {
+      if ((taskArgs.enable && bridgeable.toString() === "1") || (!taskArgs.enable && bridgeable.toString() === "0")) {
         continue;
       }
       updateList.push(chainList[i]);
@@ -341,8 +345,8 @@ task("bridge:updateToken", "update token to target chain")
     console.log(`token ${taskArgs.token}  address: ${tokenAddr}`);
 
     let chain = await getChain(hre.network.config.chainId);
-    let feeList = await getFeeList(taskArgs.token);
-    let feeInfo = feeList[chain.name];
+    let feeList = await getFeeList(chain.name);
+    let feeInfo = feeList[taskArgs.token];
 
     let isMintable = feeInfo.mintable === undefined ? false : feeInfo.mintable;
     let isOmniToken = feeInfo.morc20 === undefined ? false : feeInfo.morc20;
@@ -359,10 +363,11 @@ task("bridge:updateToken", "update token to target chain")
       let targetChain = await getChain(feeInfo.target[i]);
       addList.push(targetChain.chainId);
     }
+
     for (let i = 0; i < chainList.length; i++) {
       let j = 0;
       for (j = 0; j < feeInfo.target.length; j++) {
-        if (chainList[i].chain === feeInfo.target[j]) {
+        if (chainList[i].name === feeInfo.target[j]) {
           break;
         }
       }

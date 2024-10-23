@@ -18,7 +18,8 @@ async function getRelay(network) {
 task("relay:deploy", "mos relay deploy")
   .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
   .addOptionalParam("client", "light client address", "", types.string)
-  .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
+  .addOptionalParam("auth", "auth address", "0xACC31A6756B60304C03d6626fc98c062E4539CCA", types.string)
+    .addOptionalParam("fee", "fee service address", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
@@ -29,19 +30,28 @@ task("relay:deploy", "mos relay deploy")
     let client = taskArgs.client === "" ? chain.lightNode : taskArgs.client;
     let wrapped = taskArgs.wrapped === "" ? chain.wToken : taskArgs.wrapped;
 
+      let authority = taskArgs.auth === "" ? chain.auth : taskArgs.auth;
+      let feeService = taskArgs.fee === "" ? chain.feeService : taskArgs.fee;
+
     let implAddr = await create(hre, deployer, "BridgeAndRelay", [], [], "");
 
     let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
-    let data = await BridgeAndRelay.interface.encodeFunctionData("initialize", [wrapped, deployer.address]);
+    let data = await BridgeAndRelay.interface.encodeFunctionData("initialize", [wrapped, authority]);
     let proxy_salt = process.env.BRIDGE_PROXY_SALT;
 
     let bridge = await create(hre, deployer, "OmniServiceProxy", ["address", "bytes"], [implAddr, data], proxy_salt);
 
     let relay = BridgeAndRelay.attach(bridge);
+
+    console.log("set light client manager: ", client);
     await (await relay.setServiceContract(1, client)).wait();
 
+      console.log("set fee service: ", feeService);
+      await (await relay.setServiceContract(2, feeService)).wait();
+
     console.log("wToken", await relay.getServiceContract(0));
-    console.log("mos", await relay.getServiceContract(1));
+      console.log("client", await relay.getServiceContract(1));
+      console.log("fee", await relay.getServiceContract(2));
 
     let deployment = await readFromFile(hre.network.name);
     deployment[hre.network.name]["bridgeProxy"] = bridge;

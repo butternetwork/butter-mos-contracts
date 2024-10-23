@@ -138,7 +138,7 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TRON_PRIVATE_KEY] : [],
     },
 
-    sepolia: {
+    Sepolia: {
       url: `https://eth-sepolia.api.onfinality.io/public`,
       chainId: 11155111,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
@@ -157,6 +157,11 @@ module.exports = {
       url: "https://sepolia-rollup.arbitrum.io/rpc",
       chainId: 421614,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
+    },
+    DodoTest: {
+      url: `https://dodochain-testnet.alt.technology`,
+      chainId : 53457,
+      accounts: process.env.TESTNET_PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     KlaytnTest: {
       url: `https://api.baobab.klaytn.net:8651/`,
@@ -188,7 +193,10 @@ module.exports = {
       Arbitrum: process.env.API_KEY_ARBITRUM,
       Linea: process.env.API_KEY_LINEA,
       Scroll: process.env.API_KEY_SCROLL,
-      Mantle: process.env.API_KEY_MANTLE
+      Mantle: process.env.API_KEY_MANTLE,
+      Sepolia: process.env.API_KEY_ETH,
+      BscTest: process.env.API_KEY_BSC,
+      ArbitrumSepolia: process.env.API_KEY_ARBITRUM,
     },
     customChains: [
       {
@@ -286,7 +294,31 @@ module.exports = {
           apiURL: "https://api.mantlescan.xyz/api",
           browserURL: "https://mantlescan.xyz/",
         },
-      }
+      },
+      {
+        network: "Sepolia",
+        chainId: 11155111,
+        urls: {
+          apiURL: "https://api-sepolia.etherscan.io/api",
+          browserURL: "https://sepolia.etherscan.io/",
+        },
+      },
+      {
+        network: "BscTest",
+        chainId: 97,
+        urls: {
+          apiURL: "https://api-testnet.bscscan.com/api",
+          browserURL: "https://testnet.bscscan.com/",
+        },
+      },
+      {
+        network: "ArbitrumSepolia",
+        chainId: 421614,
+        urls: {
+          apiURL: "https://api-sepolia.arbiscan.io/api",
+          browserURL: "https://sepolia.arbiscan.io/",
+        },
+      },
     ],
   },
 };
