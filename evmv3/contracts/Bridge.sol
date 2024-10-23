@@ -3,9 +3,7 @@
 pragma solidity 0.8.25;
 
 import "./abstract/BridgeAbstract.sol";
-import "./interface/IMintableToken.sol";
-import "./lib/EvmDecoder.sol";
-import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
+import {ILightVerifier} from "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
 contract Bridge is BridgeAbstract {
     uint256 constant DEPOSIT_GAS = 200000;
 
@@ -153,7 +151,7 @@ contract Bridge is BridgeAbstract {
             _amount,
             mosRelay,
             relayChainId,
-            _toBytes(_to),
+            Helper._toBytes(_to),
             bytes("")
         );
     }

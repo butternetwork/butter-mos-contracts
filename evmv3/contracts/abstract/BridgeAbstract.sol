@@ -2,19 +2,21 @@
 
 pragma solidity 0.8.25;
 
-import "../interface/IButterBridgeV3.sol";
-import "../interface/IMOSV3.sol";
-import "../interface/IMintableToken.sol";
-import "../interface/IMapoExecutor.sol";
-import "../interface/ISwapOutLimit.sol";
-import "../interface/IButterReceiver.sol";
-import "../interface/IFeeService.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
+import {IButterBridgeV3} from "../interface/IButterBridgeV3.sol";
+import {IMOSV3} from "../interface/IMOSV3.sol";
+import {IMintableToken} from "../interface/IMintableToken.sol";
+import {IMapoExecutor} from "../interface/IMapoExecutor.sol";
+import {ISwapOutLimit} from "../interface/ISwapOutLimit.sol";
+import {IButterReceiver} from "../interface/IButterReceiver.sol";
+import {IFeeService} from "../interface/IFeeService.sol";
+import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {AccessControlEnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import {EvmDecoder} from "../lib/EvmDecoder.sol";
 import {MessageInEvent} from "../lib/Types.sol";
+import {Helper} from "../lib/Helper.sol";
 //import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 //import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 
@@ -59,7 +61,7 @@ abstract contract BridgeAbstract is
     error invalid_bridge_log();
     error invalid_pack_version();
     error in_amount_low();
-    error token_call_failed();
+
     error token_not_registered();
     error zero_address();
     error not_contract();
@@ -117,7 +119,7 @@ abstract contract BridgeAbstract is
     }
 
     function registerTokenChains(address _token, uint256[] memory _toChains, bool _enable) external onlyRole(MANAGER_ROLE) {
-        if (!_isContract(_token)) revert not_contract();
+        if (!Helper._isContract(_token)) revert not_contract();
         for (uint256 i = 0; i < _toChains.length; i++) {
             uint256 toChain = _toChains[i];
             uint256 enable = _enable ? 0x01 : 0x00;
@@ -218,14 +220,14 @@ abstract contract BridgeAbstract is
     }
 
     function _messageIn(MessageInEvent memory _inEvent, bool _gasleft) internal {
-        address to = _fromBytes(_inEvent.to);
+        address to = Helper._fromBytes(_inEvent.to);
         uint256 gasLimit = _inEvent.gasLimit;
 
         uint256 executingGas = gasleft();
         if (_gasleft) {
             gasLimit = executingGas;
         }
-        if (!_isContract(to)) {
+        if (!Helper._isContract(to)) {
             return _storeMessageData(_inEvent, bytes("NotContract"));
         }
 
@@ -257,8 +259,8 @@ abstract contract BridgeAbstract is
 
     function _swapIn(MessageInEvent memory _inEvent) internal {
         address outToken = _inEvent.token;
-        address to = _fromBytes(_inEvent.to);
-        if (_inEvent.swapData.length > 0 && _isContract(to)) {
+        address to = Helper._fromBytes(_inEvent.to);
+        if (_inEvent.swapData.length > 0 && Helper._isContract(to)) {
             // if swap params is not empty, then we need to do swap on current chain
             _tokenTransferOut(_inEvent.token, to, _inEvent.amount, false, false);
             try
@@ -300,11 +302,11 @@ abstract contract BridgeAbstract is
         if (_token == ZERO_ADDRESS) {
             if (msg.value < _amount) revert in_amount_low();
             if (_wrap) {
-                _safeDeposit(wToken, _amount);
+                Helper._safeDeposit(wToken, _amount);
                 inToken = wToken;
             }
         } else {
-            _safeTransferFrom(_token, _from, address(this), _amount);
+            Helper._safeTransferFrom(_token, _from, address(this), _amount);
             if (_checkBurn) {
                 _checkAndBurn(_token, _amount);
             }
@@ -319,10 +321,10 @@ abstract contract BridgeAbstract is
         bool _checkMint
     ) internal {
         if (_token == ZERO_ADDRESS) {
-            _safeTransferNative(_receiver, _amount);
+            Helper._safeTransferNative(_receiver, _amount);
         } else if (_token == wToken && _unwrap) {
-            _safeWithdraw(wToken, _amount);
-            _safeTransferNative(_receiver, _amount);
+            Helper._safeWithdraw(wToken, _amount);
+            Helper._safeTransferNative(_receiver, _amount);
         } else {
             if (selfChainId == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
                 // Tron USDT
@@ -331,7 +333,7 @@ abstract contract BridgeAbstract is
                 if (_checkMint) {
                     _checkAndMint(_token, _amount);
                 }
-                _safeTransfer(_token, _receiver, _amount);
+                Helper._safeTransfer(_token, _receiver, _amount);
             }
         }
     }
@@ -400,7 +402,7 @@ abstract contract BridgeAbstract is
             _outEvent.fromChain,
             _outEvent.token,
             _outEvent.amount,
-            _fromBytes(_outEvent.to),
+            Helper._fromBytes(_outEvent.to),
             _outEvent.from,
             payload,
             false,
@@ -502,56 +504,6 @@ abstract contract BridgeAbstract is
         uint256 _gasLimit
     ) internal pure returns (uint256 chainAndGasLimit) {
         chainAndGasLimit = ((_fromChain << 192) | (_toChain << 128) | _gasLimit);
-    }
-
-    // --------------------------------------------- utils ----------------------------------------------
-    function _checkBytes(bytes memory b1, bytes memory b2) internal pure returns (bool) {
-        return keccak256(b1) == keccak256(b2);
-    }
-
-    function _toBytes(address _a) internal pure returns (bytes memory) {
-        return abi.encodePacked(_a);
-    }
-
-    function _fromBytes(bytes memory bys) internal pure returns (address addr) {
-        assembly {
-            addr := mload(add(bys, 20))
-        }
-    }
-
-    function _safeTransfer(address token, address to, uint256 value) internal {
-        // bytes4(keccak256(bytes('transfer(address,uint256)')));
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value));
-        _checkCallResult(success, data);
-    }
-
-    function _safeTransferFrom(address token, address from, address to, uint256 value) internal {
-        // bytes4(keccak256(bytes('transferFrom(address,address,uint256)')));
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, value));
-        _checkCallResult(success, data);
-    }
-
-    function _safeTransferNative(address to, uint256 value) internal {
-        (bool success, ) = to.call{value: value}(bytes(""));
-        _checkCallResult(success, bytes(""));
-    }
-
-    function _safeWithdraw(address _wToken, uint _value) internal {
-        (bool success, bytes memory data) = _wToken.call(abi.encodeWithSelector(0x2e1a7d4d, _value));
-        _checkCallResult(success, data);
-    }
-
-    function _safeDeposit(address _wToken, uint _value) internal {
-        (bool success, bytes memory data) = _wToken.call{value: _value}(abi.encodeWithSelector(0xd0e30db0));
-        _checkCallResult(success, data);
-    }
-
-    function _checkCallResult(bool _success, bytes memory _data) internal pure {
-        if (!_success || (_data.length != 0 && !abi.decode(_data, (bool)))) revert token_call_failed();
-    }
-
-    function _isContract(address _addr) internal view returns (bool) {
-        return _addr.code.length != 0;
     }
 
     /** UUPS *********************************************************/

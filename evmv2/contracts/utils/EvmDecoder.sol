@@ -3,7 +3,7 @@
 pragma solidity 0.8.20;
 
 import "@mapprotocol/protocol/contracts/utils/Utils.sol";
-import "@mapprotocol/protocol/contracts/interface/ILightNode.sol";
+import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
 import "../interface/IEvent.sol";
 
 library EvmDecoder {

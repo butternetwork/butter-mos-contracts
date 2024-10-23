@@ -740,3 +740,36 @@ task("mos:list", "List mos  infos")
             }
         }
     });
+
+
+task("mos:swapIn", "changeOwner for mos")
+    .addParam("order", "token address")
+    .addParam("fromchain", "token address")
+    .addParam("tochain", "token address")
+    .addParam("from", "token address")
+    .addParam("to", "token address")
+    .addParam("token", "token address")
+    .addParam("amount", "token amount")
+    .setAction(async (taskArgs, hre) => {
+        {
+            const accounts = await ethers.getSigners();
+            const deployer = accounts[0];
+            const chainId = await hre.network.config.chainId;
+            let mos = await getMos(chainId, hre.network.name);
+            if (mos == undefined) {
+                throw "mos not deployed ...";
+            }
+            console.log("mos address", mos.address);
+
+            let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+
+            {
+                // uint256 _fromChain, uint256 _toChain, bytes32 _orderId, address _from, address _to, address _token, uint256 _amount
+                await (await mos.connect(deployer).swapInOrder(taskArgs.fromchain, taskArgs.tochain, taskArgs.order, taskArgs.from, taskArgs.to, tokenAddr, taskArgs.amount)).wait();
+            }
+
+            console.log(
+                `mos withdraw token ${taskArgs.token} to ${taskArgs.receiver} ${taskArgs.amount} successfully `
+            );
+        }
+    });

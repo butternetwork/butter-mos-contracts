@@ -4,9 +4,7 @@ pragma solidity 0.8.25;
 
 import "./interface/IVaultTokenV3.sol";
 import "./abstract/BridgeAbstract.sol";
-import "./interface/IMintableToken.sol";
 import "./interface/ITokenRegisterV3.sol";
-import "./lib/EvmDecoder.sol";
 import "./lib/NearDecoder.sol";
 import "./interface/IRelayExecutor.sol";
 import {MessageOutEvent} from "./lib/Types.sol";
@@ -220,10 +218,10 @@ contract BridgeAndRelay is BridgeAbstract {
             orderId,
             fromChain,
             _toChain,
-            _toBytes(ZERO_ADDRESS),
+            Helper._toBytes(ZERO_ADDRESS),
             0,
             msgData.target,
-            _toBytes(msg.sender),
+            Helper._toBytes(msg.sender),
             msgData.payload
         );
 
@@ -237,7 +235,7 @@ contract BridgeAndRelay is BridgeAbstract {
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         address from = msg.sender;
         address token = _tokenTransferIn(_token, from, _amount, true, false);
-        _deposit(token, _toBytes(from), _to, _amount, orderId, selfChainId);
+        _deposit(token, Helper._toBytes(from), _to, _amount, orderId, selfChainId);
     }
 
     function swapOutToken(
@@ -255,7 +253,7 @@ contract BridgeAndRelay is BridgeAbstract {
         BridgeParam memory msgData = abi.decode(_bridgeData, (BridgeParam));
 
         bytes memory toToken = tokenRegister.getToChainToken(bridgeToken, _toChain);
-        if (_checkBytes(toToken, bytes(""))) revert out_token_not_registered();
+        if (Helper._checkBytes(toToken, bytes(""))) revert out_token_not_registered();
 
         orderId = _messageOut(
             false,
@@ -271,7 +269,7 @@ contract BridgeAndRelay is BridgeAbstract {
         );
 
         (uint256 relayOutAmount, uint256 outAmount) = _collectFee(
-            _toBytes(from),
+            Helper._toBytes(from),
             orderId,
             bridgeToken,
             _amount,
@@ -290,7 +288,7 @@ contract BridgeAndRelay is BridgeAbstract {
             toToken,
             outAmount,
             _to,
-            _toBytes(from),
+            Helper._toBytes(from),
             msgData.swapData
         );
     }
@@ -310,7 +308,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 _receiptProof
             );
             require(success, message);
-            if (log.addr != _fromBytes(mosContracts[_chainId])) revert invalid_mos_contract();
+            if (log.addr != Helper._fromBytes(mosContracts[_chainId])) revert invalid_mos_contract();
             if (EvmDecoder.MESSAGE_OUT_TOPIC != log.topics[0]) revert invalid_bridge_log();
             (bool result, MessageOutEvent memory outEvent) = EvmDecoder.decodeMessageOut(log);
             if (!result) revert invalid_pack_version();
@@ -323,7 +321,7 @@ contract BridgeAndRelay is BridgeAbstract {
             require(success, message);
             if (chainTypes[_chainId] == ChainType.NEAR) {
                 (bytes memory executorId, bytes32 topic, bytes memory log) = NearDecoder.getTopic(logArray, _logIndex);
-                if (!_checkBytes(executorId, mosContracts[_chainId])) revert invalid_mos_contract();
+                if (!Helper._checkBytes(executorId, mosContracts[_chainId])) revert invalid_mos_contract();
                 if (topic != NearDecoder.NEAR_SWAPOUT) revert invalid_bridge_log();
                 MessageOutEvent memory outEvent = NearDecoder.decodeNearSwapLog(log);
                 _messageIn(_orderId, _chainId, outEvent);
@@ -380,7 +378,7 @@ contract BridgeAndRelay is BridgeAbstract {
     // --------------------------------------------- internal ----------------------------------------------
     function _messageIn(bytes32 _orderId, uint256 _chainId, MessageOutEvent memory _outEvent) internal {
         if (_orderId != _outEvent.orderId) revert invalid_order_Id();
-        if (_fromBytes(_outEvent.mos) != address(this)) revert invalid_mos_contract();
+        if (Helper._fromBytes(_outEvent.mos) != address(this)) revert invalid_mos_contract();
         if (_chainId != _outEvent.fromChain) revert invalid_chain_id();
 
         address token;
@@ -405,7 +403,7 @@ contract BridgeAndRelay is BridgeAbstract {
             fromChain: _outEvent.fromChain,
             toChain: _outEvent.toChain,
             orderId: _outEvent.orderId,
-            mos: _fromBytes(_outEvent.mos),
+            mos: Helper._fromBytes(_outEvent.mos),
             token: token,
             from: _outEvent.from,
             to: _outEvent.to,
@@ -420,7 +418,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 _deposit(
                     _inEvent.token,
                     _inEvent.from,
-                    _fromBytes(_inEvent.to),
+                    Helper._fromBytes(_inEvent.to),
                     _inEvent.amount,
                     _inEvent.orderId,
                     _inEvent.fromChain
@@ -457,10 +455,10 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes memory toChainToken;
         uint256 outAmount;
         if (_inEvent.messageType == uint8(MessageType.MESSAGE)) {
-            toChainToken = _toBytes(ZERO_ADDRESS);
+            toChainToken = Helper._toBytes(ZERO_ADDRESS);
         } else {
             toChainToken = tokenRegister.getToChainToken(token, _inEvent.toChain);
-            if (_checkBytes(toChainToken, bytes(""))) revert token_not_registered();
+            if (Helper._checkBytes(toChainToken, bytes(""))) revert token_not_registered();
         }
 
         _checkAndBurn(token, relayOutAmount);
@@ -504,10 +502,10 @@ contract BridgeAndRelay is BridgeAbstract {
             uint256 header = EvmDecoder.encodeMessageHeader(false, _type);
             messageData = abi.encode(
                 header,
-                _fromBytes(mosContracts[toChain]),
-                _fromBytes(token),
+                Helper._fromBytes(mosContracts[toChain]),
+                Helper._fromBytes(token),
                 amount,
-                _fromBytes(to),
+                Helper._fromBytes(to),
                 from,
                 message
             );

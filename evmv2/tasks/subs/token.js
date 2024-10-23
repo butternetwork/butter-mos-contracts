@@ -165,7 +165,10 @@ task("token:grant", "grant role")
         console.log("deployer:", deployer.address);
 
         let Token = await ethers.getContractFactory("MappingToken");
-        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        let tokenAddr = taskArgs.token;
+        if (tokenAddr.substr(0, 2) !== "0x") {
+            tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        }
         let token = await Token.attach(tokenAddr);
         let role = getRole(taskArgs.role);
 
@@ -197,7 +200,10 @@ task("token:revoke", "revoke role")
         console.log("deployer:", deployer.address);
 
         let Token = await ethers.getContractFactory("MappingToken");
-        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        let tokenAddr = taskArgs.token;
+        if (tokenAddr.substr(0, 2) !== "0x") {
+            tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        }
         let token = await Token.attach(tokenAddr);
         let role = getRole(taskArgs.role);
         let addr = taskArgs.addr;
@@ -227,7 +233,10 @@ task("token:getMember", "get role member")
         console.log("deployer:", deployer.address);
 
         let Token = await ethers.getContractFactory("MappingToken");
-        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        let tokenAddr = taskArgs.token;
+        if (tokenAddr.substr(0, 2) !== "0x") {
+            tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        }
         let token = await Token.attach(tokenAddr);
         let role = getRole(taskArgs.role);
 
@@ -255,7 +264,11 @@ task("token:setMintCap", "setMinterCap")
         console.log("deployer:", deployer.address);
 
         let Token = await ethers.getContractFactory("MappingToken");
-        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        let tokenAddr = taskArgs.token;
+        if (tokenAddr.substr(0, 2) !== "0x") {
+            tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        }
+
         let token = Token.attach(tokenAddr);
         let addr = taskArgs.addr;
         if (taskArgs.addr === "mos") {
@@ -270,7 +283,10 @@ task("token:setMintCap", "setMinterCap")
         console.log("token:", token.address);
         console.log("minter:", addr);
 
-        console.log("before: ", await token.getMinterCap(addr));
+        console.log("before cap: ", await token.getMinterCap(addr));
+
+        console.log("before: ", await token.minterCap(addr));
+
 
         let cap = ethers.utils.parseUnits(taskArgs.cap, decimals);
         await (await token.setMinterCap(addr, cap)).wait();
@@ -345,16 +361,29 @@ task("token:transfer", "transfer token")
 
         console.log("deployer address:", deployer.address);
 
-        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
-        let token = await ethers.getContractAt("MintableToken", tokenAddr);
-        console.log("Token address:", token.address);
+        if (taskArgs.token == "native") {
 
-        let decimals = await token.decimals();
-        let amount = ethers.utils.parseUnits(taskArgs.amount, decimals);
+            let amount =  ethers.utils.parseUnits(taskArgs.amount, 'ether');
 
-        // ethers.utils.toWei();
+            let tx = await deployer.sendTransaction({
+                to: taskArgs.receiver,
+                value: amount,
+                gasPrice:150000000,
+                nonce: 18
+            })
 
-        await token.transfer(taskArgs.receiver, amount);
+        } else {
+            let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+            let token = await ethers.getContractAt("MintableToken", tokenAddr);
+            console.log("Token address:", token.address);
+
+            let decimals = await token.decimals();
+            let amount = ethers.utils.parseUnits(taskArgs.amount, decimals);
+
+            // ethers.utils.toWei();
+
+            await token.transfer(taskArgs.receiver, amount);
+        }
 
         console.log(`Transfer '${taskArgs.token}' Token ${taskArgs.amount} to ${taskArgs.receiver} `);
     });

@@ -181,7 +181,7 @@ contract MAPOmnichainServiceV2 is ReentrancyGuard, Initializable, Pausable, IBut
         uint256 _chainId,
         uint256 _logIndex,
         bytes32 _orderId,
-        bytes memory _receiptProof
+        bytes calldata _receiptProof
     ) external nonReentrant whenNotPaused {
         require(!orderList[_orderId], "order exist");
         require(_chainId == relayChainId, "invalid chain id");
