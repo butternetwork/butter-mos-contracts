@@ -13,34 +13,33 @@ import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.s
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {AccessControlEnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
+// import {AccessControlEnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
+import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import {EvmDecoder} from "../lib/EvmDecoder.sol";
 import {MessageInEvent} from "../lib/Types.sol";
 import {Helper} from "../lib/Helper.sol";
-//import "@mapprotocol/protocol/contracts/utils/Utils.sol";
-//import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+
 
 abstract contract BridgeAbstract is
     UUPSUpgradeable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
-    //AccessManagedUpgradeable,
-    AccessControlEnumerableUpgradeable,
+    AccessManagedUpgradeable,
+    //AccessControlEnumerableUpgradeable,
     IButterBridgeV3,
     IMOSV3
 {
     address internal constant ZERO_ADDRESS = address(0);
     uint256 constant MINTABLE_TOKEN = 0x01;
 
-    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
-    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    //bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    //bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     uint256 public immutable selfChainId = block.chainid;
 
     uint256 private nonce;
 
     address internal wToken;
-    // todo
     // address internal butterRouter;
     IFeeService internal feeService;
     ISwapOutLimit internal swapLimit;
@@ -67,7 +66,7 @@ abstract contract BridgeAbstract is
     error not_contract();
     error zero_amount();
     error invalid_mos_contract();
-    error invalid_message_fee();
+    // error invalid_message_fee();
     error length_mismatching();
     error bridge_same_chain();
     error only_upgrade_role();
@@ -105,20 +104,20 @@ abstract contract BridgeAbstract is
         _checkAddress(_defaultAdmin);
         __Pausable_init();
         __ReentrancyGuard_init();
-        //__AccessManaged_init(_authority);
-        __AccessControlEnumerable_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
-        _grantRole(MANAGER_ROLE, _defaultAdmin);
-        _grantRole(UPGRADER_ROLE, _defaultAdmin);
+        __AccessManaged_init(_defaultAdmin);
+        //__AccessControlEnumerable_init();
+        //_grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
+        //_grantRole(MANAGER_ROLE, _defaultAdmin);
+        //_grantRole(UPGRADER_ROLE, _defaultAdmin);
         wToken = _wToken;
     }
 
     // --------------------------------------------- manage ----------------------------------------------
-    function trigger() external onlyRole(MANAGER_ROLE) {
+    function trigger() external restricted() {
         paused() ? _unpause() : _pause();
     }
 
-    function registerTokenChains(address _token, uint256[] memory _toChains, bool _enable) external onlyRole(MANAGER_ROLE) {
+    function registerTokenChains(address _token, uint256[] memory _toChains, bool _enable) external restricted() {
         if (!Helper._isContract(_token)) revert not_contract();
         for (uint256 i = 0; i < _toChains.length; i++) {
             uint256 toChain = _toChains[i];
@@ -128,14 +127,14 @@ abstract contract BridgeAbstract is
         }
     }
 
-    function updateTokens(address[] calldata _tokens, uint256 _feature) external onlyRole(MANAGER_ROLE) {
+    function updateTokens(address[] calldata _tokens, uint256 _feature) external restricted() {
         for (uint256 i = 0; i < _tokens.length; i++) {
             tokenFeatureList[_tokens[i]] = _feature;
             emit UpdateToken(_tokens[i], _feature);
         }
     }
 
-    function setTrustAddress(address _addr, bool _enable) external onlyRole(MANAGER_ROLE) {
+    function setTrustAddress(address _addr, bool _enable) external restricted() {
         uint256 enable = _enable ? 0x01 : 0x00;
         trustList[_addr] = enable;
         emit UpdateTrust(_addr, _enable);
@@ -507,8 +506,8 @@ abstract contract BridgeAbstract is
     }
 
     /** UUPS *********************************************************/
-    function _authorizeUpgrade(address) internal view override {
-        if (!hasRole(UPGRADER_ROLE, msg.sender)) revert only_upgrade_role();
+    function _authorizeUpgrade(address) internal override restricted() {
+        // if (!hasRole(UPGRADER_ROLE, msg.sender)) revert only_upgrade_role();
     }
 
     function getImplementation() external view returns (address) {

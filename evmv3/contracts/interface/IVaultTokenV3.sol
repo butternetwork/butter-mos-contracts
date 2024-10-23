@@ -19,4 +19,8 @@ interface IVaultTokenV3 {
     function getTokenAmount(uint256 _amount) external view returns (uint256);
 
     function getTokenAddress() external view returns (address);
+
+    function allChains() external view returns (uint256[] memory);
+
+    function getVaultByChainId(uint256 _chain) external view returns (int256);
 }
