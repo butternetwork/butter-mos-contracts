@@ -24,7 +24,7 @@
             "decimals": 18,
             "base": {"bridge": "0.1", "swap": "0.2"},
             "fee": { "rate": "0.001", "min": "0", "max": "1" },
-            "target": ["Sepolia", "BscTest", "ArbitrumSepolia", "DodoTest"]
+            "target": ["Sepolia", "BscTest", "ArbitrumSepolia", "DodoTest", "TonTest"]
         }
     },
     "Sepolia": {
@@ -130,6 +130,16 @@
             "gas": "10",
             "bridgeLimit": "500000",
             "swapLimit": "1000000"
+        }
+    },
+
+    "TonTest": {
+        "butter": {
+            "mintable": false,
+            "decimals": 6,
+            "base": {"bridge": "1", "swap": "2"},
+            "fee": { "rate": "0.001", "min": "0", "max": "2" },
+            "target": ["Makalu", "Sepolia", "BscTest", "ArbitrumSepolia"]
         }
     }
 }

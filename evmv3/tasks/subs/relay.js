@@ -1,5 +1,5 @@
 let { create, readFromFile, writeToFile } = require("../../utils/create.js");
-let { getChain, getToken, getChainList, getFeeList } = require("../../utils/helper");
+let { getChain, getToken, getChainList, getFeeList, stringToHex} = require("../../utils/helper");
 
 async function getRelay(network) {
   let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
@@ -99,7 +99,7 @@ task("relay:setServiceContract", "set contract")
   });
 
 task("relay:setDistributeRate", "set distribute rate")
-  .addParam("id", "distribute id, 0 - vault, 1 - relayer, 2 - protocol")
+  .addParam("type", "distribute id, 0 - vault, 1 - relayer, 2 - protocol")
   .addOptionalParam("receiver", "receiver address", "0x0000000000000000000000000000000000000DEF", types.string)
   .addParam("rate", "The percentage value of the fee charged, unit 0.000001")
   .setAction(async (taskArgs, hre) => {
@@ -109,12 +109,12 @@ task("relay:setDistributeRate", "set distribute rate")
 
     let relay = await getRelay(hre.network.name);
 
-    await (await relay.setDistributeRate(taskArgs.id, taskArgs.receiver, taskArgs.rate)).wait();
+    await (await relay.setDistributeRate(taskArgs.type, taskArgs.receiver, taskArgs.rate)).wait();
   });
 
 task("relay:registerChain", "register Chain")
   .addParam("chain", "chainId")
-  .addParam("address", "chainId => address")
+  .addOptionalParam("address", "chainId => address")
   .addOptionalParam("type", "chain type, default 1", 1, types.int)
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
@@ -123,10 +123,19 @@ task("relay:registerChain", "register Chain")
 
     let relay = await getRelay(hre.network.name);
 
-    await (await relay.registerChain([taskArgs.chain], [taskArgs.address], taskArgs.type)).wait();
+    let mos = taskArgs.address;
+      if (mos.substr(0, 2) !== "0x") {
+          mos = "0x" + stringToHex(taskArgs.address);
+
+          console.log(`mos address: ${taskArgs.address} (${mos})`);
+      }
+
+
+    await (await relay.registerChain([taskArgs.chain], [mos], taskArgs.type)).wait();
     console.log(`register chain ${taskArgs.chain} address ${taskArgs.address} success`);
   });
 
+/*
 task("relay:grantRole", "grant Role")
   .addParam("role", "role address")
   .addParam("account", "account address")
@@ -155,7 +164,7 @@ task("relay:grantRole", "grant Role")
       console.log(`revoke ${taskArgs.account} role ${role}`);
     }
   });
-
+*/
 task("relay:updateToken", "update token bridge and fee to target chain")
   .addParam("token", "relay chain token name")
   .setAction(async (taskArgs, hre) => {

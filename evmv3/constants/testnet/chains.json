@@ -57,5 +57,21 @@
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
         "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
         "lightNode": "THC5GuvTQtjCpqB8Lg1aPeenvYntDwv7gS"
+    },
+    {
+        "name": "TonTest",
+        "chainId": "1360104473493506",
+        "type": "ton",
+        "wToken": "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a",
+        "mos": "EQB3dkMJt8NL4xEcg6W89B8bXP7Wfwypm_STbHOHREYKg9-u",
+        "lightNode": "THC5GuvTQtjCpqB8Lg1aPeenvYntDwv7gS"
+    },
+    {
+        "name": "SolanaDev",
+        "chainId": "1360108768460802",
+        "type": "solana",
+        "wToken": "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a",
+        "mos": "0x800031F0f47e0D4Aaed6e0d2505596447395f848",
+        "lightNode": "THC5GuvTQtjCpqB8Lg1aPeenvYntDwv7gS"
     }
 ]

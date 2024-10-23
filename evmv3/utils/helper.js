@@ -1,7 +1,7 @@
 let fs = require("fs");
 let path = require("path");
 
-async function stringToHex(str) {
+function stringToHex(str) {
   return str
     .split("")
     .map(function (c) {
@@ -177,6 +177,10 @@ function isTestnet(chainId) {
     "Amoy",
     3448148188,
     "TronTest",
+    1360104473493506,
+    "TonTest",
+    1360108768460802,
+    "SolanaDev",
   ];
   return testnets.includes(chainId);
 }

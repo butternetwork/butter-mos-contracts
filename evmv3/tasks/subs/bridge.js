@@ -2,7 +2,7 @@
 let { create, readFromFile, writeToFile, getTronContract, fromHex, toHex } = require("../../utils/create.js");
 
 let { verify } = require("../utils/verify.js");
-let { getChain, getToken, getFeeList, getChainList } = require("../../utils/helper");
+let { getChain, getToken, getFeeList, getChainList, stringToHex } = require("../../utils/helper");
 
 let outputAddr = true;
 

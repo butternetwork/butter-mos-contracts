@@ -130,7 +130,7 @@ task("register:mapToken", "mapping token")
     if (taskArgs.chain === "728126428" || taskArgs.chain === "3448148188") {
       targetToken = await toHex(targetToken, "Tron");
     } else if (targetToken.substr(0, 2) !== "0x") {
-      let hex = await stringToHex(targetToken);
+      let hex = stringToHex(targetToken);
       targetToken = "0x" + hex;
     }
     targetToken = targetToken.toLowerCase();
@@ -689,7 +689,7 @@ task("register:getFee", "get token fees")
     if (fromChain.name === "Tron" || fromChain.name === "TronTest") {
       fromToken = await toHex(token, "Tron");
     } else if (token.substr(0, 2) !== "0x") {
-      let hex = await stringToHex(token);
+      let hex = stringToHex(token);
       fromToken = "0x" + hex;
     }
 
