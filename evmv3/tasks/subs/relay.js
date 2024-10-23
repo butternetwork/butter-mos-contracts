@@ -90,7 +90,7 @@ task("relay:setServiceContract", "set contract")
 
     console.log("deployer address is:", deployer.address);
 
-    let bridge = await getRelay(hre.network.name, true);
+    let bridge = await getRelay(hre.network.name);
 
     {
       await (await bridge.setServiceContract(taskArgs.type, taskArgs.contract)).wait();
@@ -251,7 +251,7 @@ task("relay:list", "List relay infos")
     console.log("\nRegister chains:");
     let chains = [selfChainId];
     for (let i = 0; i < chainList.length; i++) {
-      console.log(chainList[i].chainId)
+      //console.log(chainList[i].chainId)
       let contract = await relay.mosContracts(chainList[i].chainId);
       if (contract !== "0x") {
         let chaintype = await relay.chainTypes(chainList[i].chainId);
@@ -278,7 +278,7 @@ task("relay:tokenInfo", "List token infos")
     await hre.run("bridge:tokenInfo", { token: taskArgs.token });
 
     let token = await manager.tokenList(tokenAddr);
-    console.log(`token decimals:\t ${token.decimals}`);
+    //console.log(`token decimals:\t ${token.decimals}`);
     console.log(`vault address: ${token.vaultToken}`);
 
     let vault = await ethers.getContractAt("VaultTokenV3", token.vaultToken);
@@ -287,10 +287,10 @@ task("relay:tokenInfo", "List token infos")
     let totalSupply = await vault.totalSupply();
     console.log(`total vault supply: ${totalSupply}`);
 
-    let chainList = await getChainList();
+    let chainList = await getChainList(hre.network.name);
     let chains = [hre.network.config.chainId];
     for (let i = 0; i < chainList.length; i++) {
-      let contract = await relay.bridges(chainList[i].chainId);
+      let contract = await relay.mosContracts(chainList[i].chainId);
       if (contract !== "0x") {
         chains.push(chainList[i].chainId);
       }
@@ -300,7 +300,7 @@ task("relay:tokenInfo", "List token infos")
       let info = await manager.getTargetFeeInfo(tokenAddr, chains[i]);
       console.log(`${chains[i]}\t => ${info[0]} (${info[1]}), `);
 
-      let balance = await vault.vaultBalance(chains[i]);
+      let balance = await vault.getVaultByChainId(chains[i]);
       console.log(`\t vault(${balance}), fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]})`);
     }
   });

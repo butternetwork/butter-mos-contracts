@@ -250,7 +250,10 @@ contract BridgeAndRelay is BridgeAbstract {
         address from = msg.sender;
         address bridgeToken = _tokenTransferIn(_token, from, _amount, true, false);
 
-        BridgeParam memory msgData = abi.decode(_bridgeData, (BridgeParam));
+        BridgeParam memory msgData;
+        if (_bridgeData.length != 0) {
+            msgData = abi.decode(_bridgeData, (BridgeParam));
+        }
 
         bytes memory toToken = tokenRegister.getToChainToken(bridgeToken, _toChain);
         if (Helper._checkBytes(toToken, bytes(""))) revert out_token_not_registered();

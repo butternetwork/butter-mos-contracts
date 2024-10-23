@@ -114,7 +114,10 @@ contract Bridge is BridgeAbstract {
         address bridgeToken = _tokenTransferIn(_token, from, _amount, true, true);
 
         (, address mosRelay) = _getRelay();
-        BridgeParam memory msgData = abi.decode(_bridgeData, (BridgeParam));
+        BridgeParam memory msgData;
+        if (_bridgeData.length != 0) {
+            msgData = abi.decode(_bridgeData, (BridgeParam));
+        }
 
         orderId = _messageOut(
             msgData.relay,

@@ -553,26 +553,22 @@ task("bridge:tokenInfo", "list token info")
       console.log("token address:", tokenAddr);
       console.log(`token mintalbe:\t ${await bridge.isMintable(tokenAddr)}`);
 
-      let isOmni = await bridge.isOmniToken(tokenAddr);
-      console.log(`token morc20:\t ${isOmni}`);
-      if (isOmni) {
-        console.log(`token morc20 proxy:\t ${await bridge.getOmniProxy(tokenAddr)}`);
-      }
 
       let feature = await bridge.tokenFeatureList(tokenAddr);
       console.log(`token feature:\t ${feature.toHexString()}`);
 
-      let nativeFee = await bridge.nativeFees(tokenAddr, 0x00);
-      console.log(`default native fee:\t ${ethers.utils.formatUnits(nativeFee, "ether")}`);
+      // let nativeFee = await bridge.nativeFees(tokenAddr, 0x00);
+      // console.log(`default native fee:\t ${ethers.utils.formatUnits(nativeFee, "ether")}`);
 
       console.log("register chains:");
-      let chains = await getChainList();
+      let chains = await getChainList(hre.network.name);
       for (let i = 0; i < chains.length; i++) {
         let chainId = chains[i].chainId;
         let bridgeable = await bridge.tokenMappingList(chainId, tokenAddr);
-        if (bridgeable) {
-          let fee = await bridge.nativeFees(tokenAddr, chainId);
-          console.log(`${chains[i].chain} (${chainId}) \t native fee (${ethers.utils.formatUnits(fee, "ether")})`);
+        if (bridgeable.toString() === "1") {
+          // let fee = await bridge.nativeFees(tokenAddr, chainId);
+          // console.log(`${chains[i].chain} (${chainId}) \t native fee (${ethers.utils.formatUnits(fee, "ether")})`);
+            console.log(`${chains[i].name} (${chainId}))`);
 
           // console.log(`native fee to ${chains[i].chain} (${chainId}) with gas limt [${taskArgs.gas}] when inter transfer:\t`, await bridge.getNativeFee(tokenAddr, taskArgs.gas, chainId));
         }
