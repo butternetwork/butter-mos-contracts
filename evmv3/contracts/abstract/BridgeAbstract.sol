@@ -326,15 +326,15 @@ abstract contract BridgeAbstract is
             Helper._safeWithdraw(wToken, _amount);
             Helper._safeTransferNative(_receiver, _amount);
         } else {
-            //if (selfChainId == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
-            //    // Tron USDT
-            //    _token.call(abi.encodeWithSelector(0xa9059cbb, _receiver, _amount));
-            //} else {
+            if (selfChainId == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
+               // Tron USDT
+               _token.call(abi.encodeWithSelector(0xa9059cbb, _receiver, _amount));
+            } else {
                 if (_checkMint) {
                     _checkAndMint(_token, _amount);
                 }
                 Helper._safeTransfer(_token, _receiver, _amount);
-            //}
+            }
         }
     }
 
