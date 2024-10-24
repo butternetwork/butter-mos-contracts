@@ -136,7 +136,7 @@
     "TonTest": {
         "butter": {
             "mintable": false,
-            "decimals": 6,
+            "decimals": 9,
             "base": {"bridge": "1", "swap": "2"},
             "fee": { "rate": "0.001", "min": "0", "max": "2" },
             "target": ["Makalu", "Sepolia", "BscTest", "ArbitrumSepolia"]

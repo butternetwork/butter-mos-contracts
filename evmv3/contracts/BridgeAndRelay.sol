@@ -268,15 +268,16 @@ contract BridgeAndRelay is BridgeAbstract {
             ZERO_ADDRESS,
             _toChain,
             _to,
-            msgData.swapData
+            bytes("")
         );
 
+        uint256 fromChain = selfChainId;
         (uint256 relayOutAmount, uint256 outAmount) = _collectFee(
             Helper._toBytes(from),
             orderId,
             bridgeToken,
             _amount,
-            selfChainId,
+            fromChain,
             _toChain,
             msgData.swapData.length != 0
         );
@@ -286,7 +287,7 @@ contract BridgeAndRelay is BridgeAbstract {
         _emitMessageRelay(
             uint8(MessageType.BRIDGE),
             orderId,
-            selfChainId,
+            fromChain,
             _toChain,
             toToken,
             outAmount,

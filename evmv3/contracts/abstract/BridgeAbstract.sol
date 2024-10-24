@@ -326,15 +326,15 @@ abstract contract BridgeAbstract is
             Helper._safeWithdraw(wToken, _amount);
             Helper._safeTransferNative(_receiver, _amount);
         } else {
-            if (selfChainId == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
-                // Tron USDT
-                _token.call(abi.encodeWithSelector(0xa9059cbb, _receiver, _amount));
-            } else {
+            //if (selfChainId == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
+            //    // Tron USDT
+            //    _token.call(abi.encodeWithSelector(0xa9059cbb, _receiver, _amount));
+            //} else {
                 if (_checkMint) {
                     _checkAndMint(_token, _amount);
                 }
                 Helper._safeTransfer(_token, _receiver, _amount);
-            }
+            //}
         }
     }
 
@@ -354,13 +354,13 @@ abstract contract BridgeAbstract is
     ) internal returns (bytes32 orderId) {
         uint256 header = EvmDecoder.encodeMessageHeader(_relay, uint8(_type));
         if (_type == MessageType.BRIDGE) {
-            _checkLimit(_amount, _toChain, _token);
+            // todo: add transfer limit check
+            // _checkLimit(_amount, _toChain, _token);
             _checkBridgeable(_token, _toChain);
         }
         uint256 fromChain = selfChainId;
         if (_toChain == fromChain) revert bridge_same_chain();
 
-        // address from = (msg.sender == butterRouter) ? _from : msg.sender;
         address from = (trustList[msg.sender] == 0x01) ? _from : msg.sender;
 
         uint256 chainAndGasLimit = _getChainAndGasLimit(fromChain, _toChain, _gasLimit);
