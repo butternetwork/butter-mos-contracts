@@ -59,6 +59,7 @@ interface IMOSV3 {
         address _token,
         uint256 _amount,
         bytes calldata _fromAddress,
-        bytes calldata _swapData
+        bytes calldata _swapData,
+        bytes calldata _retryMessage
     ) external;
 }

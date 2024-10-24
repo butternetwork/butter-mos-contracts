@@ -8,7 +8,9 @@ interface IRelayExecutor {
         bytes32 _orderId,
         address _token,
         uint256 _amount,
+        address _caller,
         bytes calldata _fromAddress,
-        bytes calldata _message
+        bytes calldata _message,
+        bytes calldata _retryMessage
     ) external payable returns (address token, uint256 amount, bytes memory target, bytes memory newMessage);
 }

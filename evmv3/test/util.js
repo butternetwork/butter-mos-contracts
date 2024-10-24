@@ -15,14 +15,6 @@ async function deploy() {
     let MockToken = await ethers.getContractFactory("MockToken");
     let usdt = await MockToken.deploy("USDT","USDT");
     // console.log("usdt:", usdt.address)
-    // deploy FeeService
-    let FeeService = await ethers.getContractFactory("FeeService");
-    let feeService = await FeeService.deploy();
-    await feeService.initialize();
-    await feeService.setBaseGas(212, 300000);
-    await feeService.setChainGasPrice(212, usdt.address, 5000);
-    await feeService.setFeeReceiver(wallet.address);
-    // console.log("feeService:", feeService.address)
     // deploy TokenRegisterV3
     let TokenRegisterV3 = await ethers.getContractFactory("TokenRegisterV3");
     let tokenRegisterV3 = await TokenRegisterV3.deploy();
@@ -57,13 +49,24 @@ async function deploy() {
     await register.setBaseFee(usdt.address, 212, ethers.utils.parseEther("0.5"), ethers.utils.parseEther("0.1"));
     await register.setBaseFee(usdt.address, 97, ethers.utils.parseEther("0.5"), ethers.utils.parseEther("0.1"));
 
+    //deploy AuthorityManager
+    let AuthorityManager = await ethers.getContractFactory("AuthorityManager");
+    let authority = await AuthorityManager.deploy(wallet.address);
+
     // deploy bridge
     let Bridge = await ethers.getContractFactory("Bridge");
     let bridge = await Bridge.deploy();
-    let bridgeData = await Bridge.interface.encodeFunctionData("initialize", [wtoken.address ,wallet.address]);
+    let bridgeData = await Bridge.interface.encodeFunctionData("initialize", [wtoken.address ,authority.address]);
     let b_proxy = await BridgeProxy.deploy(bridge.address, bridgeData);
     // console.log("bridge:", b_proxy.address)
     let b = Bridge.attach(b_proxy.address);
+    let funSigs = []; 
+    funSigs.push(Bridge.interface.getSighash("registerTokenChains"));
+    funSigs.push(Bridge.interface.getSighash("updateTokens"));
+    funSigs.push(Bridge.interface.getSighash("setRelay"));
+    funSigs.push(Bridge.interface.getSighash("setServiceContract"));
+    funSigs.push(Bridge.interface.getSighash("upgradeToAndCall"));
+    await authority.setTargetFunctionRole(b_proxy.address, funSigs, 0);
     await b.registerTokenChains(wtoken.address, [212, 97], true);
     await b.registerTokenChains(usdt.address, [212, 97], true);
     await b.updateTokens([wtoken.address], 0);
@@ -75,8 +78,7 @@ async function deploy() {
     // console.log("lightnode:", lightnode.address)
     await b.setServiceContract(0, wtoken.address);
     await b.setServiceContract(1, lightnode.address);
-    await b.setServiceContract(2, feeService.address);
-    
+
     // deploy lightManager
     let MockLightnodeManager = await ethers.getContractFactory("MockLightnodeManager");
     let lightnodeManager = await MockLightnodeManager.deploy();
@@ -85,10 +87,18 @@ async function deploy() {
     // deploy relay 
     let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
     let bridgeAndRelay = await BridgeAndRelay.deploy();
-    let relayData = await BridgeAndRelay.interface.encodeFunctionData("initialize", [wtoken.address ,wallet.address]);
+    let relayData = await BridgeAndRelay.interface.encodeFunctionData("initialize", [wtoken.address, authority.address]);
     let relay_proxy = await BridgeProxy.deploy(bridgeAndRelay.address, relayData);
     // console.log("relay:", relay_proxy.address)
     let relay = BridgeAndRelay.attach(relay_proxy.address);
+    let relayFunSigs = []; 
+    relayFunSigs.push(BridgeAndRelay.interface.getSighash("registerTokenChains"));
+    relayFunSigs.push(BridgeAndRelay.interface.getSighash("updateTokens"));
+    relayFunSigs.push(BridgeAndRelay.interface.getSighash("registerChain"));
+    relayFunSigs.push(BridgeAndRelay.interface.getSighash("setDistributeRate"));
+    relayFunSigs.push(BridgeAndRelay.interface.getSighash("setServiceContract"));
+    relayFunSigs.push(BridgeAndRelay.interface.getSighash("upgradeToAndCall"));
+    await authority.setTargetFunctionRole(relay_proxy.address, relayFunSigs, 0);
     await relay.registerTokenChains(wtoken.address, [212, 97], true);
     await relay.registerTokenChains(usdt.address, [212, 97], true);
     await relay.updateTokens([wtoken.address], 0);
@@ -101,7 +111,6 @@ async function deploy() {
 
     await relay.setServiceContract(0, wtoken.address);
     await relay.setServiceContract(1, lightnodeManager.address);
-    await relay.setServiceContract(2, feeService.address);
     await relay.setServiceContract(4, register.address);
     await b.setRelay(212, relay.address);
     await vaultWToken.grantRole(await vaultWToken.MANAGER_ROLE(), relay.address);
