@@ -200,7 +200,8 @@ contract Bridge is BridgeAbstract {
         address _token,
         uint256 _amount,
         bytes calldata _fromAddress,
-        bytes calldata _payload
+        bytes calldata _payload,
+        bytes calldata 
     ) external override nonReentrant whenNotPaused {
         MessageInEvent memory outEvent = _getStoredMessage(
             _fromChain,

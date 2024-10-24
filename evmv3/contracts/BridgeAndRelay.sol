@@ -340,7 +340,8 @@ contract BridgeAndRelay is BridgeAbstract {
         address _token,
         uint256 _amount,
         bytes calldata _fromAddress,
-        bytes calldata _payload
+        bytes calldata _payload, 
+        bytes calldata _retryMessage
     ) external override nonReentrant whenNotPaused {
         MessageInEvent memory outEvent = _getStoredMessage(
             _fromChain,
@@ -354,17 +355,20 @@ contract BridgeAndRelay is BridgeAbstract {
         if (outEvent.toChain == selfChainId) {
             _messageIn(outEvent, true);
         } else {
-            _messageRelay(true, outEvent);
+            _messageRelay(true, outEvent, _retryMessage);
         }
     }
 
     function relayExecute(
         address _token,
         uint256 _amount,
-        MessageInEvent calldata _outEvent
+        address _caller,
+        MessageInEvent calldata _outEvent,
+        bytes calldata _retryMessage
     ) external returns (address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage) {
         require(msg.sender == address(this));
-        (address to, bytes memory relayData) = abi.decode(_outEvent.swapData, (address, bytes));
+        // (address to, bytes memory relayData) = abi.decode(_outEvent.swapData, (address, bytes));
+        address to = Helper._fromBytes(_outEvent.to);
         _tokenTransferOut(_token, to, _amount, false, false);
         (tokenOut, amountOut, target, newMessage) = IRelayExecutor(to).relayExecute(
             _outEvent.fromChain,
@@ -372,8 +376,10 @@ contract BridgeAndRelay is BridgeAbstract {
             _outEvent.orderId,
             _token,
             _amount,
+            _caller,
             _outEvent.from,
-            relayData
+            _outEvent.swapData,
+            _retryMessage
         );
         _tokenTransferIn(tokenOut, to, amountOut, false, false);
     }
@@ -430,16 +436,16 @@ contract BridgeAndRelay is BridgeAbstract {
                 _swapIn(_inEvent);
             }
         } else {
-            _messageRelay(_outEvent.relay, _inEvent);
+            _messageRelay(_outEvent.relay, _inEvent, bytes(""));
         }
     }
 
-    function _messageRelay(bool _relay, MessageInEvent memory _inEvent) internal {
+    function _messageRelay(bool _relay, MessageInEvent memory _inEvent, bytes memory _retryMessage) internal {
         address token = _inEvent.token;
         uint256 relayOutAmount = _inEvent.amount;
         if (_relay) {
             // todo: relay execute
-            try this.relayExecute(_inEvent.token, _inEvent.amount, _inEvent) returns (
+            try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, _retryMessage) returns (
                 address tokenOut,
                 uint256 amountOut,
                 bytes memory target,

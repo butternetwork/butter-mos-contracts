@@ -195,7 +195,8 @@ abstract contract BridgeAbstract is
         address _token,
         uint256 _amount,
         bytes calldata _fromAddress,
-        bytes calldata _swapData
+        bytes calldata _swapData,
+        bytes calldata _retryMessage
     ) external virtual {}
 
     // --------------------------------------------- internal ---------------------------------------------
