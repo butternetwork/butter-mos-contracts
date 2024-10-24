@@ -272,7 +272,7 @@ contract BridgeAndRelay is BridgeAbstract {
         );
 
         uint256 fromChain = selfChainId;
-        (uint256 relayOutAmount, uint256 outAmount) = _collectFee(
+        uint256 amountAfterFee = _collectFee(
             Helper._toBytes(from),
             orderId,
             bridgeToken,
@@ -281,16 +281,14 @@ contract BridgeAndRelay is BridgeAbstract {
             _toChain,
             msgData.swapData.length != 0
         );
-
-        _checkAndBurn(bridgeToken, relayOutAmount);
-
+        uint256 tochainAmount = _getToChainAmount(bridgeToken, amountAfterFee, _toChain);
         _emitMessageRelay(
             uint8(MessageType.BRIDGE),
             orderId,
             fromChain,
             _toChain,
             toToken,
-            outAmount,
+            tochainAmount,
             _to,
             Helper._toBytes(from),
             msgData.swapData
@@ -392,15 +390,15 @@ contract BridgeAndRelay is BridgeAbstract {
         if (_chainId != _outEvent.fromChain) revert invalid_chain_id();
 
         address token;
-        uint256 outAmount;
+        uint256 relayAmount;
         if (_outEvent.messageType != uint8(MessageType.MESSAGE)) {
-            (token, outAmount) = _swapInToken(_outEvent);
+            (token, relayAmount) = _swapInToken(_outEvent);
             if (_outEvent.messageType != uint8(MessageType.DEPOSIT)) {
-                (, outAmount) = _collectFee(
+                relayAmount = _collectFee(
                     _outEvent.from,
                     _outEvent.orderId,
                     token,
-                    outAmount,
+                    relayAmount,
                     _outEvent.fromChain,
                     _outEvent.toChain,
                     _outEvent.swapData.length != 0
@@ -417,7 +415,7 @@ contract BridgeAndRelay is BridgeAbstract {
             token: token,
             from: _outEvent.from,
             to: _outEvent.to,
-            amount: outAmount,
+            amount: relayAmount,
             gasLimit: _outEvent.gasLimit,
             swapData: _outEvent.swapData
         });
@@ -463,23 +461,22 @@ contract BridgeAndRelay is BridgeAbstract {
         }
         _notifyLightClient(_inEvent.toChain);
         bytes memory toChainToken;
-        uint256 outAmount;
+        uint256 tochainAmount;
         if (_inEvent.messageType == uint8(MessageType.MESSAGE)) {
             toChainToken = Helper._toBytes(ZERO_ADDRESS);
         } else {
             toChainToken = tokenRegister.getToChainToken(token, _inEvent.toChain);
             if (Helper._checkBytes(toChainToken, bytes(""))) revert token_not_registered();
+            tochainAmount = _getToChainAmount(token, relayOutAmount, _inEvent.toChain);
         }
 
-        _checkAndBurn(token, relayOutAmount);
-        outAmount = tokenRegister.getToChainAmount(token, relayOutAmount, _inEvent.toChain);
         _emitMessageRelay(
             _inEvent.messageType,
             _inEvent.orderId,
             _inEvent.fromChain,
             _inEvent.toChain,
             toChainToken,
-            outAmount,
+            tochainAmount,
             _inEvent.to,
             _inEvent.from,
             _inEvent.swapData
@@ -523,6 +520,11 @@ contract BridgeAndRelay is BridgeAbstract {
             messageData = _pack(token, mosContracts[toChain], from, to, message, amount);
         }
         emit MessageRelay(orderId, chainAndGasLimit, messageData);
+    }
+
+    function _getToChainAmount(address _token, uint256 _relayAmount, uint256 _tochain) private returns(uint256 tochainAmount) {
+        _checkAndBurn(_token, _relayAmount);
+        tochainAmount = tokenRegister.getToChainAmount(_token, _relayAmount, _tochain);
     }
 
     function _pack(
@@ -593,7 +595,7 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _fromChain,
         uint256 _toChain,
         bool _withSwap
-    ) internal returns (uint256 relayOutAmount, uint256 outAmount) {
+    ) internal returns (uint256 relayOutAmount) {
         address vaultToken = tokenRegister.getVaultToken(_token);
         if (vaultToken == ZERO_ADDRESS) revert vault_token_not_registered();
 
@@ -612,7 +614,7 @@ contract BridgeAndRelay is BridgeAbstract {
         );
         if (_relayAmount >= totalFee) {
             relayOutAmount = _relayAmount - totalFee;
-            outAmount = tokenRegister.getToChainAmount(_token, relayOutAmount, _toChain);
+            // outAmount = tokenRegister.getToChainAmount(_token, relayOutAmount, _toChain);
         } else if (_relayAmount >= baseFee) {
             proportionFee = _relayAmount - baseFee;
         } else {
@@ -639,7 +641,7 @@ contract BridgeAndRelay is BridgeAbstract {
             selfChainId,
             excludeVaultFee
         );
-        return (relayOutAmount, outAmount);
+        // return (relayOutAmount, outAmount);
     }
 
     function _collectBridgeFee(
