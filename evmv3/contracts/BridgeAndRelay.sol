@@ -282,7 +282,7 @@ contract BridgeAndRelay is BridgeAbstract {
             _toChain,
             msgData.swapData.length != 0
         );
-        uint256 tochainAmount = _getToChainAmount(bridgeToken, amountAfterFee, _toChain);
+        uint256 toChainAmount = _getToChainAmount(bridgeToken, amountAfterFee, _toChain);
         _emitMessageRelay(
             uint8(MessageType.BRIDGE),
             orderId,
@@ -290,7 +290,7 @@ contract BridgeAndRelay is BridgeAbstract {
             _toChain,
             msgData.gasLimit,
             toToken,
-            tochainAmount,
+            toChainAmount,
             _to,
             Helper._toBytes(from),
             msgData.swapData
