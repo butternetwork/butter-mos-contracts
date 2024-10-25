@@ -72,27 +72,23 @@ contract Bridge is BridgeAbstract {
     // --------------------------------------------- external ----------------------------------------------
     function transferOut(
         uint256 _toChain,
-        bytes memory _messageData,
+        bytes calldata _messageData,
         address _feeToken
     ) external payable override whenNotPaused returns (bytes32 orderId) {
-        uint256 fromChain = selfChainId;
+        address sender = msg.sender;
+        MessageInEvent memory inEvent;
 
-        (, address mosRelay) = _getRelay();
+        inEvent.messageType = uint8(MessageType.MESSAGE);
+        inEvent.fromChain = selfChainId;
+        inEvent.toChain = _toChain;
+        (, inEvent.mos) = _getRelay();
 
-        MessageData memory msgData = _transferOut(fromChain, _toChain, _messageData, _feeToken);
+        MessageData memory msgData = _transferOut(inEvent.fromChain, inEvent.toChain, _messageData, _feeToken);
+        inEvent.to = msgData.target;
+        inEvent.gasLimit = msgData.gasLimit;
+        inEvent.swapData = msgData.payload;
 
-        orderId = _messageOut(
-            msgData.relay,
-            MessageType.MESSAGE,
-            msgData.gasLimit,
-            msg.sender,
-            ZERO_ADDRESS,
-            0,
-            mosRelay,
-            _toChain,
-            msgData.target,
-            msgData.payload
-        );
+        orderId = _messageOut(msgData.relay, sender, sender, inEvent);
 
         // todo: emit extra info
         //emit MessageTransfer(msg.sender, ZERO_ADDRESS, msg.sender, orderId, bytes32(0), _feeToken, 0);
@@ -110,27 +106,25 @@ contract Bridge is BridgeAbstract {
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         if (_amount == 0) revert zero_amount();
 
-        address from = msg.sender;
-        address bridgeToken = _tokenTransferIn(_token, from, _amount, true, true);
+        address sender = msg.sender;
+        MessageInEvent memory inEvent;
 
-        (, address mosRelay) = _getRelay();
+        inEvent.messageType = uint8(MessageType.BRIDGE);
+        inEvent.fromChain = selfChainId;
+        inEvent.toChain = _toChain;
+        inEvent.to = _to;
+        (, inEvent.mos) = _getRelay();
+        inEvent.amount = _amount;
+        inEvent.token = _tokenTransferIn(_token, sender, inEvent.amount, true, true);
+
         BridgeParam memory msgData;
         if (_bridgeData.length != 0) {
             msgData = abi.decode(_bridgeData, (BridgeParam));
         }
+        inEvent.gasLimit = msgData.gasLimit;
+        inEvent.swapData = msgData.swapData;
 
-        orderId = _messageOut(
-            msgData.relay,
-            MessageType.BRIDGE,
-            msgData.gasLimit,
-            _initiator,
-            bridgeToken,
-            _amount,
-            mosRelay,
-            _toChain,
-            _to,
-            msgData.swapData
-        );
+        orderId = _messageOut(msgData.relay, _initiator, sender,inEvent);
     }
 
     function depositToken(
@@ -140,23 +134,19 @@ contract Bridge is BridgeAbstract {
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         if (_amount == 0) revert zero_amount();
 
-        (uint256 relayChainId, address mosRelay) = _getRelay();
+        address sender = msg.sender;
+        MessageInEvent memory inEvent;
 
-        address from = msg.sender;
-        address bridgeToken = _tokenTransferIn(_token, from, _amount, true, true);
+        inEvent.messageType = uint8(MessageType.DEPOSIT);
+        inEvent.fromChain = selfChainId;
+        (inEvent.toChain, inEvent.mos) = _getRelay();
+        inEvent.to = Helper._toBytes(_to);
+        inEvent.amount = _amount;
+        inEvent.token = _tokenTransferIn(_token, sender, inEvent.amount, true, true);
 
-        orderId = _messageOut(
-            false,
-            MessageType.DEPOSIT,
-            DEPOSIT_GAS,
-            from,
-            bridgeToken,
-            _amount,
-            mosRelay,
-            relayChainId,
-            Helper._toBytes(_to),
-            bytes("")
-        );
+        inEvent.gasLimit = DEPOSIT_GAS;
+
+        orderId = _messageOut(false, sender, sender,inEvent);
     }
 
     function messageIn(
@@ -201,7 +191,7 @@ contract Bridge is BridgeAbstract {
         uint256 _amount,
         bytes calldata _fromAddress,
         bytes calldata _payload,
-        bytes calldata 
+        bytes calldata
     ) external override nonReentrant whenNotPaused {
         MessageInEvent memory outEvent = _getStoredMessage(
             _fromChain,

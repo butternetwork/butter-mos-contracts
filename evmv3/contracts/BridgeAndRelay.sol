@@ -194,30 +194,28 @@ contract BridgeAndRelay is BridgeAbstract {
 
     function transferOut(
         uint256 _toChain,
-        bytes memory _messageData,
+        bytes calldata _messageData,
         address _feeToken
     ) external payable override returns (bytes32 orderId) {
-        uint256 fromChain = selfChainId;
-        MessageData memory msgData = _transferOut(fromChain, _toChain, _messageData, _feeToken);
+        address sender = msg.sender;
+        MessageInEvent memory inEvent;
 
-        orderId = _messageOut(
-            msgData.relay,
-            MessageType.MESSAGE,
-            msgData.gasLimit,
-            msg.sender,
-            ZERO_ADDRESS,
-            0,
-            ZERO_ADDRESS,
-            _toChain,
-            msgData.target,
-            msgData.payload
-        );
+        inEvent.messageType = uint8(MessageType.MESSAGE);
+        inEvent.fromChain = selfChainId;
+        inEvent.toChain = _toChain;
+
+        MessageData memory msgData = _transferOut(inEvent.fromChain, inEvent.toChain, _messageData, _feeToken);
+        inEvent.to = msgData.target;
+        inEvent.gasLimit = msgData.gasLimit;
+        inEvent.swapData = msgData.payload;
+
+        orderId = _messageOut(msgData.relay, sender, sender, inEvent);
 
         _emitMessageRelay(
             uint8(MessageType.MESSAGE),
             orderId,
-            fromChain,
-            _toChain,
+            inEvent.fromChain,
+            inEvent.toChain,
             msgData.gasLimit,
             Helper._toBytes(ZERO_ADDRESS),
             0,
@@ -248,51 +246,49 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes calldata _bridgeData
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         if (_amount == 0) revert zero_amount();
-        address from = msg.sender;
-        address bridgeToken = _tokenTransferIn(_token, from, _amount, true, false);
+
+        address sender = msg.sender;
+        MessageInEvent memory inEvent;
+
+        inEvent.messageType = uint8(MessageType.BRIDGE);
+        inEvent.fromChain = selfChainId;
+        inEvent.toChain = _toChain;
+
+        inEvent.to = _to;
+        inEvent.amount = _amount;
+        inEvent.token = _tokenTransferIn(_token, sender, inEvent.amount, true, false);
 
         BridgeParam memory msgData;
         if (_bridgeData.length != 0) {
             msgData = abi.decode(_bridgeData, (BridgeParam));
         }
+        inEvent.gasLimit = msgData.gasLimit;
 
-        bytes memory toToken = tokenRegister.getToChainToken(bridgeToken, _toChain);
+        orderId = _messageOut(false, _initiator, sender, inEvent);
+
+        bytes memory toToken = tokenRegister.getToChainToken(inEvent.token, _toChain);
         if (Helper._checkBytes(toToken, bytes(""))) revert out_token_not_registered();
 
-        orderId = _messageOut(
-            false,
-            MessageType.BRIDGE,
-            msgData.gasLimit,
-            _initiator,
-            bridgeToken,
-            _amount,
-            ZERO_ADDRESS,
-            _toChain,
-            _to,
-            bytes("")
-        );
-
-        uint256 fromChain = selfChainId;
         uint256 amountAfterFee = _collectFee(
-            Helper._toBytes(from),
+            Helper._toBytes(sender),
             orderId,
-            bridgeToken,
-            _amount,
-            fromChain,
-            _toChain,
+            inEvent.token,
+            inEvent.amount,
+            inEvent.fromChain,
+            inEvent.toChain,
             msgData.swapData.length != 0
         );
-        uint256 toChainAmount = _getToChainAmount(bridgeToken, amountAfterFee, _toChain);
+        uint256 toChainAmount = _getToChainAmount(inEvent.token, amountAfterFee, _toChain);
         _emitMessageRelay(
             uint8(MessageType.BRIDGE),
             orderId,
-            fromChain,
-            _toChain,
+            inEvent.fromChain,
+            inEvent.toChain,
             msgData.gasLimit,
             toToken,
             toChainAmount,
             _to,
-            Helper._toBytes(from),
+            Helper._toBytes(sender),
             msgData.swapData
         );
     }
@@ -368,7 +364,6 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes calldata _retryMessage
     ) external returns (address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage) {
         require(msg.sender == address(this));
-        // (address to, bytes memory relayData) = abi.decode(_outEvent.swapData, (address, bytes));
         address to = Helper._fromBytes(_outEvent.to);
         _tokenTransferOut(_token, to, _amount, false, false);
         (tokenOut, amountOut, target, newMessage) = IRelayExecutor(to).relayExecute(

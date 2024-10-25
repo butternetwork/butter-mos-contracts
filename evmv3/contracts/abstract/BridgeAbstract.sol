@@ -204,7 +204,7 @@ abstract contract BridgeAbstract is
     function _transferOut(
         uint256 _fromChain,
         uint256 _toChain,
-        bytes memory _messageData,
+        bytes calldata _messageData,
         address _feeToken
     ) internal virtual returns (MessageData memory msgData) {
         if (_toChain == _fromChain) revert bridge_same_chain();
@@ -340,38 +340,26 @@ abstract contract BridgeAbstract is
 
     function _notifyLightClient(uint256 _chainId) internal virtual {}
 
-    function _messageOut(
-        bool _relay,
-        MessageType _type,
-        uint256 _gasLimit,
-        address _from,
-        address _token, // src token
-        uint256 _amount,
-        address _mos,
-        uint256 _toChain, // target chain id
-        bytes memory _to,
-        bytes memory _message
-    ) internal returns (bytes32 orderId) {
-        uint256 header = EvmDecoder.encodeMessageHeader(_relay, uint8(_type));
-        if (_type == MessageType.BRIDGE) {
+    function _messageOut(bool _relay, address _from, address _sender, MessageInEvent memory _inEvent) internal returns (bytes32 orderId) {
+        uint256 header = EvmDecoder.encodeMessageHeader(_relay, _inEvent.messageType);
+        if (_inEvent.messageType == uint8(MessageType.BRIDGE)) {
             // todo: add transfer limit check
             // _checkLimit(_amount, _toChain, _token);
-            _checkBridgeable(_token, _toChain);
+            _checkBridgeable(_inEvent.token, _inEvent.toChain);
         }
-        uint256 fromChain = selfChainId;
-        if (_toChain == fromChain) revert bridge_same_chain();
+        if (_inEvent.toChain == _inEvent.fromChain) revert bridge_same_chain();
 
-        address from = (trustList[msg.sender] == 0x01) ? _from : msg.sender;
+        address from = (trustList[_sender] == 0x01) ? _from : _sender;
 
-        uint256 chainAndGasLimit = _getChainAndGasLimit(fromChain, _toChain, _gasLimit);
+        uint256 chainAndGasLimit = _getChainAndGasLimit(_inEvent.fromChain, _inEvent.toChain, _inEvent.gasLimit);
 
-        orderId = _getOrderId(fromChain, _toChain, from, _to);
+        orderId = _getOrderId(_inEvent.fromChain, _inEvent.toChain, _sender, _inEvent.to);
 
-        bytes memory payload = abi.encode(header, _mos, _token, _amount, from, _to, _message);
+        bytes memory payload = abi.encode(header, _inEvent.mos, _inEvent.token, _inEvent.amount, from, _inEvent.to, _inEvent.swapData);
 
         emit MessageOut(orderId, chainAndGasLimit, payload);
 
-        _notifyLightClient(_toChain);
+        _notifyLightClient(_inEvent.toChain);
     }
 
     function _storeMessageData(MessageInEvent memory _inEvent, bytes memory _reason) internal {
