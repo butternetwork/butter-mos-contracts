@@ -218,6 +218,7 @@ contract BridgeAndRelay is BridgeAbstract {
             orderId,
             fromChain,
             _toChain,
+            msgData.gasLimit,
             Helper._toBytes(ZERO_ADDRESS),
             0,
             msgData.target,
@@ -287,6 +288,7 @@ contract BridgeAndRelay is BridgeAbstract {
             orderId,
             fromChain,
             _toChain,
+            msgData.gasLimit,
             toToken,
             tochainAmount,
             _to,
@@ -461,13 +463,13 @@ contract BridgeAndRelay is BridgeAbstract {
         }
         _notifyLightClient(_inEvent.toChain);
         bytes memory toChainToken;
-        uint256 tochainAmount;
+        uint256 toChainAmount;
         if (_inEvent.messageType == uint8(MessageType.MESSAGE)) {
             toChainToken = Helper._toBytes(ZERO_ADDRESS);
         } else {
             toChainToken = tokenRegister.getToChainToken(token, _inEvent.toChain);
             if (Helper._checkBytes(toChainToken, bytes(""))) revert token_not_registered();
-            tochainAmount = _getToChainAmount(token, relayOutAmount, _inEvent.toChain);
+            toChainAmount = _getToChainAmount(token, relayOutAmount, _inEvent.toChain);
         }
 
         _emitMessageRelay(
@@ -475,8 +477,9 @@ contract BridgeAndRelay is BridgeAbstract {
             _inEvent.orderId,
             _inEvent.fromChain,
             _inEvent.toChain,
+            _inEvent.gasLimit,
             toChainToken,
-            tochainAmount,
+            toChainAmount,
             _inEvent.to,
             _inEvent.from,
             _inEvent.swapData
@@ -496,15 +499,16 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes32 orderId,
         uint256 fromChain,
         uint256 toChain,
+        uint256 gasLimit,
         bytes memory token,
         uint256 amount,
         bytes memory to,
         bytes memory from,
         bytes memory message
     ) internal {
-        uint256 chainAndGasLimit = _getChainAndGasLimit(uint64(fromChain), uint64(toChain), uint64(0));
-        bytes memory messageData;
+        uint256 chainAndGasLimit = _getChainAndGasLimit(uint64(fromChain), uint64(toChain), uint64(gasLimit));
 
+        bytes memory messageData;
         if (chainTypes[toChain] == ChainType.EVM) {
             uint256 header = EvmDecoder.encodeMessageHeader(false, _type);
             messageData = abi.encode(

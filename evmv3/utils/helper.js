@@ -147,6 +147,32 @@ async function getFeeConfig(subject) {
   return configs;
 }
 
+
+async function getMessageConfig(network) {
+  let p;
+  if (isTestnet(network)) {
+    p = path.join(__dirname, "../constants/testnet/messageConfig.json");
+  } else {
+    p = path.join(__dirname, "../constants/messageConfig.json");
+  }
+
+  let configList;
+  if (!fs.existsSync(p)) {
+    throw `no fee config ..`;
+  } else {
+    let rawdata = fs.readFileSync(p);
+    configList = JSON.parse(rawdata);
+    if (!configList) {
+      throw "not fee ..";
+    }
+  }
+  if (!configList[network]) {
+    throw `no chain ${network} fee config...`;
+  }
+
+  return configList[network];
+}
+
 function isRelayChain(network) {
   let networks = [22776, "Mapo", "Map", 212, "Makalu"];
   return networks.includes(network);
@@ -195,6 +221,7 @@ module.exports = {
   stringToHex,
   getFeeList,
   getFeeConfig,
+  getMessageConfig,
   isRelayChain,
   isTron
 };
