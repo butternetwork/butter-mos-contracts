@@ -45,8 +45,6 @@ contract BridgeAndRelay is BridgeAbstract {
     error invalid_rate_value();
     error out_token_not_registered();
 
-    event SetLightClientManager(address lightClient);
-    // event SetTokenRegister(address tokenRegister);
     event RegisterChain(uint256 chainId, bytes bridge, ChainType chainType);
     event SetDistributeRate(uint256 id, address to, uint256 rate);
     event CollectFee(
@@ -207,24 +205,16 @@ contract BridgeAndRelay is BridgeAbstract {
         MessageData memory msgData = _transferOut(inEvent.fromChain, inEvent.toChain, _messageData, _feeToken);
         inEvent.to = msgData.target;
         inEvent.gasLimit = msgData.gasLimit;
+
+        // messageType,fromChain,toChain,gasLimit,to
+        inEvent.orderId = _messageOut(msgData.relay, sender, sender, inEvent);
+
+        inEvent.from = Helper._toBytes(sender);
         inEvent.swapData = msgData.payload;
+        // messageType,orderId,fromChain,toChain,gasLimit,to,from,swapData
+        _emitMessageRelay(inEvent, Helper._toBytes(ZERO_ADDRESS), 0);
 
-        orderId = _messageOut(msgData.relay, sender, sender, inEvent);
-
-        _emitMessageRelay(
-            uint8(MessageType.MESSAGE),
-            orderId,
-            inEvent.fromChain,
-            inEvent.toChain,
-            msgData.gasLimit,
-            Helper._toBytes(ZERO_ADDRESS),
-            0,
-            msgData.target,
-            Helper._toBytes(msg.sender),
-            msgData.payload
-        );
-
-        return orderId;
+        return inEvent.orderId;
     }
 
     function depositToken(
@@ -264,10 +254,8 @@ contract BridgeAndRelay is BridgeAbstract {
         }
         inEvent.gasLimit = msgData.gasLimit;
 
-        orderId = _messageOut(false, _initiator, sender, inEvent);
-
-        bytes memory toToken = tokenRegister.getToChainToken(inEvent.token, _toChain);
-        if (Helper._checkBytes(toToken, bytes(""))) revert out_token_not_registered();
+        // messageType,fromChain,toChain,gasLimit,token,amount,to
+        inEvent.orderId = _messageOut(false, _initiator, sender, inEvent);
 
         uint256 amountAfterFee = _collectFee(
             Helper._toBytes(sender),
@@ -278,19 +266,17 @@ contract BridgeAndRelay is BridgeAbstract {
             inEvent.toChain,
             msgData.swapData.length != 0
         );
-        uint256 toChainAmount = _getToChainAmount(inEvent.token, amountAfterFee, _toChain);
-        _emitMessageRelay(
-            uint8(MessageType.BRIDGE),
-            orderId,
-            inEvent.fromChain,
-            inEvent.toChain,
-            msgData.gasLimit,
-            toToken,
-            toChainAmount,
-            _to,
-            Helper._toBytes(sender),
-            msgData.swapData
-        );
+
+        bytes memory toToken = tokenRegister.getToChainToken(inEvent.token, _toChain);
+        if (Helper._checkBytes(toToken, bytes(""))) revert out_token_not_registered();
+        uint256 toAmount = _getToChainAmount(inEvent.token, amountAfterFee, _toChain);
+
+        inEvent.swapData = msgData.swapData;
+        inEvent.from = Helper._toBytes(sender);
+        // messageType,orderId,fromChain,toChain,gasLimit,to,from,swapData
+        _emitMessageRelay(inEvent, toToken, toAmount);
+
+        return inEvent.orderId;
     }
 
     function messageIn(
@@ -467,18 +453,8 @@ contract BridgeAndRelay is BridgeAbstract {
             toChainAmount = _getToChainAmount(token, relayOutAmount, _inEvent.toChain);
         }
 
-        _emitMessageRelay(
-            _inEvent.messageType,
-            _inEvent.orderId,
-            _inEvent.fromChain,
-            _inEvent.toChain,
-            _inEvent.gasLimit,
-            toChainToken,
-            toChainAmount,
-            _inEvent.to,
-            _inEvent.from,
-            _inEvent.swapData
-        );
+        // messageType,orderId,fromChain,toChain,gasLimit,to,from,swapData
+        _emitMessageRelay(_inEvent, toChainToken, toChainAmount);
     }
 
     function _swapInToken(MessageOutEvent memory _outEvent) internal returns (address token, uint256 relayAmount) {
@@ -489,41 +465,32 @@ contract BridgeAndRelay is BridgeAbstract {
         _checkAndMint(token, relayAmount);
     }
 
-    function _emitMessageRelay(
-        uint8 _type,
-        bytes32 orderId,
-        uint256 fromChain,
-        uint256 toChain,
-        uint256 gasLimit,
-        bytes memory token,
-        uint256 amount,
-        bytes memory to,
-        bytes memory from,
-        bytes memory message
-    ) internal {
-        uint256 chainAndGasLimit = _getChainAndGasLimit(uint64(fromChain), uint64(toChain), uint64(gasLimit));
+    // messageType,orderId,fromChain,toChain,gasLimit,to,from,swapData
+    function _emitMessageRelay(MessageInEvent memory _inEvent, bytes memory token, uint256 amount) internal {
+        uint256 chainAndGasLimit = _getChainAndGasLimit(uint64(_inEvent.fromChain), uint64(_inEvent.toChain), uint64(_inEvent.gasLimit));
 
         bytes memory messageData;
-        if (chainTypes[toChain] == ChainType.EVM) {
-            uint256 header = EvmDecoder.encodeMessageHeader(false, _type);
+        if (chainTypes[_inEvent.toChain] == ChainType.EVM) {
+            uint256 header = EvmDecoder.encodeMessageHeader(false, _inEvent.messageType);
+            // abi.encode((version | messageType), mos, token, amount, to, bytes(from), bytes(message))
             messageData = abi.encode(
                 header,
-                Helper._fromBytes(mosContracts[toChain]),
+                Helper._fromBytes(mosContracts[_inEvent.toChain]),
                 Helper._fromBytes(token),
                 amount,
-                Helper._fromBytes(to),
-                from,
-                message
+                Helper._fromBytes(_inEvent.to),
+                _inEvent.from,
+                _inEvent.swapData
             );
         } else {
-            messageData = _pack(token, mosContracts[toChain], from, to, message, amount);
+            messageData = _pack(token, mosContracts[_inEvent.toChain], _inEvent.from, _inEvent.to, _inEvent.swapData, amount);
         }
-        emit MessageRelay(orderId, chainAndGasLimit, messageData);
+        emit MessageRelay(_inEvent.orderId, chainAndGasLimit, messageData);
     }
 
-    function _getToChainAmount(address _token, uint256 _relayAmount, uint256 _tochain) private returns(uint256 tochainAmount) {
+    function _getToChainAmount(address _token, uint256 _relayAmount, uint256 _toChain) private returns(uint256 toChainAmount) {
         _checkAndBurn(_token, _relayAmount);
-        tochainAmount = tokenRegister.getToChainAmount(_token, _relayAmount, _tochain);
+        toChainAmount = tokenRegister.getToChainAmount(_token, _relayAmount, _toChain);
     }
 
     function _pack(

@@ -88,6 +88,7 @@ contract Bridge is BridgeAbstract {
         inEvent.gasLimit = msgData.gasLimit;
         inEvent.swapData = msgData.payload;
 
+        // messageType,fromChain,toChain,gasLimit,mos,to,swapData
         orderId = _messageOut(msgData.relay, sender, sender, inEvent);
 
         // todo: emit extra info
@@ -124,6 +125,7 @@ contract Bridge is BridgeAbstract {
         inEvent.gasLimit = msgData.gasLimit;
         inEvent.swapData = msgData.swapData;
 
+        // messageType,fromChain,toChain,gasLimit,mos,to,token,amount,swapData
         orderId = _messageOut(msgData.relay, _initiator, sender,inEvent);
     }
 
@@ -146,6 +148,7 @@ contract Bridge is BridgeAbstract {
 
         inEvent.gasLimit = DEPOSIT_GAS;
 
+        // messageType,fromChain,toChain,gasLimit,mos,to,token,amount
         orderId = _messageOut(false, sender, sender,inEvent);
     }
 

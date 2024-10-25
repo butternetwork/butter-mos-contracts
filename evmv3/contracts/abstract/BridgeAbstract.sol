@@ -105,10 +105,6 @@ abstract contract BridgeAbstract is
         __Pausable_init();
         __ReentrancyGuard_init();
         __AccessManaged_init(_defaultAdmin);
-        //__AccessControlEnumerable_init();
-        //_grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
-        //_grantRole(MANAGER_ROLE, _defaultAdmin);
-        //_grantRole(UPGRADER_ROLE, _defaultAdmin);
         wToken = _wToken;
     }
 
@@ -340,6 +336,7 @@ abstract contract BridgeAbstract is
 
     function _notifyLightClient(uint256 _chainId) internal virtual {}
 
+    // messageType,fromChain,toChain,gasLimit,mos,to,token,amount,swapData
     function _messageOut(bool _relay, address _from, address _sender, MessageInEvent memory _inEvent) internal returns (bytes32 orderId) {
         uint256 header = EvmDecoder.encodeMessageHeader(_relay, _inEvent.messageType);
         if (_inEvent.messageType == uint8(MessageType.BRIDGE)) {
