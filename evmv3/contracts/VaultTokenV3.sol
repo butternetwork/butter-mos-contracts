@@ -146,5 +146,4 @@ contract VaultTokenV3 is IVaultTokenV3, AccessControlEnumerable, ERC20Burnable {
         _chainSet.add(_toChain);
         _chainSet.add(_relayChain);
     }
-
 }

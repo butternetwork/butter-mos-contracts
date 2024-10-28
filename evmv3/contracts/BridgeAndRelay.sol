@@ -323,7 +323,7 @@ contract BridgeAndRelay is BridgeAbstract {
         address _token,
         uint256 _amount,
         bytes calldata _fromAddress,
-        bytes calldata _payload, 
+        bytes calldata _payload,
         bytes calldata _retryMessage
     ) external override nonReentrant whenNotPaused {
         MessageInEvent memory outEvent = _getStoredMessage(
@@ -378,7 +378,7 @@ contract BridgeAndRelay is BridgeAbstract {
             (token, relayAmount) = _swapInToken(_outEvent);
             if (_outEvent.messageType != uint8(MessageType.DEPOSIT)) {
                 relayAmount = _collectFee(
-                    _outEvent.from,
+                    _outEvent.initiator,
                     _outEvent.orderId,
                     token,
                     relayAmount,
@@ -467,7 +467,11 @@ contract BridgeAndRelay is BridgeAbstract {
 
     // messageType,orderId,fromChain,toChain,gasLimit,to,from,swapData
     function _emitMessageRelay(MessageInEvent memory _inEvent, bytes memory token, uint256 amount) internal {
-        uint256 chainAndGasLimit = _getChainAndGasLimit(uint64(_inEvent.fromChain), uint64(_inEvent.toChain), uint64(_inEvent.gasLimit));
+        uint256 chainAndGasLimit = _getChainAndGasLimit(
+            uint64(_inEvent.fromChain),
+            uint64(_inEvent.toChain),
+            uint64(_inEvent.gasLimit)
+        );
 
         bytes memory messageData;
         if (chainTypes[_inEvent.toChain] == ChainType.EVM) {
@@ -483,14 +487,21 @@ contract BridgeAndRelay is BridgeAbstract {
                 _inEvent.swapData
             );
         } else {
-            messageData = _pack(token, mosContracts[_inEvent.toChain], _inEvent.from, _inEvent.to, _inEvent.swapData, amount);
+            messageData = _pack(
+                token,
+                mosContracts[_inEvent.toChain],
+                _inEvent.from,
+                _inEvent.to,
+                _inEvent.swapData,
+                amount
+            );
         }
         emit MessageRelay(_inEvent.orderId, chainAndGasLimit, messageData);
     }
 
-    function _getToChainAmount(address _token, uint256 _relayAmount, uint256 _toChain) private returns(uint256 toChainAmount) {
-        _checkAndBurn(_token, _relayAmount);
-        toChainAmount = tokenRegister.getToChainAmount(_token, _relayAmount, _toChain);
+    function _getToChainAmount(address _token, uint256 _amount, uint256 _toChain) internal returns (uint256 toAmount) {
+        _checkAndBurn(_token, _amount);
+        toAmount = tokenRegister.getToChainAmount(_token, _amount, _toChain);
     }
 
     function _pack(
@@ -519,10 +530,10 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 mosLen,
         uint256 fromLen,
         uint256 toLen,
-        uint256 playloadLen,
+        uint256 payloadLen,
         uint256 amount
     ) internal pure returns (uint256) {
-        require(playloadLen <= type(uint16).max);
+        require(payloadLen <= type(uint16).max);
         require(amount <= type(uint128).max);
         require(toLen <= type(uint8).max);
         return ((PACK_VERSION << 248) |
@@ -530,7 +541,7 @@ contract BridgeAndRelay is BridgeAbstract {
             (mosLen << 224) |
             (fromLen << 216) |
             (toLen << 208) |
-            (playloadLen << 192) |
+            (payloadLen << 192) |
             amount);
     }
 
@@ -580,7 +591,6 @@ contract BridgeAndRelay is BridgeAbstract {
         );
         if (_relayAmount >= totalFee) {
             relayOutAmount = _relayAmount - totalFee;
-            // outAmount = tokenRegister.getToChainAmount(_token, relayOutAmount, _toChain);
         } else if (_relayAmount >= baseFee) {
             proportionFee = _relayAmount - baseFee;
         } else {
@@ -591,7 +601,6 @@ contract BridgeAndRelay is BridgeAbstract {
         if (baseFee != 0) {
             address baseFeeReceiver = tokenRegister.getBaseFeeReceiver();
             feeList[baseFeeReceiver][_token] += baseFee;
-            //_tokenTransferOut(_token, baseFeeReceiver, baseFee, true);
             excludeVaultFee += baseFee;
         }
 
@@ -607,7 +616,6 @@ contract BridgeAndRelay is BridgeAbstract {
             selfChainId,
             excludeVaultFee
         );
-        // return (relayOutAmount, outAmount);
     }
 
     function _collectBridgeFee(
@@ -626,16 +634,12 @@ contract BridgeAndRelay is BridgeAbstract {
         (messageFee, receiver) = _getFee(1, proportionFee);
         if (messageFee != 0 && receiver != ZERO_ADDRESS) {
             feeList[receiver][_token] += messageFee;
-            //_tokenTransferOut(_token, receiver, messageFee, true);
-
             excludeVaultFee += messageFee;
         }
         // protocol fee
         (protocolFee, receiver) = _getFee(2, proportionFee);
         if (protocolFee != 0 && receiver != ZERO_ADDRESS) {
             feeList[receiver][_token] += protocolFee;
-            //_tokenTransferOut(_token, receiver, protocolFee, true);
-
             excludeVaultFee += protocolFee;
         }
 

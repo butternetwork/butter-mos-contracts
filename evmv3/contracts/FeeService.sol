@@ -23,28 +23,26 @@ contract FeeService is AccessManaged, IFeeService {
     //    __Ownable_init(msg.sender);
     //}
 
-
-    function setBaseGas(uint256 _chainId, uint256 _baseLimit) external restricted() {
+    function setBaseGas(uint256 _chainId, uint256 _baseLimit) external restricted {
         baseGas[_chainId] = _baseLimit;
         emit SetBaseGas(_chainId, _baseLimit);
     }
 
-    function setChainGasPrice(uint256 _chainId, address _token, uint256 _chainPrice) external restricted() {
+    function setChainGasPrice(uint256 _chainId, address _token, uint256 _chainPrice) external restricted {
         chainGasPrice[_chainId][_token] = _chainPrice;
         tokenDecimals[_token] = 18;
         emit SetChainGasPrice(_chainId, _chainPrice);
     }
 
-    function setTokenDecimals(address _token, uint256 _decimal) external restricted() {
+    function setTokenDecimals(address _token, uint256 _decimal) external restricted {
         tokenDecimals[_token] = _decimal;
         emit SetTokenDecimals(_token, _decimal);
     }
 
-    function setFeeReceiver(address _receiver) external restricted() {
+    function setFeeReceiver(address _receiver) external restricted {
         feeReceiver = _receiver;
         emit SetFeeReceiver(_receiver);
     }
-
 
     function getFeeInfo(
         uint256 _chainId,

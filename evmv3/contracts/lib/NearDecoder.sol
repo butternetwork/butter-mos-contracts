@@ -39,11 +39,12 @@ library NearDecoder {
             toChain: logList[1].toUint(),
             orderId: bytes32(logList[2].toBytes()),
             token: logList[3].toBytes(),
-            from: logList[4].toBytes(),
-            to: logList[5].toBytes(),
-            amount: logList[6].toUint(),
-            swapData: logList[7].toBytes(),
-            mos: logList[8].toBytes(),
+            initiator: logList[4].toBytes(),
+            from: logList[5].toBytes(),
+            to: logList[6].toBytes(),
+            amount: logList[7].toUint(),
+            swapData: logList[8].toBytes(),
+            mos: logList[9].toBytes(),
             gasLimit: 0
         });
     }

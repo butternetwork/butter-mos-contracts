@@ -19,7 +19,6 @@ import {EvmDecoder} from "../lib/EvmDecoder.sol";
 import {MessageInEvent} from "../lib/Types.sol";
 import {Helper} from "../lib/Helper.sol";
 
-
 abstract contract BridgeAbstract is
     UUPSUpgradeable,
     PausableUpgradeable,
@@ -323,8 +322,8 @@ abstract contract BridgeAbstract is
             Helper._safeTransferNative(_receiver, _amount);
         } else {
             if (block.chainid == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
-               // Tron USDT
-               _token.call(abi.encodeWithSelector(0xa9059cbb, _receiver, _amount));
+                // Tron USDT
+                _token.call(abi.encodeWithSelector(0xa9059cbb, _receiver, _amount));
             } else {
                 if (_checkMint) {
                     _checkAndMint(_token, _amount);
@@ -337,7 +336,12 @@ abstract contract BridgeAbstract is
     function _notifyLightClient(uint256 _chainId) internal virtual {}
 
     // messageType,fromChain,toChain,gasLimit,mos,to,token,amount,swapData
-    function _messageOut(bool _relay, address _from, address _sender, MessageInEvent memory _inEvent) internal returns (bytes32 orderId) {
+    function _messageOut(
+        bool _relay,
+        address _initiator,
+        address _sender,
+        MessageInEvent memory _inEvent
+    ) internal returns (bytes32 orderId) {
         uint256 header = EvmDecoder.encodeMessageHeader(_relay, _inEvent.messageType);
         if (_inEvent.messageType == uint8(MessageType.BRIDGE)) {
             // todo: add transfer limit check
@@ -346,13 +350,22 @@ abstract contract BridgeAbstract is
         }
         if (_inEvent.toChain == _inEvent.fromChain) revert bridge_same_chain();
 
-        address from = (trustList[_sender] == 0x01) ? _from : _sender;
+        address initiator = (trustList[_sender] == 0x01) ? _initiator : _sender;
 
         uint256 chainAndGasLimit = _getChainAndGasLimit(_inEvent.fromChain, _inEvent.toChain, _inEvent.gasLimit);
 
         orderId = _getOrderId(_inEvent.fromChain, _inEvent.toChain, _sender, _inEvent.to);
 
-        bytes memory payload = abi.encode(header, _inEvent.mos, _inEvent.token, _inEvent.amount, from, _inEvent.to, _inEvent.swapData);
+        bytes memory payload = abi.encode(
+            header,
+            _inEvent.mos,
+            _inEvent.token,
+            _inEvent.amount,
+            initiator,
+            _sender,
+            _inEvent.to,
+            _inEvent.swapData
+        );
 
         emit MessageOut(orderId, chainAndGasLimit, payload);
 

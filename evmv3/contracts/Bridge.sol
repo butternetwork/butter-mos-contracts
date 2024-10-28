@@ -126,7 +126,7 @@ contract Bridge is BridgeAbstract {
         inEvent.swapData = msgData.swapData;
 
         // messageType,fromChain,toChain,gasLimit,mos,to,token,amount,swapData
-        orderId = _messageOut(msgData.relay, _initiator, sender,inEvent);
+        orderId = _messageOut(msgData.relay, _initiator, sender, inEvent);
     }
 
     function depositToken(
@@ -149,7 +149,7 @@ contract Bridge is BridgeAbstract {
         inEvent.gasLimit = DEPOSIT_GAS;
 
         // messageType,fromChain,toChain,gasLimit,mos,to,token,amount
-        orderId = _messageOut(false, sender, sender,inEvent);
+        orderId = _messageOut(false, sender, sender, inEvent);
     }
 
     function messageIn(

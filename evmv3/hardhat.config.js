@@ -141,22 +141,22 @@ module.exports = {
     Sepolia: {
       url: `https://eth-sepolia.api.onfinality.io/public`,
       chainId: 11155111,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
+      accounts: process.env.TESTNET_PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     BscTest: {
       url: "https://bsc-testnet.blockpi.network/v1/rpc/public",
       chainId: 97,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
+      accounts: process.env.TESTNET_PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     Makalu: {
       chainId: 212,
       url: "https://testnet-rpc.maplabs.io",
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
+      accounts: process.env.TESTNET_PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     ArbitrumSepolia: {
       url: "https://sepolia-rollup.arbitrum.io/rpc",
       chainId: 421614,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
+      accounts: process.env.TESTNET_PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     DodoTest: {
       url: `https://dodochain-testnet.alt.technology`,
@@ -166,17 +166,17 @@ module.exports = {
     KlaytnTest: {
       url: `https://api.baobab.klaytn.net:8651/`,
       chainId: 1001,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
+      accounts: process.env.TESTNET_PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     ConfluxTest: {
       url: `https://evmtestnet.confluxrpc.com`,
       chainId: 71,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
+      accounts: process.env.TESTNET_PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
     TronTest: {
       url: `https://nile.trongrid.io/jsonrpc`,
       chainId: 3448148188,
-      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
+      accounts: process.env.TESTNET_PRIVATE_KEY !== undefined ? [process.env.TESTNET_PRIVATE_KEY] : [],
     },
   },
 

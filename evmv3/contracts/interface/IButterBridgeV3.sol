@@ -40,7 +40,7 @@ interface IButterBridgeV3 {
         // fromChain (8 bytes) | toChain (8 bytes) | reserved (8 bytes) | gasLimit (8 bytes)
         uint256 indexed chainAndGasLimit,
         // evm abi encode data - version 0x00
-        // abi.encode((version| relay | messageType), mos, token, amount, from, bytes(to), bytes(message))
+        // abi.encode((version| relay | messageType), mos, token, amount, initiator, from, bytes(to), bytes(message))
         bytes payload
     );
 

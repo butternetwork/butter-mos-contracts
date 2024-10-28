@@ -20,6 +20,7 @@ struct MessageOutEvent {
     bytes32 orderId;
     bytes mos;
     bytes token;
+    bytes initiator;
     bytes from;
     bytes to;
     uint256 amount;

@@ -34,16 +34,20 @@ library EvmDecoder {
         {
             address mos;
             address token;
+            address initiator;
             address from;
             uint256 header;
             (log.data) = abi.decode(log.data, (bytes));
-            (header, mos, token, outEvent.amount, from, outEvent.to, outEvent.swapData) = abi.decode(
+            (header, mos, token, outEvent.amount, initiator, from, outEvent.to, outEvent.swapData) = abi.decode(
                 log.data,
-                (uint256, address, address, uint256, address, bytes, bytes)
+                (uint256, address, address, uint256, address, address, bytes, bytes)
             );
-            outEvent.from = abi.encodePacked(from);
             outEvent.mos = abi.encodePacked(mos);
             outEvent.token = abi.encodePacked(token);
+
+            outEvent.from = abi.encodePacked(from);
+            outEvent.initiator = abi.encodePacked(initiator);
+
             outEvent.relay = (((header >> RELAY_BIT_OFFSET) & 0x01) == 0x01);
             outEvent.messageType = uint8(header & 0xFF);
         }
