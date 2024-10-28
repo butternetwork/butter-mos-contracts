@@ -4,3 +4,4 @@ require("./subs/register.js");
 require("./subs/relay.js");
 require("./subs/authority.js");
 require("./subs/feeService.js");
+require("./subs/feeserviceConfigMulti.js");

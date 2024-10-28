@@ -351,7 +351,7 @@ contract BridgeAndRelay is BridgeAbstract {
     ) external returns (address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage) {
         require(msg.sender == address(this));
         address to = Helper._fromBytes(_outEvent.to);
-        _tokenTransferOut(_token, to, _amount, false, false);
+        if (_amount > 0) _tokenTransferOut(_token, to, _amount, false, false);
         (tokenOut, amountOut, target, newMessage) = IRelayExecutor(to).relayExecute(
             _outEvent.fromChain,
             _outEvent.toChain,
@@ -363,7 +363,7 @@ contract BridgeAndRelay is BridgeAbstract {
             _outEvent.swapData,
             _retryMessage
         );
-        _tokenTransferIn(tokenOut, to, amountOut, false, false);
+        if (_amount > 0) _tokenTransferIn(tokenOut, to, amountOut, false, false);
     }
 
     // --------------------------------------------- internal ----------------------------------------------
