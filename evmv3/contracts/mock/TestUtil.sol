@@ -42,10 +42,33 @@ contract TestUtil {
             address mos,
             address token,
             uint256 amount,
-            address from,
+            address initiator,
+            address _sender,
             bytes memory to,
             bytes memory message
-        ) = abi.decode(_currentLogBytes, (uint256, address, address, uint256, address, bytes, bytes));
+        ) = abi.decode(_currentLogBytes, (uint256, address, address, uint256, address,address, bytes, bytes));
+
+        bytes memory out = abi.encode(header, _mos, token, amount, _from, _sender, _to, message);
+
+        outPut = abi.encode(out);
+    }
+
+    function adjustLogsRelay(
+        address _from,
+        bytes memory _to,
+        address _mos,
+        bytes memory _currentLogBytes
+    ) external view returns (bytes memory outPut) {
+        (
+            uint256 header,
+            address mos,
+            address token,
+            uint256 amount,
+            address initiator,
+            address _sender,
+            bytes memory to,
+            bytes memory message
+        ) = abi.decode(_currentLogBytes, (uint256, address, address, uint256, address,address, bytes, bytes));
 
         bytes memory out = abi.encode(header, _mos, token, amount, _from, _to, message);
 

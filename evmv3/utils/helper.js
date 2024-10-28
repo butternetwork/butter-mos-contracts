@@ -211,6 +211,24 @@ function isTestnet(chainId) {
   return testnets.includes(chainId);
 }
 
+async function getTronContract(contractName, artifacts, network, addr) {
+  let tronWeb = await getTronWeb(network);
+  console.log("operator address is:", tronWeb.defaultAddress);
+  let C = await artifacts.readArtifact(contractName);
+  let c = await tronWeb.contract(C.abi, addr);
+  return c;
+}
+
+async function fromEvmAddress(hex, network) {
+  let tronWeb = await getTronWeb(network);
+  return tronWeb.address.fromHex(hex);
+}
+
+async function toEvmAddress(addr, network) {
+  let tronWeb = await getTronWeb(network);
+  return tronWeb.address.toHex(addr).replace(/^(41)/, "0x");
+}
+
 module.exports = {
   getChain,
   getToken,
@@ -223,5 +241,9 @@ module.exports = {
   getFeeConfig,
   getMessageConfig,
   isRelayChain,
-  isTron
+  isTron,
+  isTestnet,
+  getTronContract,
+  fromEvmAddress,
+  toEvmAddress
 };

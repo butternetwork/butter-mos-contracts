@@ -19,10 +19,6 @@ contract FeeService is AccessManaged, IFeeService {
 
     constructor(address _authority) AccessManaged(_authority) {}
 
-    //function initialize() public initializer {
-    //    __Ownable_init(msg.sender);
-    //}
-
     function setBaseGas(uint256 _chainId, uint256 _baseLimit) external restricted {
         baseGas[_chainId] = _baseLimit;
         emit SetBaseGas(_chainId, _baseLimit);
@@ -32,6 +28,22 @@ contract FeeService is AccessManaged, IFeeService {
         chainGasPrice[_chainId][_token] = _chainPrice;
         tokenDecimals[_token] = 18;
         emit SetChainGasPrice(_chainId, _chainPrice);
+    }
+
+    function setBaseGasMulti(uint256[] memory _chainList, uint256[] memory _limitList) external restricted {
+        require(_chainList.length == _limitList.length, "FeeService: length mismatch");
+        for (uint256 i = 0; i < _chainList.length; i++) {
+            baseGas[_chainList[i]] = _limitList[i];
+            emit SetBaseGas(_chainList[i], _limitList[i]);
+        }
+    }
+
+    function setChainGasPriceMulti(address _token, uint256[] memory _chainList, uint256[] memory _priceList) external restricted {
+        require(_chainList.length == _priceList.length, "FeeService: length mismatch");
+        for (uint256 i = 0; i < _chainList.length; i++) {
+            chainGasPrice[_chainList[i]][_token] = _priceList[i];
+            emit SetChainGasPrice(_chainList[i], _priceList[i]);
+        }
     }
 
     function setTokenDecimals(address _token, uint256 _decimal) external restricted {
