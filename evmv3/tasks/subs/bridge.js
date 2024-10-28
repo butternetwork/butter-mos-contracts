@@ -90,6 +90,8 @@ task("bridge:upgrade", "upgrade bridge evm contract in proxy")
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
 
+      console.log("deployer address:", deployer.address);
+
     let implAddr = taskArgs.impl;
     if (implAddr === "") {
       implAddr = await create(hre, deployer, "Bridge", [], [], "");

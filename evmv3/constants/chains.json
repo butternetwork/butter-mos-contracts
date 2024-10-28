@@ -1,48 +1,171 @@
 [
     {
         "name": "Mapo",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "22776",
         "type": "evm",
         "wToken": "0x13cb04d4a5dfb6398fc5ab005a6c84337256ee23",
         "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
-        "feeService": "0x0000000000000000000000000000000000000000",
-        "lightNode": "0x624E6F327c4F91F1Fa6285711245c215de264d49"
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0xC11e886cc1489bA328415566a15CAdd4724Ac2Dd"
     },
     {
         "name": "Eth",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "1",
+        "type": "evm",
         "wToken": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x00071196A9129b7068404523E2047ef79F4Ed0de"
     },
     {
         "name": "Bsc",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "56",
+        "type": "evm",
         "wToken": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
         "name": "Polygon",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "137",
+        "type": "evm",
         "wToken": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
-        "name": "Conflux",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
-        "chainId": "1030",
-        "wToken": "0x14b2d3bc65e74dae1030eafd8ac30c533c976a9b",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
+        "name": "Tron",
+        "chainId": "728126428",
+        "type": "evm",
+        "wToken": "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
+        "mos": "TYMpgB8Q9vSoGtkyE3hXsvUrpte3KCDGj6",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "TCgts2dcdEszFdHnp3D9iKqxGqNrpTYSjQ"
+    },
+    {
+        "name": "Arbitrum",
+        "chainId": "42161",
+        "type": "evm",
+        "wToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "name": "Optimism",
+        "chainId": "10",
+        "type": "evm",
+        "wToken": "0x4200000000000000000000000000000000000006",
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "name": "zkSync",
+        "chainId": "324",
+        "type": "evm",
+        "wToken": "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91",
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x00071196A9129b7068404523E2047ef79F4Ed0de"
+    },
+    {
+        "name": "Base",
+        "chainId": "8453",
+        "type": "evm",
+        "wToken": "0x4200000000000000000000000000000000000006",
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "name": "Blast",
+        "chainId": "81457",
+        "type": "evm",
+        "wToken": "0x4300000000000000000000000000000000000004",
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "name": "Linea",
+        "chainId": "59144",
+        "type": "evm",
+        "wToken": "0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f",
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "name": "Scroll",
+        "chainId": "534352",
+        "type": "evm",
+        "wToken": "0x5300000000000000000000000000000000000004",
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x00071196A9129b7068404523E2047ef79F4Ed0de"
+    },
+    {
+        "name": "Mantle",
+        "chainId": "5000",
+        "type": "evm",
+        "wToken": "0x78c1b0C915c4FAA5FffA6CAbf0219DA63d7f4cb8",
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
         "name": "Klaytn",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
         "chainId": "8217",
+        "type": "evm",
         "wToken": "0x19aac5f612f524b754ca7e7c41cbfa2e981a4432",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "name": "Conflux",
+        "chainId": "1030",
+        "type": "evm",
+        "wToken": "0x14b2d3bc65e74dae1030eafd8ac30c533c976a9b",
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "name": "Merlin",
+        "chainId": "4200",
+        "type": "evm",
+        "wToken": "0xF6D226f9Dc15d9bB51182815b320D3fBE324e1bA",
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x00071196A9129b7068404523E2047ef79F4Ed0de"
+    },
+    {
+        "name": "Ainn",
+        "chainId": "2649",
+        "type": "evm",
+        "wToken": "0x1470a4831F76954686BfB4dE8180F7469EA8dE6F",
+        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x00071196A9129b7068404523E2047ef79F4Ed0de"
     },
     {
         "name": "Near",
@@ -50,82 +173,5 @@
         "chainId": "1360100178526209",
         "wToken": "wrap.near",
         "mos": "client2.cfac.mapprotocol.near"
-    },
-    {
-        "name": "Merlin",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
-        "chainId": "4200",
-        "wToken": "0xF6D226f9Dc15d9bB51182815b320D3fBE324e1bA",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
-    },
-    {
-        "name": "Blast",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
-        "chainId": "81457",
-        "wToken": "0x4300000000000000000000000000000000000004",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
-    },
-    {
-        "name": "Base",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
-        "chainId": "8453",
-        "wToken": "0x4200000000000000000000000000000000000006",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
-    },
-    {
-        "name": "Ainn",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
-        "chainId": "2649",
-        "wToken": "0x1470a4831F76954686BfB4dE8180F7469EA8dE6F",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
-    },
-    {
-        "name": "Tron",
-        "bridge": "TYMpgB8Q9vSoGtkyE3hXsvUrpte3KCDGj6",
-        "chainId": "728126428",
-        "wToken": "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
-        "mos": "TCgts2dcdEszFdHnp3D9iKqxGqNrpTYSjQ"
-    },
-    {
-        "name": "zkSync",
-        "bridge": "0xBEf06a32166C4B819fF04cCfa887733B8bb67eB5",
-        "chainId": "324",
-        "wToken": "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
-    },
-    {
-        "name": "Optimism",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
-        "chainId": "10",
-        "wToken": "0x4200000000000000000000000000000000000006",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
-    },
-    {
-        "name": "Arbitrum",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
-        "chainId": "42161",
-        "wToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
-    },
-    {
-        "name": "Linea",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
-        "chainId": "59144",
-        "wToken": "0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
-    },
-    {
-        "name": "Scroll",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
-        "chainId": "534352",
-        "wToken": "0x5300000000000000000000000000000000000004",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
-    },
-    {
-        "name": "Mantle",
-        "bridge": "0xBB030b0aB399B77866c9DE1a513E4513164e0bf3",
-        "chainId": "5000",
-        "wToken": "0x78c1b0C915c4FAA5FffA6CAbf0219DA63d7f4cb8",
-        "mos": "0x000030fB6c4701389B05F124F6fFd4C862CF1eF9"
     }
 ]

@@ -7,7 +7,7 @@
         "mos": "0x800031F0f47e0D4Aaed6e0d2505596447395f848",
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
         "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
-        "lightNode": "0xDD3A69f8f59d892476B0be0260932b4f8d8268Ff"
+        "lightNode": "0xC11e886cc1489bA328415566a15CAdd4724Ac2Dd"
     },
     {
         "name": "Sepolia",
