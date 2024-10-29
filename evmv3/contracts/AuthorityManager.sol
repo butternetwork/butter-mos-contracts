@@ -9,7 +9,9 @@ contract AuthorityManager is AccessManager {
 
     mapping(uint64 role => EnumerableSet.AddressSet) private _roleMembers;
 
-    constructor(address default_admin) AccessManager(default_admin) {}
+    constructor(address default_admin) AccessManager(default_admin) {
+        _roleMembers[ADMIN_ROLE].add(default_admin);
+    }
 
     function getRoleMember(uint64 role, uint256 index) public view virtual returns (address) {
         return _roleMembers[role].at(index);

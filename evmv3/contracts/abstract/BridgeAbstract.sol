@@ -108,11 +108,11 @@ abstract contract BridgeAbstract is
     }
 
     // --------------------------------------------- manage ----------------------------------------------
-    function trigger() external restricted() {
+    function trigger() external restricted {
         paused() ? _unpause() : _pause();
     }
 
-    function registerTokenChains(address _token, uint256[] memory _toChains, bool _enable) external restricted() {
+    function registerTokenChains(address _token, uint256[] memory _toChains, bool _enable) external restricted {
         if (!Helper._isContract(_token)) revert not_contract();
         for (uint256 i = 0; i < _toChains.length; i++) {
             uint256 toChain = _toChains[i];
@@ -122,14 +122,14 @@ abstract contract BridgeAbstract is
         }
     }
 
-    function updateTokens(address[] calldata _tokens, uint256 _feature) external restricted() {
+    function updateTokens(address[] calldata _tokens, uint256 _feature) external restricted {
         for (uint256 i = 0; i < _tokens.length; i++) {
             tokenFeatureList[_tokens[i]] = _feature;
             emit UpdateToken(_tokens[i], _feature);
         }
     }
 
-    function setTrustAddress(address _addr, bool _enable) external restricted() {
+    function setTrustAddress(address _addr, bool _enable) external restricted {
         uint256 enable = _enable ? 0x01 : 0x00;
         trustList[_addr] = enable;
         emit UpdateTrust(_addr, _enable);
@@ -505,7 +505,7 @@ abstract contract BridgeAbstract is
     }
 
     /** UUPS *********************************************************/
-    function _authorizeUpgrade(address) internal override restricted() {
+    function _authorizeUpgrade(address) internal override restricted {
         // if (!hasRole(UPGRADER_ROLE, msg.sender)) revert only_upgrade_role();
     }
 

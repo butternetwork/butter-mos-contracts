@@ -8,7 +8,7 @@ import "../interface/IRelayExecutor.sol";
 import "../interface/IMOSV3.sol";
 import "hardhat/console.sol";
 
-contract Echo is Ownable, IMapoExecutor, IRelayExecutor{
+contract Echo is Ownable, IMapoExecutor, IRelayExecutor {
     address omniService;
 
     mapping(string => string) public EchoList;
@@ -97,14 +97,14 @@ contract Echo is Ownable, IMapoExecutor, IRelayExecutor{
     }
 
     function mapoExecute(
-        uint256 _fromChain,
         uint256,
-        bytes calldata _fromAddress,
+        uint256,
+        bytes calldata,
         bytes32,
         bytes calldata _message
     ) external payable override returns (bytes memory newData) {
         //if (!IMOSV3(omniService).getExecutePermission(address(this), _fromChain, _fromAddress)) revert on_permission();
-        require(WhiteList[msg.sender],"on_permission");
+        require(WhiteList[msg.sender], "on_permission");
 
         (string memory key, string memory value) = abi.decode(_message, (string, string));
 
@@ -123,38 +123,37 @@ contract Echo is Ownable, IMapoExecutor, IRelayExecutor{
         newData = abi.encode(msgData);
 
         return newData;
-
     }
 
     function relayExecute(
-        uint256 _fromChain,
-        uint256 _toChain,
-        bytes32 _orderId,
+        uint256,
+        uint256,
+        bytes32,
         address _token,
         uint256 _amount,
-        address _caller,
+        address,
         bytes calldata _fromAddress,
         bytes calldata _message,
-        bytes calldata _retryMessage
-    ) external payable override returns (address token, uint256 amount, bytes memory target, bytes memory newMessage){
-       // require(WhiteList[msg.sender],"on_permission");
+        bytes calldata
+    ) external payable override returns (address token, uint256 amount, bytes memory target, bytes memory newMessage) {
+        // require(WhiteList[msg.sender],"on_permission");
 
         (string memory key, string memory value) = abi.decode(_message, (string, string));
 
         EchoList[key] = value;
 
         string memory val = "relay execute";
-//        IMOSV3.MessageData memory msgData = IMOSV3.MessageData({
-//            relay: true,
-//            msgType: IMOSV3.MessageType.MESSAGE,
-//            target: bytes(""),
-//            payload: abi.encode(val, key),
-//            gasLimit: 500000,
-//            value: 0
-//        });
+        //        IMOSV3.MessageData memory msgData = IMOSV3.MessageData({
+        //            relay: true,
+        //            msgType: IMOSV3.MessageType.MESSAGE,
+        //            target: bytes(""),
+        //            payload: abi.encode(val, key),
+        //            gasLimit: 500000,
+        //            value: 0
+        //        });
 
-        newMessage = abi.encode(key,val);
+        newMessage = abi.encode(key, val);
 
-        return (_token,_amount,_fromAddress,newMessage);
+        return (_token, _amount, _fromAddress, newMessage);
     }
 }

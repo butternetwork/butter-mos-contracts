@@ -69,7 +69,7 @@ contract BridgeAndRelay is BridgeAbstract {
 
     // --------------------------------------------- manage ----------------------------------------------
 
-    function setServiceContract(uint256 _t, address _addr) external restricted() {
+    function setServiceContract(uint256 _t, address _addr) external restricted {
         _checkAddress(_addr);
         if (_t == 0) {
             wToken = _addr;
@@ -89,7 +89,7 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256[] calldata _chainIds,
         bytes[] calldata _addresses,
         ChainType _type
-    ) external restricted() {
+    ) external restricted {
         uint256 len = _chainIds.length;
         if (len != _addresses.length) revert length_mismatching();
         for (uint256 i = 0; i < len; i++) {
@@ -99,7 +99,7 @@ contract BridgeAndRelay is BridgeAbstract {
         }
     }
 
-    function setDistributeRate(uint256 _id, address _to, uint256 _rate) external restricted() {
+    function setDistributeRate(uint256 _id, address _to, uint256 _rate) external restricted {
         _checkAddress(_to);
         if (_id >= 3) revert invalid_rate_id();
 
@@ -426,7 +426,6 @@ contract BridgeAndRelay is BridgeAbstract {
         address token = _inEvent.token;
         uint256 relayOutAmount = _inEvent.amount;
         if (_relay) {
-            // todo: relay execute
             try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, _retryMessage) returns (
                 address tokenOut,
                 uint256 amountOut,

@@ -18,7 +18,7 @@ contract Bridge is BridgeAbstract {
     event SetRelay(uint256 _chainId, address _relay);
 
     // --------------------------------------------- manage ----------------------------------------------
-    function setServiceContract(uint256 _t, address _addr) external restricted() {
+    function setServiceContract(uint256 _t, address _addr) external restricted {
         _checkAddress(_addr);
         if (_t == 0) {
             wToken = _addr;
@@ -33,7 +33,7 @@ contract Bridge is BridgeAbstract {
         emit SetContract(_t, _addr);
     }
 
-    function setRelay(uint256 _chainId, address _relay) external restricted() {
+    function setRelay(uint256 _chainId, address _relay) external restricted {
         _checkAddress(_relay);
 
         relaySlot = (uint256(uint160(_relay)) << 96) | _chainId;
