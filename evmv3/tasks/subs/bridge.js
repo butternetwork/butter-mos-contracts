@@ -1,6 +1,6 @@
 let { create, getTronContract, fromHex, toHex } = require("../../utils/create.js");
 let { verify } = require("../../utils/verify.js");
-let { stringToHex } = require("../../utils/helper");
+let { stringToHex, isTron} = require("../../utils/helper");
 let { getChain, getToken, getFeeList, getChainList, writeToFile } = require("../utils/utils.js");
 const { getDeployment, saveDeployment } = require("../utils/utils");
 
@@ -85,7 +85,6 @@ task("bridge:deploy", "bridge deploy")
 
 task("bridge:upgrade", "upgrade bridge evm contract in proxy")
   .addOptionalParam("impl", "implementation address", "", types.string)
-  .addOptionalParam("auth", "Send through authority call, default false", false, types.boolean)
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
@@ -135,11 +134,11 @@ task("bridge:setServiceContract", "set contract")
     }
 
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      await bridge.setServiceContract(taskArgs.type, taskArgs.contract).send();
-      console.log("contract:", await bridge.getServiceContract(taskArgs.type).call());
+      await bridge.setServiceContract(type, taskArgs.contract).send();
+      console.log("contract:", await bridge.getServiceContract(type).call());
     } else {
-      await (await bridge.setServiceContract(taskArgs.type, taskArgs.contract)).wait();
-      console.log("contract", await bridge.getServiceContract(taskArgs.type));
+      await (await bridge.setServiceContract(type, taskArgs.contract)).wait();
+      console.log("contract", await bridge.getServiceContract(type));
     }
   });
 
@@ -503,6 +502,7 @@ task("bridge:list", "List bridge info")
       console.log("selfChainId:\t", selfChainId.toString());
       console.log("wToken address:\t", await bridge.getServiceContract(0));
       console.log("light node:\t", await bridge.getServiceContract(1));
+      console.log("fee service:\t", await bridge.getServiceContract(2));
       let relay = await bridge.getRelay();
       console.log("relay chain:\t", relay[0]);
       console.log("relay contract:\t", relay[1]);

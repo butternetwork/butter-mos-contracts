@@ -148,36 +148,7 @@ task("relay:registerChain", "register Chain")
     console.log(`register chain ${taskArgs.chain} address ${taskArgs.address} success`);
   });
 
-/*
-task("relay:grantRole", "grant Role")
-  .addParam("role", "role address")
-  .addParam("account", "account address")
-  .addOptionalParam("grant", "grant or revoke", true, types.boolean)
-  .setAction(async (taskArgs, hre) => {
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-    console.log("deployer address:", deployer.address);
 
-    let relay = await getRelay(hre.network.name);
-
-    let role;
-    if (taskArgs.role === "upgrade" || taskArgs.role === "upgrader") {
-      role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("UPGRADER_ROLE"));
-    } else if (taskArgs.role === "manage" || taskArgs.role === "manager") {
-      role = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("MANAGER_ROLE"));
-    } else {
-      role = ethers.constants.HashZero;
-    }
-
-    if (taskArgs.grant) {
-      await (await relay.grantRole(role, taskArgs.account)).wait();
-      console.log(`grant ${taskArgs.account} role ${role}`);
-    } else {
-      await relay.revokeRole(role, taskArgs.account);
-      console.log(`revoke ${taskArgs.account} role ${role}`);
-    }
-  });
-*/
 task("relay:updateToken", "update token bridge and fee to target chain")
   .addParam("token", "relay chain token name")
   .setAction(async (taskArgs, hre) => {

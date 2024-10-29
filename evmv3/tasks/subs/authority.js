@@ -1,33 +1,24 @@
 let { create, getTronContract } = require("../../utils/create.js");
 let { verify } = require("../../utils/verify.js");
-const { stringToHex, isRelayChain } = require("../../utils/helper");
+const { stringToHex, isRelayChain, isTron} = require("../../utils/helper");
 const { readFromFile, writeToFile } = require("../utils/utils.js");
+const {getDeployment} = require("../utils/utils");
 
 function getRole(role) {
-  if (role.substr(0, 2) === "0x") {
-    return role;
-  }
-
-  if (role == "root") {
+  if (role === "root") {
     return 0;
-  }
-  if (role == "admin") {
+  } else if (role === "admin") {
     return 1;
-  } else if (role == "manager") {
+  } else if (role === "manager") {
     return 2;
-  } else if (role == "minter") {
+  } else if (role === "minter") {
     return 10;
   }
   throw "unknown role ..";
 }
 
 async function getBridge(network) {
-  let deployment = await readFromFile(network);
-  let addr = deployment[network]["bridgeProxy"];
-  if (!addr) {
-    throw "bridge not deployed.";
-  }
-
+  let addr = await getDeployment(network, "bridgeProxy");
   let bridge;
   if (network === "Tron" || network === "TronTest") {
     bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
@@ -39,15 +30,21 @@ async function getBridge(network) {
   return bridge;
 }
 
-async function getAuth(network) {
-  let deployment = await readFromFile(hre.network.name);
-  if (!deployment[network]["authority"]) {
-    throw "authority not deployed";
-  }
-  let Authority = await ethers.getContractFactory("AuthorityManager");
-  let authority = Authority.attach(deployment[hre.network.name]["authority"]);
+async function getAuth(hre, contractAddress) {
+    let addr = contractAddress;
+    if (contractAddress === "" || contractAddress === "latest") {
+        addr = await getDeployment(hre.network.name, "authority");
+    }
 
-  return authority;
+    let authority;
+    if (isTron(hre.network.config.chainId)) {
+        authority = await getTronContract("AuthorityManager", hre.artifacts, hre.network.name, addr);
+    } else {
+        authority = await ethers.getContractAt("AuthorityManager", addr);
+    }
+
+    console.log("authority address:", authority.address);
+    return authority;
 }
 
 task("auth:deploy", "mos relay deploy")
@@ -84,7 +81,7 @@ task("auth:closeTarget", "add control")
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre.network.name);
+    let authority = await getAuth(hre, "");
     console.log("authority address", authority.address);
 
     let role = getRole(taskArgs.role);
@@ -113,7 +110,7 @@ task("auth:setTarget", "add control")
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre.network.name);
+    let authority = await getAuth(hre, "");
     console.log("authority address", authority.address);
 
     let role = getRole(taskArgs.role);
@@ -149,7 +146,7 @@ task("auth:getRole", "get target role")
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre.network.name);
+    let authority = await getAuth(hre, "");
     console.log("authority address", authority.address);
 
     let target = taskArgs.target;
@@ -175,7 +172,7 @@ task("auth:authorized", "get target role")
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre.network.name);
+    let authority = await getAuth(hre, "");
     console.log("authority address", authority.address);
 
     let target = taskArgs.target;
@@ -201,7 +198,7 @@ task("auth:grantRole", "grantRole")
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre.network.name);
+    let authority = await getAuth(hre, "");
     console.log("authority address", authority.address);
 
     let role = getRole(taskArgs.role);
@@ -220,7 +217,7 @@ task("auth:revokeRole", "revokeRole")
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre.network.name);
+    let authority = await getAuth(hre, "");
     console.log("authority address", authority.address);
 
     let role = getRole(taskArgs.role);
@@ -239,16 +236,7 @@ task("auth:getMember", "get role member")
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let addr = taskArgs.addr;
-    if (addr === "") {
-      let deployment = await readFromFile(hre.network.name);
-      if (!deployment[hre.network.name]["authority"]) {
-        throw "authority not deployed";
-      }
-      addr = deployment[hre.network.name]["authority"];
-    }
-    let Authority = await ethers.getContractFactory("AuthorityManager");
-    let authority = Authority.attach(addr);
+    let authority = await getAuth(hre, taskArgs.addr);
     console.log("authority address", authority.address);
 
     let role = getRole(taskArgs.role);

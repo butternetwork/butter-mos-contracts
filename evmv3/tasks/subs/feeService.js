@@ -327,12 +327,9 @@ task("fee:update", "update chain message fee")
 
     console.log("===== gas price ========");
     let fee = await getMessageFee(hre.network.name);
-    console.log("1");
     for (let token in fee) {
       let priceList = [];
       for (let chain of addChainList) {
-        console.log(chain);
-        console.log(fee[token][chain]);
         let price = ethers.utils.parseUnits(fee[token][chain], 9);
         priceList.push(price.toString());
       }

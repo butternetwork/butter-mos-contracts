@@ -1,5 +1,5 @@
-let { create, readFromFile, writeToFile } = require("../../utils/create.js");
-let { getChain, getToken } = require("../../utils/helper");
+let { create } = require("../../utils/create.js");
+let { getToken, readFromFile, writeToFile } = require("../utils/utils.js");
 
 task("vault:deploy", "Deploy the vault token")
   .addParam("token", "The token address on relay chain")

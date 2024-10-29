@@ -51,13 +51,13 @@ module.exports = {
       gasMultiplier: 3,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
-    Matic: {
-      url: `https://rpc.ankr.com/polygon`,
+    Polygon: {
+      url: `https://polygon.llamarpc.com`,
       chainId: 137,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Bsc: {
-      url: `https://bscrpc.com`,
+      url: `https://1rpc.io/bnb`,
       chainId: 56,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },

@@ -1,4 +1,4 @@
-let { create, toHex, fromHex, readFromFile, writeToFile } = require("../../utils/create.js");
+let { create, toHex, fromHex} = require("../../utils/create.js");
 const {
   getToken,
   stringToHex,
@@ -7,7 +7,8 @@ const {
   getChainList,
   getFeeInfo,
   getFeeConfig,
-} = require("../../utils/helper");
+  readFromFile, writeToFile
+} = require("../utils/utils.js");
 const { task } = require("hardhat/config");
 
 let outputAddr = true;
