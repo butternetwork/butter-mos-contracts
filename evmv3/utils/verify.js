@@ -3,6 +3,9 @@ async function sleep(delay) {
 }
 
 exports.verify = async function (addr, args, code, chainId, wait) {
+  const verifyArgs = args.map((arg) => (typeof arg == "string" ? `'${arg}'` : arg)).join(" ");
+  console.log(`To verify, run: \n npx hardhat verify --network <Network> --contract ${code} ${addr} ${verifyArgs}`);
+
   if (needVerify(chainId)) {
     if (wait) {
       await sleep(20000);
@@ -10,9 +13,6 @@ exports.verify = async function (addr, args, code, chainId, wait) {
     console.log(`verify ${code} ...`);
     console.log("addr:", addr);
     console.log("args:", args);
-
-    const verifyArgs = args.map((arg) => (typeof arg == "string" ? `'${arg}'` : arg)).join(" ");
-    console.log(`To verify, run: npx hardhat verify --network Network --contract ${code} ${addr} ${verifyArgs}`);
 
     await run("verify:verify", {
       contract: code,

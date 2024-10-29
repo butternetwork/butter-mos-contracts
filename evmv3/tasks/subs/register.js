@@ -576,7 +576,7 @@ task("register:update", "update token bridge and fee to target chain")
         });
 
         let targetToken = await getToken(chain.name, tokenName);
-        console.log(`target ${chain.chainId}, ${targetToken}`)
+        console.log(`target ${chain.chainId}, ${targetToken}`);
         await hre.run("register:mapToken", {
           token: tokenAddr,
           chain: chain.chainId,

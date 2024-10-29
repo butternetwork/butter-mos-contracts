@@ -1,13 +1,11 @@
-let { create, readFromFile, writeToFile } = require("../../utils/create.js");
-let { getChain, getToken, getChainList, getFeeList, stringToHex} = require("../../utils/helper");
+let { create } = require("../../utils/create.js");
+let { stringToHex } = require("../../utils/helper");
+const { getDeployment, getChain, getToken, getChainList, getFeeList, saveDeployment } = require("../utils/utils");
+const { verify } = require("../../utils/verify");
 
 async function getRelay(network) {
   let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
-  let deployment = await readFromFile(network);
-  let addr = deployment[network]["bridgeProxy"];
-  if (!addr) {
-    throw "relay not deployed.";
-  }
+  let addr = await getDeployment(network, "bridgeProxy");
 
   let relay = BridgeAndRelay.attach(addr);
 
@@ -19,7 +17,7 @@ task("relay:deploy", "mos relay deploy")
   .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
   .addOptionalParam("client", "light client address", "", types.string)
   .addOptionalParam("auth", "auth address", "0xACC31A6756B60304C03d6626fc98c062E4539CCA", types.string)
-    .addOptionalParam("fee", "fee service address", "", types.string)
+  .addOptionalParam("fee", "fee service address", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
@@ -30,8 +28,8 @@ task("relay:deploy", "mos relay deploy")
     let client = taskArgs.client === "" ? chain.lightNode : taskArgs.client;
     let wrapped = taskArgs.wrapped === "" ? chain.wToken : taskArgs.wrapped;
 
-      let authority = taskArgs.auth === "" ? chain.auth : taskArgs.auth;
-      let feeService = taskArgs.fee === "" ? chain.feeService : taskArgs.fee;
+    let authority = taskArgs.auth === "" ? chain.auth : taskArgs.auth;
+    let feeService = taskArgs.fee === "" ? chain.feeService : taskArgs.fee;
 
     let implAddr = await create(hre, deployer, "BridgeAndRelay", [], [], "");
 
@@ -46,18 +44,24 @@ task("relay:deploy", "mos relay deploy")
     console.log("set light client manager: ", client);
     await (await relay.setServiceContract(1, client)).wait();
 
-      console.log("set fee service: ", feeService);
-      await (await relay.setServiceContract(2, feeService)).wait();
+    console.log("set fee service: ", feeService);
+    await (await relay.setServiceContract(2, feeService)).wait();
 
     console.log("wToken", await relay.getServiceContract(0));
-      console.log("client", await relay.getServiceContract(1));
-      console.log("fee", await relay.getServiceContract(2));
+    console.log("client", await relay.getServiceContract(1));
+    console.log("fee", await relay.getServiceContract(2));
 
-    let deployment = await readFromFile(hre.network.name);
-    deployment[hre.network.name]["bridgeProxy"] = bridge;
-    await writeToFile(deployment);
+    await saveDeployment(hre.network.name, "bridgeProxy");
 
     // todo contract verify
+    await verify(implAddr, [], "contracts/BridgeAndRelay.sol:BridgeAndRelay", hre.network.config.chainId, true);
+    await verify(
+      proxy,
+      [implAddr, data],
+      "contracts/OmniServiceProxy.sol:OmniServiceProxy",
+      hre.network.config.chainId,
+      false,
+    );
   });
 
 task("relay:upgrade", "upgrade bridge evm contract in proxy")
@@ -87,14 +91,24 @@ task("relay:setServiceContract", "set contract")
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
-
     console.log("deployer address is:", deployer.address);
 
     let bridge = await getRelay(hre.network.name);
 
+    let type = taskArgs.type;
+    if (taskArgs.type.indexOf("fee") === 0) {
+      type = 2;
+    } else if (taskArgs.type.indexOf("router") === 0) {
+      type = 3;
+    } else if (taskArgs.type.indexOf("register") === 0) {
+      type = 4;
+    } else if (taskArgs.type.indexOf("light") === 0) {
+      type = 1;
+    }
+
     {
-      await (await bridge.setServiceContract(taskArgs.type, taskArgs.contract)).wait();
-      console.log("contract", await bridge.getServiceContract(taskArgs.type));
+      await (await bridge.setServiceContract(type, taskArgs.contract)).wait();
+      console.log("contract", await bridge.getServiceContract(type));
     }
   });
 
@@ -124,12 +138,11 @@ task("relay:registerChain", "register Chain")
     let relay = await getRelay(hre.network.name);
 
     let mos = taskArgs.address;
-      if (mos.substr(0, 2) !== "0x") {
-          mos = "0x" + stringToHex(taskArgs.address);
+    if (mos.substr(0, 2) !== "0x") {
+      mos = "0x" + stringToHex(taskArgs.address);
 
-          console.log(`mos address: ${taskArgs.address} (${mos})`);
-      }
-
+      console.log(`mos address: ${taskArgs.address} (${mos})`);
+    }
 
     await (await relay.registerChain([taskArgs.chain], [mos], taskArgs.type)).wait();
     console.log(`register chain ${taskArgs.chain} address ${taskArgs.address} success`);
@@ -177,7 +190,7 @@ task("relay:updateToken", "update token bridge and fee to target chain")
     });
 
     let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
-    let token = await ethers.getContractAt("IERC20MetadataUpgradeable", tokenAddr);
+    let token = await ethers.getContractAt("IERC20Metadata", tokenAddr);
     let decimals = await token.decimals();
     // console.log(`token ${taskArgs.token} address: ${token.address}, decimals ${decimals}`);
 
@@ -256,7 +269,6 @@ task("relay:list", "List relay infos")
     console.log(`distribute protocol rate: rate(${protocolFee[1]}), receiver(${protocolFee[0]})`);
 
     let chainList = await getChainList(chainId);
-    console.log(chainId)
     console.log("\nRegister chains:");
     let chains = [selfChainId];
     for (let i = 0; i < chainList.length; i++) {

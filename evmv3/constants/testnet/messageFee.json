@@ -1,0 +1,78 @@
+{
+	"Makalu": {
+		"native": {
+			"Sepolia": "100.0",
+			"BscTest": "20.0",
+			"ArbitrumSepolia": "50.0",
+			"DodoTest": "2.0",
+			"TronTest": "2.0",
+			"TonTest": "5.0",
+			"SolanaDev": "10.0"
+		}
+	},
+	"Sepolia": {
+		"native": {
+			"Makalu": "0.01",
+			"BscTest": "0.2",
+			"ArbitrumSepolia": "0.5",
+			"DodoTest": "0.02",
+			"TronTest": "0.02",
+			"TonTest": "0.05",
+			"SolanaDev": "0.1"
+		}
+	},
+	"BscTest": {
+		"native": {
+			"Makalu": "0.05",
+			"Sepolia": "5.0",
+			"ArbitrumSepolia": "2.5",
+			"DodoTest": "0.1",
+			"TronTest": "0.1",
+			"TonTest": "0.25",
+			"SolanaDev": "0.5"
+		}
+	},
+	"ArbitrumSepolia": {
+		"native": {
+			"Makalu": "0.01",
+			"Sepolia": "1.0",
+			"BscTest": "0.2",
+			"DodoTest": "0.02",
+			"TronTest": "0.02",
+			"TonTest": "0.05",
+			"SolanaDev": "0.1"
+		}
+	},
+	"DodoTest": {
+		"native": {
+			"Makalu": "0.5",
+			"Sepolia": "50.0",
+			"BscTest": "10.0",
+			"ArbitrumSepolia": "25.0",
+			"TronTest": "1.0",
+			"TonTest": "2.5",
+			"SolanaDev": "5.0"
+		}
+	},
+	"TronTest": {
+		"native": {
+			"Makalu": "0.5",
+			"TonTest": "2.5",
+			"SolanaDev": "5.0"
+		}
+	},
+	"TonTest": {
+		"native": {
+			"Makalu": "0.2",
+			"TronTest": "0.4",
+			"SolanaDev": "2.0"
+		}
+	},
+	"SolanaDev": {
+		"native": {
+			"Makalu": "0.1",
+			"TronTest": "0.2",
+			"TonTest": "0.5"
+		}
+	}
+}

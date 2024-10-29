@@ -2,47 +2,52 @@
 
 pragma solidity 0.8.25;
 
-// import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import "./interface/IFeeService.sol";
+import {IFeeService} from "./interface/IFeeService.sol";
 import {AccessManaged} from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
 
 contract FeeService is AccessManaged, IFeeService {
+    uint256 constant TOKEN_DECIMALS = 18;
+
     address public feeReceiver;
     mapping(uint256 => uint256) public baseGas; // chainid => gas
     mapping(uint256 => mapping(address => uint256)) public chainGasPrice; // chain => (feeToken => gasPrice)
     mapping(address => uint256) public tokenDecimals;
 
-    event SetBaseGas(uint256 chainId, uint256 basLimit);
-    event SetChainGasPrice(uint256 chainId, uint256 chainPrice);
+    event SetBaseGas(uint256 chainId, uint256 baseLimit);
+    event SetChainGasPrice(address token, uint256 chainId, uint256 chainPrice);
     event SetFeeReceiver(address receiver);
-    event SetTokenDecimals(address token, uint256 decimal);
+    event SetTokenDecimals(address token, uint256 decimals);
 
     constructor(address _authority) AccessManaged(_authority) {}
 
-    function setBaseGas(uint256 _chainId, uint256 _baseLimit) external restricted {
-        baseGas[_chainId] = _baseLimit;
-        emit SetBaseGas(_chainId, _baseLimit);
+    function setBaseGas(uint256 _chainId, uint256 _baseGas) external restricted {
+        baseGas[_chainId] = _baseGas;
+        emit SetBaseGas(_chainId, _baseGas);
     }
 
     function setChainGasPrice(uint256 _chainId, address _token, uint256 _chainPrice) external restricted {
         chainGasPrice[_chainId][_token] = _chainPrice;
-        tokenDecimals[_token] = 18;
-        emit SetChainGasPrice(_chainId, _chainPrice);
+        // tokenDecimals[_token] = 18;
+        emit SetChainGasPrice(_token, _chainId, _chainPrice);
     }
 
-    function setBaseGasMulti(uint256[] memory _chainList, uint256[] memory _limitList) external restricted {
-        require(_chainList.length == _limitList.length, "FeeService: length mismatch");
+    function setMultiBaseGas(uint256[] memory _chainList, uint256[] memory _baseList) external restricted {
+        require(_chainList.length == _baseList.length, "FeeService: length mismatch");
         for (uint256 i = 0; i < _chainList.length; i++) {
-            baseGas[_chainList[i]] = _limitList[i];
-            emit SetBaseGas(_chainList[i], _limitList[i]);
+            baseGas[_chainList[i]] = _baseList[i];
+            emit SetBaseGas(_chainList[i], _baseList[i]);
         }
     }
 
-    function setChainGasPriceMulti(address _token, uint256[] memory _chainList, uint256[] memory _priceList) external restricted {
+    function setMultiChainGasPrice(
+        address _token,
+        uint256[] memory _chainList,
+        uint256[] memory _priceList
+    ) external restricted {
         require(_chainList.length == _priceList.length, "FeeService: length mismatch");
         for (uint256 i = 0; i < _chainList.length; i++) {
             chainGasPrice[_chainList[i]][_token] = _priceList[i];
-            emit SetChainGasPrice(_chainList[i], _priceList[i]);
+            emit SetChainGasPrice(_token, _chainList[i], _priceList[i]);
         }
     }
 
@@ -70,12 +75,15 @@ contract FeeService is AccessManaged, IFeeService {
     ) external view override returns (uint256 amount, address receiverAddress) {
         require(baseGas[_toChain] > 0, "FeeService: not support target chain");
         receiverAddress = feeReceiver;
-        if (tokenDecimals[_feeToken] >= 18 || tokenDecimals[_feeToken] == 0) {
-            amount = (baseGas[_toChain] + _gasLimit) * chainGasPrice[_toChain][_feeToken];
+        uint256 decimals = (tokenDecimals[_feeToken] == 0) ? TOKEN_DECIMALS : tokenDecimals[_feeToken];
+
+        uint256 tokenAmount = (baseGas[_toChain] + _gasLimit) * chainGasPrice[_toChain][_feeToken];
+        if (decimals > TOKEN_DECIMALS) {
+            amount = tokenAmount * (10 ** (decimals - TOKEN_DECIMALS));
+        } else if (decimals < TOKEN_DECIMALS) {
+            amount = tokenAmount / (10 ** (TOKEN_DECIMALS - decimals));
         } else {
-            amount =
-                ((baseGas[_toChain] + _gasLimit) * chainGasPrice[_toChain][_feeToken]) /
-                10 ** (18 - tokenDecimals[_feeToken]);
+            amount = tokenAmount;
         }
     }
 }

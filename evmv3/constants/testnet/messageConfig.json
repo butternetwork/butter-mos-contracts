@@ -40,5 +40,19 @@
         "nativePrice": "0.2",
         "gasPrice": "1",
         "nontarget": ["DodoTest","BscTest","ArbitrumSepolia","Sepolia"]
+    },
+    "TonTest": {
+        "feeRecevier":"TAHxWraMX16ZxN5AxafLtKFgQEyxcycVh5",
+        "baseGas": 100000,
+        "nativePrice": "0.5",
+        "gasPrice": "1",
+        "nontarget": ["DodoTest","BscTest","ArbitrumSepolia","Sepolia"]
+    },
+    "SolanaDev": {
+        "feeRecevier":"TAHxWraMX16ZxN5AxafLtKFgQEyxcycVh5",
+        "baseGas": 200000,
+        "nativePrice": "1",
+        "gasPrice": "1",
+        "nontarget": ["DodoTest","BscTest","ArbitrumSepolia","Sepolia"]
     }
 }
