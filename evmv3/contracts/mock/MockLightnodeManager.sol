@@ -45,8 +45,8 @@ contract MockLightnodeManager is ILightClientManager {
     ) external override returns (bool success, string memory message, ILightVerifier.txLog memory log) {}
 
     function verifyProofData(
-        uint256 _chainId,
-        uint256 _logIndex,
+        uint256,
+        uint256,
         bytes calldata _receiptProof
     ) external view override returns (bool success, string memory message, ILightVerifier.txLog memory log) {
         success = true;

@@ -93,12 +93,12 @@ async function getFeeList(chain) {
     p = path.join(__dirname, "../../constants/fee.json");
   }
   if (!fs.existsSync(p)) {
-    throw "not fee ..";
+    throw "no fee file ..";
   }
   let rawdata = fs.readFileSync(p);
   let tokenFees = JSON.parse(rawdata);
   if (!tokenFees[chain]) {
-    throw "not fee ..";
+    throw `no fee at chain ${chain} ..`;
   }
 
   return tokenFees[chain];

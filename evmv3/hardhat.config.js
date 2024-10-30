@@ -10,7 +10,7 @@ require("./tasks");
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   zksolc: {
-    version: "1.4.0",
+    version: "1.5.6",
     compilerSource: "binary",
     settings: {},
   },
@@ -57,7 +57,7 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Bsc: {
-      url: `https://1rpc.io/bnb`,
+      url: `https://rpc.ankr.com/bsc`,
       chainId: 56,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },

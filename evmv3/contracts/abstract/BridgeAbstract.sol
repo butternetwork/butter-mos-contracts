@@ -24,22 +24,17 @@ abstract contract BridgeAbstract is
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
     AccessManagedUpgradeable,
-    //AccessControlEnumerableUpgradeable,
     IButterBridgeV3,
     IMOSV3
 {
     address internal constant ZERO_ADDRESS = address(0);
     uint256 constant MINTABLE_TOKEN = 0x01;
 
-    //bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
-    //bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
-
     uint256 public immutable selfChainId = block.chainid;
 
     uint256 private nonce;
 
     address internal wToken;
-    // address internal butterRouter;
     IFeeService internal feeService;
     ISwapOutLimit internal swapLimit;
 
@@ -65,7 +60,6 @@ abstract contract BridgeAbstract is
     error not_contract();
     error zero_amount();
     error invalid_mos_contract();
-    // error invalid_message_fee();
     error length_mismatching();
     error bridge_same_chain();
     error only_upgrade_role();

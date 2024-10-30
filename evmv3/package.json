@@ -52,7 +52,6 @@
   },
   "dependencies": {
     "@mapprotocol/protocol": "^0.8.5",
-    "@butternetwork/bridge": "^1.2.0",
     "@openzeppelin/contracts": "^5.1.0",
     "@openzeppelin/contracts-upgradeable": "^5.1.0"
   },

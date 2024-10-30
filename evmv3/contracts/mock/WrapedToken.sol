@@ -42,7 +42,8 @@ contract WrapedToken {
     function withdraw(uint wad) public {
         require(balanceOf[msg.sender] >= wad);
         balanceOf[msg.sender] -= wad;
-        payable(msg.sender).transfer(wad);
+        payable(msg.sender).call{value: wad}(bytes(""));
+        // payable(msg.sender).transfer(wad);
         emit Withdrawal(msg.sender, wad);
     }
 

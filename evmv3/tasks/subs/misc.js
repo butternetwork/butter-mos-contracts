@@ -1,30 +1,22 @@
 // const { types } = require("zksync-web3");
 let {getTronContract, fromHex, toHex } = require("../../utils/create.js");
-let {stringToHex, getRole } = require("../../utils/helper");
-let { verify } = require("../../utils/verify.js");
+let {stringToHex, getRole, isRelayChain} = require("../../utils/helper");
 
-let { getChain, getToken, getFeeList, getChainList,  readFromFile, writeToFile,  } = require("../utils/utils");
-
-let outputAddr = true;
+let { getChain, getToken, getDeployment,  } = require("../utils/utils");
 
 async function getBridge(network, abstract) {
-  let deployment = await readFromFile(network);
-  let addr = deployment[network]["bridgeProxy"];
-  if (!addr) {
-    throw "bridge not deployed.";
-  }
+  let addr = await getDeployment(network, bridgeProxy);
 
   let bridge;
   if (network === "Tron" || network === "TronTest") {
     bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, addr);
   } else {
-    let contract = abstract ? "BridgeAbstract" : "Bridge";
+    let contract = isRelayChain(network) ? "BridgeAndRelay" : "Bridge";
     bridge = await ethers.getContractAt(contract, addr);
   }
 
-  if (outputAddr) {
-    console.log("bridge address:", bridge.address);
-  }
+  console.log("bridge address:", bridge.address);
+
   return bridge;
 }
 
@@ -45,13 +37,13 @@ task("misc:grant", "grantRole")
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
 
-        let authority = await getAuth(hre.network.name);
-        console.log("authority address", authority.address);
+        let access = await ethers.getContractAt("AccessControlEnumerable", taskArgs.addr);
+        console.log("authority address", access.address);
 
         let role = getRole(taskArgs.role);
         console.log("role:", role);
 
-        await (await authority.grantRole(role, taskArgs.account)).wait();
+        await (await access.grantRole(role, taskArgs.account)).wait();
 
         console.log(`grant role ${taskArgs.role} to ${taskArgs.account} successfully`);
     });
@@ -64,13 +56,13 @@ task("misc:revoke", "revokeRole")
         const deployer = accounts[0];
         console.log("deployer address:", deployer.address);
 
-        let authority = await getAuth(hre.network.name);
-        console.log("authority address", authority.address);
+        let access = await ethers.getContractAt("AccessControlEnumerable", taskArgs.addr);
+        console.log("authority address", access.address);
 
         let role = getRole(taskArgs.role);
         console.log("role:", role);
 
-        await (await authority.revokeRole(role, taskArgs.account)).wait();
+        await (await access.revokeRole(role, taskArgs.account)).wait();
 
         console.log(`revoke ${taskArgs.account} role ${taskArgs.role} successfully`);
     });
@@ -138,36 +130,34 @@ task("misc:transferOut", "Cross-chain transfer token")
 
     let bridge = await getBridge(hre.network.name, true);
 
-    let value;
-    //let fee = await bridge.getNativeFee(tokenAddr, 0, targetChainId);
+    let amount;
 
     let fee = value = ethers.utils.parseUnits("0", 18);
-
     if (tokenAddr === "0x0000000000000000000000000000000000000000") {
-      value = ethers.utils.parseUnits(taskArgs.value, 18);
-      fee = fee.add(value);
+      amount = ethers.utils.parseUnits(taskArgs.value, 18);
+      fee = fee.add(amount);
     } else {
       let token = await ethers.getContractAt("IERC20Metadata", tokenAddr);
       let decimals = await token.decimals();
-      value = ethers.utils.parseUnits(taskArgs.value, decimals);
+      amount = ethers.utils.parseUnits(taskArgs.value, decimals);
 
       let approved = await token.allowance(deployer.address, bridge.address);
       console.log("approved ", approved);
-      if (approved.lt(value)) {
-        console.log(`${tokenAddr} approve ${bridge.address} value [${value}] ...`);
-        await (await token.approve(bridge.address, value)).wait();
+      if (approved.lt(amount)) {
+        console.log(`${tokenAddr} approve ${bridge.address} value [${amount}] ...`);
+        await (await token.approve(bridge.address, amount)).wait();
       }
     }
     console.log(`transfer [${taskArgs.token}] with value [${fee}] ...`);
     let rst;
     if (taskArgs.gas === 0) {
       rst = await (
-        await bridge.swapOutToken(initiator, tokenAddr, receiver, value, targetChainId, "0x", {
+        await bridge.swapOutToken(initiator, tokenAddr, receiver, amount, targetChainId, "0x", {
           value: fee,
         })
       ).wait();
     } else {
-      rst = await bridge.swapOutToken(initiator, tokenAddr, receiver, value, targetChainId, "0x", {
+      rst = await bridge.swapOutToken(initiator, tokenAddr, receiver, amount, targetChainId, "0x", {
         value: fee,
         gasLimit: taskArgs.gas,
       });

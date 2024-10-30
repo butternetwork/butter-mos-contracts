@@ -1,7 +1,7 @@
 let { create, getTronContract, fromHex, toHex } = require("../../utils/create.js");
 let { verify } = require("../../utils/verify.js");
 let { stringToHex, isTron} = require("../../utils/helper");
-let { getChain, getToken, getFeeList, getChainList, writeToFile } = require("../utils/utils.js");
+let { getChain, getToken, getFeeList, getFeeInfo, getChainList, writeToFile } = require("../utils/utils.js");
 const { getDeployment, saveDeployment } = require("../utils/utils");
 
 let outputAddr = true;
@@ -70,7 +70,7 @@ task("bridge:deploy", "bridge deploy")
       console.log("feeService", await bridge.getServiceContract(2));
     }
 
-    await saveDeployment(hre.network.name, "bridgeProxy");
+    await saveDeployment(hre.network.name, "bridgeProxy", proxy);
 
     await verify(implAddr, [], "contracts/Bridge.sol:Bridge", hre.network.config.chainId, true);
 
@@ -357,13 +357,13 @@ task("bridge:updateToken", "update token to target chain")
     let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
     console.log(`token ${taskArgs.token}  address: ${tokenAddr}`);
 
-    let chain = await getChain(hre.network.config.chainId);
-    let feeList = await getFeeList(chain.name);
-    let feeInfo = feeList[taskArgs.token];
+    let chain = await getChain(hre.network.name);
+    let feeInfo = await getFeeInfo(chain.name, taskArgs.token);
+    //let feeInfo = feeList[taskArgs.token];
 
     let isMintable = feeInfo.mintable === undefined ? false : feeInfo.mintable;
-    let isOmniToken = feeInfo.morc20 === undefined ? false : feeInfo.morc20;
-    let omniProxy = feeInfo.proxy === undefined ? ethers.constants.AddressZero : feeInfo.proxy;
+    //let isOmniToken = feeInfo.morc20 === undefined ? false : feeInfo.morc20;
+    //let omniProxy = feeInfo.proxy === undefined ? ethers.constants.AddressZero : feeInfo.proxy;
     await hre.run("bridge:updateTokenFeature", {
       token: taskArgs.token,
       mintable: isMintable,
@@ -524,7 +524,7 @@ task("bridge:tokenInfo", "list token info")
 
       let tokenAddr = taskArgs.token;
       if (tokenAddr === "wtoken") {
-        tokenAddr = await bridge.wToken();
+        tokenAddr = await bridge.getServiceContract(0);
       }
       tokenAddr = await getToken(hre.network.config.chainId, tokenAddr);
 

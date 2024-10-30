@@ -12,8 +12,8 @@ contract MockLightnode is ILightVerifier {
     ) external override returns (bool success, string memory message, bytes memory logs) {}
 
     function verifyProofDataWithCache(
-        bool _cache,
-        uint256 _logIndex,
+        bool,
+        uint256,
         bytes memory _receiptProofBytes
     ) external override returns (bool success, string memory message, txLog memory log) {
         success = true;
@@ -26,7 +26,7 @@ contract MockLightnode is ILightVerifier {
     ) external view override returns (bool success, string memory message, bytes memory logs) {}
 
     function verifyProofData(
-        uint256 _logIndex,
+        uint256,
         bytes memory _receiptProof
     ) external view override returns (bool success, string memory message, txLog memory log) {
         success = true;

@@ -7,9 +7,9 @@ import {ILightVerifier} from "@mapprotocol/protocol/contracts/interface/ILightVe
 contract Bridge is BridgeAbstract {
     uint256 constant DEPOSIT_GAS = 200000;
 
-    uint256 private relaySlot;
+    uint256 internal relaySlot;
 
-    ILightVerifier public lightNode;
+    ILightVerifier internal lightNode;
 
     error invalid_relay_chain();
     error invalid_relay_contract();
