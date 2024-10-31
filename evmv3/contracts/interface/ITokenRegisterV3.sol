@@ -58,11 +58,12 @@ interface ITokenRegisterV3 {
     function getBridgeFeeInfoV3(
         bytes memory _caller,
         bytes memory _fromToken,
+        address _bridgeToken,
         uint256 _fromChain,
         uint256 _fromAmount,
         uint256 _toChain,
         bool _withSwap
-    ) external view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault);
+    ) external view returns (uint256 fromChainFee, uint256 toChainVault);
 
     function getSourceFeeByTargetV3(
         bytes memory _caller,
