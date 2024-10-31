@@ -562,16 +562,12 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         if (token.mintable[_chainId]) {
             return type(uint256).max;
         }
-
         address vault = tokenList[_token].vaultToken;
-        (bool result, bytes memory data) = vault.staticcall(abi.encodeWithSignature("vaultBalance(uint256)", _chainId));
-        if (result && data.length > 0) {
-            int256 _vaultBalance = abi.decode(data, (int256));
-            if (_vaultBalance > 0) {
-                uint256 tem = _getTargetAmount(_token, selfChainId, _chainId, uint256(_vaultBalance));
-                require(tem <= uint256(type(int256).max), "register: value doesn't fit in an int256");
-                return tem;
-            }
+        int256 _vaultBalance = IVaultTokenV3(vault).getVaultByChainId(_chainId);
+        if (_vaultBalance > 0) {
+            uint256 tem = _getTargetAmount(_token, selfChainId, _chainId, uint256(_vaultBalance));
+            require(tem <= uint256(type(int256).max), "register: value doesn't fit in an int256");
+            return tem;
         }
         return 0;
     }
