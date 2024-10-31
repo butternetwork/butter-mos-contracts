@@ -220,7 +220,7 @@ describe("token-bridge", function () {
                 }
             });
             if(!log) throw "no_message_relay_event";
-            let decode = await testUtil.decodeMessageOut(log);
+            let decode = await testUtil.decodeMessageRelay(log);
             let chainAndGasLimit = await testUtil.getChainAndGasLimit(212, 1, decode.outEvent.gasLimit);
             log.topics[2] = chainAndGasLimit;
             let receiptProof = await testUtil.encodeTxLog(log);
@@ -256,7 +256,7 @@ describe("token-bridge", function () {
                 }
             });
             if(!log) throw "no_message_relay_event";
-            let decode = await testUtil.decodeMessageOut(log);
+            let decode = await testUtil.decodeMessageRelay(log);
             let chainAndGasLimit = await testUtil.getChainAndGasLimit(212, 1, decode.outEvent.gasLimit);
             log.topics[2] = chainAndGasLimit;
             let receiptProof = await testUtil.encodeTxLog(log);

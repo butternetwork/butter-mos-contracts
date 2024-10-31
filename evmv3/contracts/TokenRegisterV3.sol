@@ -421,22 +421,24 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     function getBridgeFeeInfoV3(
         bytes memory _caller,
         bytes memory _fromToken,
+        address _bridgeToken,
         uint256 _fromChain,
         uint256 _fromAmount,
         uint256 _toChain,
         bool _withSwap
-    ) external view override returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault) {
-        return _getBridgeFeeInfo(_caller, _fromToken, _fromChain, _fromAmount, _toChain, _withSwap);
+    ) external view override returns (uint256 fromChainFee, uint256 toChainVault) {
+        return _getBridgeFeeInfo(_caller, _fromToken, _bridgeToken, _fromChain, _fromAmount, _toChain, _withSwap);
     }
 
     function _getBridgeFeeInfo(
         bytes memory _caller,
         bytes memory _fromToken,
+        address _bridgeToken,
         uint256 _fromChain,
         uint256 _fromAmount,
         uint256 _toChain,
         bool _withSwap
-    ) internal view returns (uint256 fromChainFee, uint256 toChainAmount, uint256 toChainVault) {
+    ) internal view returns (uint256 fromChainFee, uint256 toChainVault) {
         address relayToken;
         uint256 feeAmount;
         uint256 relayAmount;
@@ -445,16 +447,16 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
 
         relayToken = _getRelayChainToken(_fromChain, _fromToken);
 
-        toChainVault = getVaultBalance(relayToken, _toChain);
+        toChainVault = getVaultBalance(_bridgeToken, _toChain);
 
         relayAmount = _getTargetAmount(relayToken, _fromChain, chainId, _fromAmount);
         (feeAmount, , ) = _getTransferFee(_caller, relayToken, relayAmount, _fromChain, _toChain, _withSwap);
         if (relayAmount <= feeAmount) {
-            return (_fromAmount, 0, toChainVault);
+            return (_fromAmount, toChainVault);
         }
 
         fromChainFee = _getTargetAmount(relayToken, chainId, _fromChain, feeAmount);
-        toChainAmount = _getTargetAmount(relayToken, chainId, _toChain, relayAmount - feeAmount);
+        // toChainAmount = _getTargetAmount(relayToken, chainId, _toChain, relayAmount - feeAmount);
     }
 
     // get source chain token amount and the fee amount based the target chain token amount
