@@ -13,7 +13,6 @@ import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.s
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-// import {AccessControlEnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import {EvmDecoder} from "../lib/EvmDecoder.sol";
 import {MessageInEvent} from "../lib/Types.sol";
@@ -42,7 +41,9 @@ abstract contract BridgeAbstract is
 
     mapping(bytes32 => uint256) public orderList;
 
+    // token => feature
     mapping(address => uint256) public tokenFeatureList;
+    // chainId => (token => info)
     mapping(uint256 => mapping(address => uint256)) public tokenMappingList;
 
     // service fee or bridge fee
@@ -62,7 +63,6 @@ abstract contract BridgeAbstract is
     error invalid_mos_contract();
     error length_mismatching();
     error bridge_same_chain();
-    error only_upgrade_role();
     error not_support_value();
     error not_support_target_chain();
     error unsupported_message_type();
@@ -134,6 +134,10 @@ abstract contract BridgeAbstract is
         return _isMintable(_token);
     }
 
+    function isBridgeable(address _token, uint256 _toChain) external view returns (bool) {
+        return ((tokenMappingList[_toChain][_token] & 0x0F) == 0x01);
+    }
+
     function getOrderStatus(
         uint256,
         uint256 _blockNum,
@@ -153,6 +157,7 @@ abstract contract BridgeAbstract is
         uint256 amount = feeList[receiver][token];
         if (amount > 0) {
             _tokenTransferOut(token, receiver, amount, true, false);
+            feeList[receiver][token] = 0;
         }
         emit WithdrawFee(receiver, token, amount);
     }
@@ -343,6 +348,7 @@ abstract contract BridgeAbstract is
             _checkBridgeable(_inEvent.token, _inEvent.toChain);
         }
         if (_inEvent.toChain == _inEvent.fromChain) revert bridge_same_chain();
+        if (_inEvent.mos == ZERO_ADDRESS) revert invalid_mos_contract();
 
         address initiator = (trustList[_sender] == 0x01) ? _initiator : _sender;
 

@@ -37,6 +37,7 @@ contract BridgeAndRelay is BridgeAbstract {
     mapping(uint256 => Rate) public distributeRate;
 
     error invalid_chain_id();
+    error invalid_chain();
     error unknown_log();
     error chain_type_error();
     error invalid_rate_id();
@@ -202,6 +203,7 @@ contract BridgeAndRelay is BridgeAbstract {
         inEvent.messageType = uint8(MessageType.MESSAGE);
         inEvent.fromChain = selfChainId;
         inEvent.toChain = _toChain;
+        inEvent.mos = Helper._fromBytes(mosContracts[_toChain]);
 
         MessageData memory msgData = _transferOut(inEvent.fromChain, inEvent.toChain, _messageData, _feeToken);
         inEvent.to = msgData.target;
@@ -244,6 +246,7 @@ contract BridgeAndRelay is BridgeAbstract {
         inEvent.messageType = uint8(MessageType.BRIDGE);
         inEvent.fromChain = selfChainId;
         inEvent.toChain = _toChain;
+        inEvent.mos = Helper._fromBytes(mosContracts[_toChain]);
 
         inEvent.to = _to;
         inEvent.amount = _amount;
@@ -473,8 +476,12 @@ contract BridgeAndRelay is BridgeAbstract {
             uint64(_inEvent.gasLimit)
         );
 
+        if (Helper._checkBytes(mosContracts[_inEvent.toChain], bytes(""))) revert invalid_mos_contract();
+
         bytes memory messageData;
-        if (chainTypes[_inEvent.toChain] == ChainType.EVM) {
+        if (chainTypes[_inEvent.toChain] == ChainType.NULL) {
+            revert invalid_chain();
+        } else if (chainTypes[_inEvent.toChain] == ChainType.EVM) {
             uint256 header = EvmDecoder.encodeMessageHeader(false, _inEvent.messageType);
             // abi.encode((version | messageType), mos, token, amount, to, bytes(from), bytes(message))
             messageData = abi.encode(
