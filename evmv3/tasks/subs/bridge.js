@@ -142,91 +142,6 @@ task("bridge:setServiceContract", "set contract")
     }
   });
 
-/*
-task("bridge:setReceiver", "set native fee receiver")
-  .addParam("receiver", "receiver address")
-  .setAction(async (taskArgs, hre) => {
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-
-    console.log("deployer address is:", deployer.address);
-
-    let bridge = await getBridge(hre.network.name, true);
-
-    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      await bridge.setNativeFeeReceiver(taskArgs.receiver).send();
-    } else {
-      await (await bridge.setNativeFeeReceiver(taskArgs.receiver)).wait();
-      console.log("receiver address", await bridge.nativeFeeReceiver());
-    }
-  });
-
-task("bridge:setBaseGas", "set base gas")
-  .addOptionalParam("chain", "target chain id, 0 for default", 0, types.int)
-  .addParam("type", "Out type, 0 - swap, 1 - deposit, 2 - morc20")
-  .addParam("gas", "base gas")
-  .setAction(async (taskArgs, hre) => {
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-    console.log("deployer address:", deployer.address);
-
-    let bridge = await getBridge(hre.network.name, true);
-
-    let chainId = taskArgs.chain;
-    if (chainId !== 0) {
-      let chain = await getChain(taskArgs.chain);
-      chainId = chain.chainId;
-    }
-    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      await bridge.setBaseGas(chainId, taskArgs.type, taskArgs.gas).send();
-    } else {
-      await (await bridge.setBaseGas(chainId, taskArgs.type, taskArgs.gas)).wait();
-    }
-  });
-
-task("bridge:setNativeFee", "set base gas")
-  .addParam("token", "token name or address")
-  .addOptionalParam("chain", "target chain id, 0 for default", 0, types.int)
-  .addParam("fee", "native fee")
-  .setAction(async (taskArgs, hre) => {
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-    console.log("deployer address:", deployer.address);
-
-    let bridge = await getBridge(hre.network.name, true);
-
-    let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
-    console.log(`token ${taskArgs.token}  address: ${tokenAddr}`);
-
-    let chainId = taskArgs.chain;
-    if (chainId !== 0) {
-      let chain = await getChain(taskArgs.chain);
-      chainId = chain.chainId;
-    }
-    let fee = ethers.utils.parseUnits(taskArgs.fee, 18);
-
-    console.log(`[${taskArgs.token}] to chain [${chainId}] native fee [${fee}]`);
-
-    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      await bridge.setNativeFee(tokenAddr, chainId, taskArgs.fee).send();
-    } else {
-      await (await bridge.setNativeFee(tokenAddr, chainId, fee)).wait();
-    }
-  });
-
-task("bridge:registerChain", "register Chain")
-  .addParam("chains", "chainId")
-  .addParam("addresses", "chainId => address")
-  .setAction(async (taskArgs, hre) => {
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-    console.log("deployer address:", deployer.address);
-
-    let bridge = await getBridge(hre.network.name, false);
-
-    console.log(`register chain [${chainList}] address [${addressList}] success`);
-  });
-*/
 task("bridge:setRelay", "set relay")
   .addParam("chain", "register address")
   .addParam("address", "register address")
@@ -314,37 +229,7 @@ task("bridge:updateTokenFeature", "update tokens")
     }
     console.log(`set token [${taskArgs.token}] feature [${feature.toString(16)}]`);
   });
-/*
-task("bridge:updateTokenNativeFees", "update token native fees")
-  .addParam("token", "token")
-  .addParam("fee", "native fee")
-  .setAction(async (taskArgs, hre) => {
-    const accounts = await ethers.getSigners();
-    const deployer = accounts[0];
-    if (outputAddr) {
-      console.log("deployer address:", deployer.address);
-    }
 
-    let bridge = await getBridge(hre.network.name, true);
-    let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
-
-    // todo, get decimals from wrapped token
-    let tokenNativeFee = ethers.utils.parseUnits(taskArgs.fee, 18);
-    let chainNativeFee = await bridge.nativeFees(tokenAddr, 0);
-    if (chainNativeFee.eq(tokenNativeFee)) {
-      console.log(`token [${taskArgs.token}] default native fee no update`);
-      return;
-    }
-
-    console.log(`set token [${taskArgs.token}] default native fee [${tokenNativeFee}] ...`);
-    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      await bridge.updateTokens(tokenAddr, 0, tokenNativeFee).send();
-    } else {
-      await bridge.setNativeFee(tokenAddr, 0, tokenNativeFee);
-    }
-    // console.log(`set token [${taskArgs.token}] default native fee [${tokenNativeFee}]`);
-  });
-*/
 task("bridge:updateToken", "update token to target chain")
   .addParam("token", "token name")
   .setAction(async (taskArgs, hre) => {
@@ -405,6 +290,35 @@ task("bridge:updateToken", "update token to target chain")
 
     console.log(`update token [${taskArgs.token}] chains success`);
   });
+
+task("bridge:withdraw", "update token to target chain")
+    .addParam("token", "token name")
+    .addOptionalParam("addr", "the adress", "", types.string)
+    .addOptionalParam("amount", "the token amount", "", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        console.log(`token ${taskArgs.token}  address: ${tokenAddr}`);
+
+        let receiver = taskArgs.addr;
+        if (taskArgs.addr === "") {
+            receiver = deployer.address;
+        }
+
+        let bridge = await getBridge(hre.network.name, true);
+
+        let amount = await bridge.feeList(receiver, tokenAddr);
+        console.log(`[${receiver}] can withdraw token [${tokenAddr}] amount [${amount}]`);
+        if (amount.gt(ethers.BigNumber.from("0"))) {
+            await (await bridge.withdrawFee(receiver, tokenAddr)).wait();
+
+            console.log(`[${receiver}] can withdraw token [${tokenAddr}] amount [${await bridge.feeList(receiver, tokenAddr)}]`);
+        }
+
+    });
 
 task("bridge:transferOut", "Cross-chain transfer token")
   .addOptionalParam("initiator", "The initiator", "", types.string)
@@ -484,6 +398,8 @@ task("bridge:transferOut", "Cross-chain transfer token")
 
     console.log(`transfer token ${taskArgs.token} ${taskArgs.value} to ${receiver} successful`);
   });
+
+
 
 task("bridge:list", "List bridge info")
   .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)

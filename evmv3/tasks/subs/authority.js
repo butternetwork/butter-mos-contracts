@@ -76,13 +76,13 @@ task("auth:deploy", "mos relay deploy")
 task("auth:closeTarget", "add control")
   .addOptionalParam("target", "call target address", "mos", types.string)
   .addParam("close", "close target")
+  .addOptionalParam("auth", "The auth addr", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre, "");
-    console.log("authority address", authority.address);
+    let authority = await getAuth(hre, taskArgs.auth);
 
     let role = getRole(taskArgs.role);
     console.log("role:", role);
@@ -105,13 +105,13 @@ task("auth:setTarget", "add control")
   .addOptionalParam("target", "call target address", "mos", types.string)
   .addParam("funcs", "call function signature")
   .addParam("role", "control role")
+  .addOptionalParam("auth", "The auth addr", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre, "");
-    console.log("authority address", authority.address);
+    let authority = await getAuth(hre, taskArgs.auth);
 
     let role = getRole(taskArgs.role);
     console.log("role:", role);
@@ -141,13 +141,13 @@ task("auth:setTarget", "add control")
 task("auth:getRole", "get target role")
   .addParam("target", "target address")
   .addParam("funsig", "fun sig")
+  .addOptionalParam("auth", "The auth addr", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre, "");
-    console.log("authority address", authority.address);
+    let authority = await getAuth(hre, taskArgs.auth);
 
     let target = taskArgs.target;
     if (taskArgs.target === "mos") {
@@ -167,12 +167,13 @@ task("auth:authorized", "get target role")
   .addParam("target", "target address")
   .addParam("account", "user address")
   .addParam("funsig", "fun sig")
+  .addOptionalParam("auth", "The auth addr", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre, "");
+    let authority = await getAuth(hre, taskArgs.auth);
     console.log("authority address", authority.address);
 
     let target = taskArgs.target;
@@ -189,17 +190,17 @@ task("auth:authorized", "get target role")
     console.log(`${taskArgs.account} ${taskArgs.target} ${taskArgs.funsig} result: ${rst}`);
   });
 
-task("auth:grantRole", "grantRole")
+task("auth:grant", "grantRole")
   .addParam("account", "account to grantRole")
   .addParam("role", "control role, admin/minter/manager")
   .addOptionalParam("delay", "delay time", 0, types.int)
+  .addOptionalParam("auth", "The auth addr", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre, "");
-    console.log("authority address", authority.address);
+    let authority = await getAuth(hre, taskArgs.auth);
 
     let role = getRole(taskArgs.role);
     console.log("role:", role);
@@ -209,16 +210,16 @@ task("auth:grantRole", "grantRole")
     console.log(`grant role ${taskArgs.role} to ${taskArgs.account} successfully`);
   });
 
-task("auth:revokeRole", "revokeRole")
+task("auth:revoke", "revokeRole")
   .addParam("account", "account to revokeRole")
   .addParam("role", "control role")
+  .addOptionalParam("auth", "The auth addr", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre, "");
-    console.log("authority address", authority.address);
+    let authority = await getAuth(hre, taskArgs.auth);
 
     let role = getRole(taskArgs.role);
     console.log("role:", role);
@@ -228,16 +229,37 @@ task("auth:revokeRole", "revokeRole")
     console.log(`revoke ${taskArgs.account} role ${taskArgs.role} successfully`);
   });
 
+task("auth:setAuth", "set target new authority")
+    .addParam("target", "target address")
+    .addParam("addr", "new authority address")
+    .addOptionalParam("auth", "The auth addr", "", types.string)
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        console.log("deployer address:", deployer.address);
+
+        let authority = await getAuth(hre, taskArgs.auth);
+
+        let target = await ethers.getContractAt("IAccessManaged", taskArgs.target);
+
+        console.log("pre authority: ", await target.authority());
+
+        await (await authority.updateAuthority(taskArgs.target, taskArgs.addr)).wait();
+
+        console.log("after authority: ", await target.authority());
+
+        console.log(`set target ${taskArgs.target} new authority manager ${taskArgs.addr} successfully`);
+    });
+
 task("auth:getMember", "get role member")
-  .addOptionalParam("addr", "The auth addr", "", types.string)
   .addOptionalParam("role", "The role", "admin", types.string)
+  .addOptionalParam("auth", "The auth addr", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
-    let authority = await getAuth(hre, taskArgs.addr);
-    console.log("authority address", authority.address);
+    let authority = await getAuth(hre, taskArgs.auth);
 
     let role = getRole(taskArgs.role);
     console.log("role:", role);

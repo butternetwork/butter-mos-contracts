@@ -557,7 +557,7 @@ task("register:update", "update token bridge and fee to target chain")
             tokenName === "merl" ||
             tokenName === "mp" ||
             tokenName === "mstar" ||
-            tokenName === "bnb"
+            tokenName === "bnb" || tokenName === "mapo"
           ) {
             continue;
           }
@@ -816,7 +816,8 @@ task("register:list", "List token infos")
     outputAddr = false;
 
     let register = await getRegister(hre.network.name, taskArgs.v2);
-    console.log("Token register:", register.address);
+    console.log("Token register: ", register.address);
+    console.log("base receiver: ", await register.getBaseFeeReceiver());
 
     console.log(`\ntoken: ${taskArgs.token}`);
     let chainId = hre.network.config.chainId;

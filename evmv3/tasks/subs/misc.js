@@ -5,7 +5,7 @@ let {stringToHex, getRole, isRelayChain} = require("../../utils/helper");
 let { getChain, getToken, getDeployment,  } = require("../utils/utils");
 
 async function getBridge(network, abstract) {
-  let addr = await getDeployment(network, bridgeProxy);
+  let addr = await getDeployment(network, "bridgeProxy");
 
   let bridge;
   if (network === "Tron" || network === "TronTest") {
