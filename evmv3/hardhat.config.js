@@ -4,11 +4,18 @@ require("hardhat-deploy");
 require('@nomiclabs/hardhat-ethers');
 require("@matterlabs/hardhat-zksync-deploy");
 require("@matterlabs/hardhat-zksync-solc");
+require('hardhat-abi-exporter');
 // require("@matterlabs/hardhat-zksync-verify");
 require("./tasks");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
+  abiExporter: {
+    path: "./abi",
+    only: [":IButter*",":*Fee*", ":Bridge*",":Omni*",":IMOS*",":*Executor*",":$Token*",":Auth*",":*Vault*"],
+    clear: false,
+    flat: true,
+  },
   zksolc: {
     version: "1.5.6",
     compilerSource: "binary",
@@ -52,12 +59,12 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Polygon: {
-      url: `https://polygon.llamarpc.com`,
+      url: `https://rpc.ankr.com/polygon`,
       chainId: 137,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Bsc: {
-      url: `https://rpc.ankr.com/bsc`,
+      url: `https://bsc-dataseed4.defibit.io`,
       chainId: 56,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },

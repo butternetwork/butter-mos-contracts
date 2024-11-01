@@ -25,7 +25,8 @@ interface IButterBridgeV3 {
 
     event MessageIn(
         bytes32 indexed orderId,
-        uint256 indexed fromChain,
+        // fromChain (8 bytes) | toChain (8 bytes) | reserved (8 bytes) | gasUsed (8 bytes)
+        uint256 indexed chainAndGasLimit,
         address token,
         uint256 amount,
         address to,

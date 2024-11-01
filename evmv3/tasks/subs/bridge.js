@@ -291,6 +291,24 @@ task("bridge:updateToken", "update token to target chain")
     console.log(`update token [${taskArgs.token}] chains success`);
   });
 
+task("bridge:setTrust", "set relay")
+    .addParam("addr", "trust address")
+    .addParam("enable", "enable")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
+        console.log("deployer address is:", deployer.address);
+
+        let bridge = await getBridge(hre.network.name, false);
+
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await bridge.setTrustAddress(taskArgs.addr, taskArgs.enable).send();
+        } else {
+            await (await bridge.setTrustAddress(taskArgs.addr, taskArgs.enable)).wait();
+        }
+    });
+
 task("bridge:withdraw", "update token to target chain")
     .addParam("token", "token name")
     .addOptionalParam("addr", "the adress", "", types.string)

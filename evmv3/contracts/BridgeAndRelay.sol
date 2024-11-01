@@ -430,6 +430,7 @@ contract BridgeAndRelay is BridgeAbstract {
         address token = _inEvent.token;
         uint256 relayOutAmount = _inEvent.amount;
         if (_relay) {
+            uint256 gasLeft = gasleft();
             try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, _retryMessage) returns (
                 address tokenOut,
                 uint256 amountOut,
@@ -441,7 +442,8 @@ contract BridgeAndRelay is BridgeAbstract {
                 _inEvent.to = target;
                 _inEvent.swapData = newMessage;
             } catch (bytes memory reason) {
-                _storeMessageData(_inEvent, reason);
+                _emitMessageIn(_inEvent, false, gasLeft, reason);
+                //_storeMessageData(_inEvent, reason);
                 return;
             }
         }

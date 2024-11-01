@@ -1,7 +1,7 @@
 let { create, toHex, fromHex} = require("../../utils/create.js");
+let {stringToHex} = require("../../utils/helper.js");
 const {
   getToken,
-  stringToHex,
   getFeeList,
   getChain,
   getChainList,
@@ -72,7 +72,7 @@ task("register:upgrade", "upgrade bridge evm contract in proxy")
     let register = await getRegister(hre.network.name, taskArgs.v2);
 
     console.log("pre impl", await register.getImplementation());
-    await (await register.upgradeTo(implAddr)).wait();
+    await (await register.upgradeToAndCall(implAddr, "0x")).wait();
     console.log("new impl", await register.getImplementation());
   });
 

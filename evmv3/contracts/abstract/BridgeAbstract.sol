@@ -215,14 +215,13 @@ abstract contract BridgeAbstract is
 
     function _messageIn(MessageInEvent memory _inEvent, bool _gasleft) internal {
         address to = Helper._fromBytes(_inEvent.to);
-        uint256 gasLimit = _inEvent.gasLimit;
 
-        uint256 executingGas = gasleft();
-        if (_gasleft) {
-            gasLimit = executingGas;
-        }
+        uint256 gasLeft = gasleft();
+        uint256 gasLimit = _gasleft ? gasLeft : _inEvent.gasLimit;
+
         if (!Helper._isContract(to)) {
-            return _storeMessageData(_inEvent, bytes("NotContract"));
+            return _emitMessageIn(_inEvent, false, gasLeft, bytes("NotContract"));
+            //return _storeMessageData(_inEvent, bytes("NotContract"), 0);
         }
 
         try
@@ -234,26 +233,17 @@ abstract contract BridgeAbstract is
                 _inEvent.swapData
             )
         {
-            emit MessageIn(
-                _inEvent.orderId,
-                _inEvent.fromChain,
-                ZERO_ADDRESS,
-                0,
-                to,
-                _inEvent.from,
-                bytes(""),
-                true,
-                bytes("")
-            );
+            _emitMessageIn(_inEvent, true, gasLeft, "");
         } catch (bytes memory reason) {
-            emit GasInfo(_inEvent.orderId, executingGas, gasleft());
-            _storeMessageData(_inEvent, reason);
+            _emitMessageIn(_inEvent, false, gasLeft, reason);
         }
     }
 
     function _swapIn(MessageInEvent memory _inEvent) internal {
         address outToken = _inEvent.token;
         address to = Helper._fromBytes(_inEvent.to);
+
+        uint256 gasLeft = gasleft();
         if (_inEvent.swapData.length > 0 && Helper._isContract(to)) {
             // if swap params is not empty, then we need to do swap on current chain
             _tokenTransferOut(_inEvent.token, to, _inEvent.amount, false, false);
@@ -272,17 +262,7 @@ abstract contract BridgeAbstract is
             _tokenTransferOut(_inEvent.token, to, _inEvent.amount, true, false);
             if (_inEvent.token == wToken) outToken = ZERO_ADDRESS;
         }
-        emit MessageIn(
-            _inEvent.orderId,
-            _inEvent.fromChain,
-            outToken,
-            _inEvent.amount,
-            to,
-            _inEvent.from,
-            bytes(""),
-            true,
-            bytes("")
-        );
+        _emitMessageIn(_inEvent, true, gasLeft, "");
     }
 
     function _tokenTransferIn(
@@ -372,7 +352,33 @@ abstract contract BridgeAbstract is
         _notifyLightClient(_inEvent.toChain);
     }
 
-    function _storeMessageData(MessageInEvent memory _inEvent, bytes memory _reason) internal {
+    function _emitMessageIn(MessageInEvent memory _inEvent, bool success, uint256 _gasBefore, bytes memory _reason) internal {
+        uint256 gasUsed = _gasBefore - gasleft();
+        uint256 chainAndGasLimit = _getChainAndGasLimit(
+            uint64(_inEvent.fromChain),
+            uint64(_inEvent.toChain),
+            uint64(gasUsed)
+        );
+
+        if (success) {
+            emit MessageIn(
+                _inEvent.orderId,
+                chainAndGasLimit,
+                _inEvent.token,
+                _inEvent.amount,
+                Helper._fromBytes(_inEvent.to),
+                _inEvent.from,
+                bytes(""),
+                true,
+                bytes("")
+            );
+        } else {
+            _storeMessageData(_inEvent, _reason, chainAndGasLimit);
+        }
+
+    }
+
+    function _storeMessageData(MessageInEvent memory _inEvent, bytes memory _reason, uint256 _chainAndGasLimit) internal {
         orderList[_inEvent.orderId] = uint256(
             keccak256(
                 abi.encodePacked(
@@ -397,7 +403,7 @@ abstract contract BridgeAbstract is
         );
         emit MessageIn(
             _inEvent.orderId,
-            _inEvent.fromChain,
+            _chainAndGasLimit,
             _inEvent.token,
             _inEvent.amount,
             Helper._fromBytes(_inEvent.to),
