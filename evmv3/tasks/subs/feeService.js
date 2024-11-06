@@ -1,5 +1,5 @@
-let { create } = require("../../utils/create.js");
-let { isTron, toEvmAddress, fromEvmAddress, getTronContract } = require("../../utils/helper");
+let { create, getTronContract } = require("../../utils/create.js");
+let { isTron, sleep } = require("../../utils/helper");
 const { verify } = require("../../utils/verify");
 const {
   getToken,
@@ -11,6 +11,7 @@ const {
   saveDeployment,
   saveMessageFee,
 } = require("../utils/utils");
+const { tronToHex } = require("../../utils/create");
 
 async function getFeeService(hre, contractAddress) {
   let addr = contractAddress;
@@ -47,13 +48,14 @@ task("fee:deploy", "Deploy the fee service")
     let FeeService = await ethers.getContractFactory("FeeService");
     let service_salt = process.env.FEE_SERVICE_SALT;
     let service_addr = await create(hre, deployer, "FeeService", ["address"], [admin], service_salt);
-    let service = FeeService.attach(service_addr);
-    //await (await service.initialize()).wait();
-    console.log("owner:", await service.authority());
 
-    //let deployment = await readFromFile(hre.network.name);
-    //deployment[hre.network.name]["feeService"] = service_addr;
-    //await writeToFile(deployment);
+    if (isTron(hre.network.name)) {
+      let service = await getTronContract("FeeService", hre.artifacts, hre.network.name, service_addr);
+      console.log("owner:", await service.authority().call());
+    } else {
+      let service = FeeService.attach(service_addr);
+      console.log("owner:", await service.authority());
+    }
 
     await saveDeployment(hre.network.name, "feeService", service_addr);
 
@@ -67,7 +69,11 @@ task("fee:setBaseGas", "set Base Gas")
   .setAction(async (taskArgs, hre) => {
     let feeService = await getFeeService(hre, taskArgs.service);
 
-    await (await feeService.setBaseGas(taskArgs.chain, taskArgs.gas)).wait();
+    if (isTron(hre.network.name)) {
+      await (await feeService.setBaseGas(taskArgs.chain, taskArgs.gas).sned()).wait();
+    } else {
+      await (await feeService.setBaseGas(taskArgs.chain, taskArgs.gas)).wait();
+    }
   });
 
 task("fee:setChainGasPrice", "set chainGas price")
@@ -78,7 +84,11 @@ task("fee:setChainGasPrice", "set chainGas price")
   .setAction(async (taskArgs, hre) => {
     let feeService = await getFeeService(hre, taskArgs.service);
 
-    await (await feeService.setChainGasPrice(taskArgs.chain, taskArgs.token, taskArgs.price)).wait();
+    if (isTron(hre.network.name)) {
+      await (await feeService.setChainGasPrice(taskArgs.chain, taskArgs.token, taskArgs.price).send()).wait();
+    } else {
+      await (await feeService.setChainGasPrice(taskArgs.chain, taskArgs.token, taskArgs.price)).wait();
+    }
   });
 
 task("fee:setTokenDecimals", "set Token Decimals")
@@ -88,7 +98,11 @@ task("fee:setTokenDecimals", "set Token Decimals")
   .setAction(async (taskArgs, hre) => {
     let feeService = await getFeeService(hre, taskArgs.service);
 
-    await (await service.setTokenDecimals(taskArgs.token, taskArgs.decimal)).wait();
+    if (isTron(hre.network.name)) {
+      await feeService.setTokenDecimals(taskArgs.token, taskArgs.decimal).send();
+    } else {
+      await (await feeService.setTokenDecimals(taskArgs.token, taskArgs.decimal)).wait();
+    }
   });
 
 task("fee:setReceiver", "Set message fee service address ")
@@ -108,8 +122,9 @@ task("fee:setReceiver", "Set message fee service address ")
 
     if (isTron(hre.network.config.chainId)) {
       let onchainReceiver = await feeService.feeReceiver().call();
-      receiver = await toEvmAddress(receiver, hre.network.name);
-      if (onchainReceiver === receiver) {
+      onchainReceiver = await tronToHex(onchainReceiver, hre.network.name);
+      receiver = await tronToHex(receiver, hre.network.name);
+      if (onchainReceiver.toLowerCase() === receiver.toLowerCase()) {
         console.log(`fee receiver no update`);
         return;
       }
@@ -163,9 +178,11 @@ task("fee:setMultiBaseGas", "set target chain base gas limit")
         updateChainList.push(chain.chainId);
         updateGasList.push(gasList[i]);
         console.log(`target chain [${chain.name}] base gas limt [${baseGas.toString()}] => [${gasList[i]}]`);
+
+        await sleep(200);
       }
       if (updateChainList.length > 0) {
-        await feeService.setBaseGasMulti(updateChainList, updateGasList).send();
+        await feeService.setMultiBaseGas(updateChainList, updateGasList).send();
         console.log(`Update chain [${updateChainList}] base gas limit]`);
       }
     } else {
@@ -247,9 +264,11 @@ task("fee:setTargetPrice", "set chain message fee")
         updateChainList.push(chain.chainId);
         updatePriceList.push(priceList[i]);
         console.log(`chain [${chain.name}] token [${taskArgs.token}] gas price [${gasPrice}] => [${priceList[i]}]`);
+
+        await sleep(200);
       }
       if (updateChainList.length > 0) {
-        await feeService.setChainGasPriceMulti(token, updateChainList, updatePriceList).send();
+        await feeService.setMultiChainGasPrice(token, updateChainList, updatePriceList).send();
         console.log(`Update chain [${updateChainList}] token [${taskArgs.token}] gas price`);
       }
     } else {
@@ -288,6 +307,8 @@ task("fee:update", "update chain message fee")
       service: taskArgs.service,
     });
 
+    await sleep(500);
+
     let addChainList = [];
     let addBaseList = [];
 
@@ -318,12 +339,16 @@ task("fee:update", "update chain message fee")
       });
     }
 
+    await sleep(500);
+
     console.log("===== base gas ========");
     await hre.run("fee:setMultiBaseGas", {
       chain: addChainList.toString(),
       gas: addBaseList.toString(),
       service: taskArgs.service,
     });
+
+    await sleep(500);
 
     console.log("===== gas price ========");
     let fee = await getMessageFee(hre.network.name);
@@ -371,6 +396,8 @@ task("fee:updateFee", "List fee info")
         let price = targetGasPrice.mul(targetNativePrice).div(nativePrice);
         let gPrice = ethers.utils.formatUnits(price, 9);
         nativePriceList[targetChain.name] = gPrice;
+
+        //console.log(`${chain.name}: ${targetChain.name} native: ${nativePrice}, target: ${targetGasPrice}, ${targetNativePrice}, ${price}`)
       }
       feeList[chain.name]["native"] = nativePriceList;
     }
@@ -388,22 +415,43 @@ task("fee:list", "List fee info")
   .setAction(async (taskArgs, hre) => {
     let feeService = await getFeeService(hre, taskArgs.service);
 
-    console.log("owner:\t", await feeService.authority());
-    console.log("feeService receiver:\t", await feeService.feeReceiver());
+    if (isTron(hre.network.name)) {
+      console.log("owner:\t", await feeService.authority().call());
+      console.log("feeService receiver:\t", await feeService.feeReceiver().call());
+    } else {
+      console.log("owner:\t", await feeService.authority());
+      console.log("feeService receiver:\t", await feeService.feeReceiver());
+    }
 
     console.log("fees:");
     let chains = await getChainList(hre.network.name);
     for (let i = 0; i < chains.length; i++) {
       let chainId = chains[i].chainId;
-      let baseFee = await feeService.baseGas(chainId);
+      let baseFee;
+      if (isTron(hre.network.name)) {
+        baseFee = await feeService.baseGas(chainId).call();
+      } else {
+        baseFee = await feeService.baseGas(chainId);
+      }
+
       if (!baseFee.eq(0)) {
-        let price = await feeService.chainGasPrice(chainId, ethers.constants.AddressZero);
-        let fee = await feeService.getServiceMessageFee(chainId, ethers.constants.AddressZero, taskArgs.limit);
-        let nativeFee = ethers.utils.formatUnits(fee[0], "ether");
+        let price, fee;
+        if (isTron(hre.network.name)) {
+          price = await feeService.chainGasPrice(chainId, ethers.constants.AddressZero).call();
+          fee = await feeService.getServiceMessageFee(chainId, ethers.constants.AddressZero, taskArgs.limit).call();
+        } else {
+          price = await feeService.chainGasPrice(chainId, ethers.constants.AddressZero);
+          fee = await feeService.getServiceMessageFee(chainId, ethers.constants.AddressZero, taskArgs.limit);
+        }
+
+        let decimals = isTron(hre.network.name) ? 6 : 18;
+        let nativeFee = ethers.utils.formatUnits(fee[0], decimals);
         console.log(
           `${chains[i].name} (${chainId}) \t baseLimit [${baseFee}] gasPrice [${price}]\t fee [${nativeFee}] when limit [${taskArgs.limit}]`,
         );
       }
+
+      await sleep(200);
     }
     console.log("");
   });

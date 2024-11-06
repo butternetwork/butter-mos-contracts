@@ -1,8 +1,8 @@
 let { create, getTronContract } = require("../../utils/create.js");
+let { isRelayChain, isTron } = require("../../utils/helper");
 let { verify } = require("../../utils/verify.js");
-const { stringToHex, isRelayChain, isTron} = require("../../utils/helper");
-const { readFromFile, writeToFile } = require("../utils/utils.js");
-const {getDeployment} = require("../utils/utils");
+
+let { getDeployment, saveDeployment } = require("../utils/utils");
 
 function getRole(role) {
   if (role === "root") {
@@ -31,20 +31,20 @@ async function getBridge(network) {
 }
 
 async function getAuth(hre, contractAddress) {
-    let addr = contractAddress;
-    if (contractAddress === "" || contractAddress === "latest") {
-        addr = await getDeployment(hre.network.name, "authority");
-    }
+  let addr = contractAddress;
+  if (contractAddress === "" || contractAddress === "latest") {
+    addr = await getDeployment(hre.network.name, "authority");
+  }
 
-    let authority;
-    if (isTron(hre.network.config.chainId)) {
-        authority = await getTronContract("AuthorityManager", hre.artifacts, hre.network.name, addr);
-    } else {
-        authority = await ethers.getContractAt("AuthorityManager", addr);
-    }
+  let authority;
+  if (isTron(hre.network.config.chainId)) {
+    authority = await getTronContract("AuthorityManager", hre.artifacts, hre.network.name, addr);
+  } else {
+    authority = await ethers.getContractAt("AuthorityManager", addr);
+  }
 
-    console.log("authority address:", authority.address);
-    return authority;
+  console.log("authority address:", authority.address);
+  return authority;
 }
 
 task("auth:deploy", "mos relay deploy")
@@ -60,15 +60,14 @@ task("auth:deploy", "mos relay deploy")
       admin = deployer.address;
     }
 
-    let Authority = await ethers.getContractFactory("AuthorityManager");
+    //let Authority = await ethers.getContractFactory("AuthorityManager");
     let salt = process.env.AUTH_SALT;
 
     let authority = await create(hre, deployer, "AuthorityManager", ["address"], [admin], salt);
 
-    console.log(`Deploy authority address ${authority} successful`);
-    let deployment = await readFromFile(hre.network.name);
-    deployment[hre.network.name]["authority"] = authority;
-    await writeToFile(deployment);
+    // console.log(`Deploy authority address ${authority} successful`);
+
+    await saveDeployment(hre.network.name, "authority", authority);
 
     await verify(authority, [admin], "contracts/AuthorityManager.sol:AuthorityManager", chainId, true);
   });
@@ -96,7 +95,11 @@ task("auth:closeTarget", "add control")
 
     console.log("target:", target);
 
-    await (await authority.setTargetClosed(target, taskArgs.close)).wait();
+    if (isTron(hre.network.name)) {
+      await authority.setTargetClosed(target, taskArgs.close).send();
+    } else {
+      await (await authority.setTargetClosed(target, taskArgs.close)).wait();
+    }
 
     console.log(`add target address ${taskArgs.target} close ${taskArgs.close} successfully`);
   });
@@ -205,7 +208,11 @@ task("auth:grant", "grantRole")
     let role = getRole(taskArgs.role);
     console.log("role:", role);
 
-    await (await authority.grantRole(role, taskArgs.account, taskArgs.delay)).wait();
+    if (isTron(hre.network.name)) {
+      await authority.grantRole(role, taskArgs.account, taskArgs.delay).send();
+    } else {
+      await (await authority.grantRole(role, taskArgs.account, taskArgs.delay)).wait();
+    }
 
     console.log(`grant role ${taskArgs.role} to ${taskArgs.account} successfully`);
   });
@@ -224,32 +231,40 @@ task("auth:revoke", "revokeRole")
     let role = getRole(taskArgs.role);
     console.log("role:", role);
 
-    await (await authority.revokeRole(role, taskArgs.account)).wait();
+    if (isTron(hre.network.name)) {
+      await authority.revokeRole(role, taskArgs.account).send();
+    } else {
+      await (await authority.revokeRole(role, taskArgs.account)).wait();
+    }
 
     console.log(`revoke ${taskArgs.account} role ${taskArgs.role} successfully`);
   });
 
 task("auth:setAuth", "set target new authority")
-    .addParam("target", "target address")
-    .addParam("addr", "new authority address")
-    .addOptionalParam("auth", "The auth addr", "", types.string)
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
-        console.log("deployer address:", deployer.address);
+  .addParam("target", "target address")
+  .addParam("addr", "new authority address")
+  .addOptionalParam("auth", "The auth addr", "", types.string)
+  .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
 
-        let authority = await getAuth(hre, taskArgs.auth);
+    let authority = await getAuth(hre, taskArgs.auth);
 
-        let target = await ethers.getContractAt("IAccessManaged", taskArgs.target);
+    let target = await ethers.getContractAt("IAccessManaged", taskArgs.target);
 
-        console.log("pre authority: ", await target.authority());
+    if (isTron(hre.network.name)) {
+      console.log("pre authority: ", await target.authority().call());
+      await authority.updateAuthority(taskArgs.target, taskArgs.addr).sned();
+      console.log("after authority: ", await target.authority().call());
+    } else {
+      console.log("pre authority: ", await target.authority());
+      await (await authority.updateAuthority(taskArgs.target, taskArgs.addr)).wait();
+      console.log("after authority: ", await target.authority());
+    }
 
-        await (await authority.updateAuthority(taskArgs.target, taskArgs.addr)).wait();
-
-        console.log("after authority: ", await target.authority());
-
-        console.log(`set target ${taskArgs.target} new authority manager ${taskArgs.addr} successfully`);
-    });
+    console.log(`set target ${taskArgs.target} new authority manager ${taskArgs.addr} successfully`);
+  });
 
 task("auth:getMember", "get role member")
   .addOptionalParam("role", "The role", "admin", types.string)
@@ -260,15 +275,24 @@ task("auth:getMember", "get role member")
     console.log("deployer address:", deployer.address);
 
     let authority = await getAuth(hre, taskArgs.auth);
-
     let role = getRole(taskArgs.role);
     console.log("role:", role);
 
-    let count = await authority.getRoleMemberCount(role);
-    console.log(`role ${taskArgs.role} has ${count} member(s)`);
+    if (isTron(hre.network.name)) {
+      let count = await authority.getRoleMemberCount(role).call();
+      console.log(`role ${taskArgs.role} has ${count} member(s)`);
 
-    for (let i = 0; i < count; i++) {
-      let member = await authority.getRoleMember(role, i);
-      console.log(`    ${i}: ${member}`);
+      for (let i = 0; i < count; i++) {
+        let member = await authority.getRoleMember(role, i).call();
+        console.log(`    ${i}: ${member}`);
+      }
+    } else {
+      let count = await authority.getRoleMemberCount(role);
+      console.log(`role ${taskArgs.role} has ${count} member(s)`);
+
+      for (let i = 0; i < count; i++) {
+        let member = await authority.getRoleMember(role, i);
+        console.log(`    ${i}: ${member}`);
+      }
     }
   });

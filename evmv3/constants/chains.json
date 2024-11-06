@@ -40,26 +40,6 @@
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
-        "name": "Conflux",
-        "chainId": "1030",
-        "type": "evm",
-        "wToken": "0x14b2d3bc65e74dae1030eafd8ac30c533c976a9b",
-        "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
-        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
-        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
-    },
-    {
-        "name": "Tron",
-        "chainId": "728126428",
-        "type": "evm",
-        "wToken": "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
-        "mos": "TYMpgB8Q9vSoGtkyE3hXsvUrpte3KCDGj6",
-        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
-        "lightNode": "TENTNmJk1N8FEz2tSAxCQSsimDSRUNX6mP"
-    },
-    {
         "name": "Arbitrum",
         "chainId": "42161",
         "type": "evm",
@@ -68,6 +48,26 @@
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
         "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "name": "Base",
+        "chainId": "8453",
+        "type": "evm",
+        "wToken": "0x4200000000000000000000000000000000000006",
+        "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
+        "name": "Tron",
+        "chainId": "728126428",
+        "type": "evm",
+        "wToken": "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR",
+        "mos": "TXsDYB9ovFEFg4cja6gn1t1tpmrnSbYhHA",
+        "auth": "TSCja7kmWZ7Do7VEKTxBYBm9439bZcSBoD",
+        "feeService": "TR2fyszewFLYZKLEmVUVZG1Tk7bV5Xsvys",
+        "lightNode": "TENTNmJk1N8FEz2tSAxCQSsimDSRUNX6mP"
     },
     {
         "name": "Optimism",
@@ -84,20 +84,10 @@
         "chainId": "324",
         "type": "evm",
         "wToken": "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91",
-        "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
-        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
-        "lightNode": "0x00071196A9129b7068404523E2047ef79F4Ed0de"
-    },
-    {
-        "name": "Base",
-        "chainId": "8453",
-        "type": "evm",
-        "wToken": "0x4200000000000000000000000000000000000006",
-        "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
-        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
-        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+        "mos": "0xdeF84C4B412361E3A98A5277C108D7F0Df02fA3d",
+        "auth": "0xB439C30B996093845BBAFa2b2e483F619A032d2A",
+        "feeService": "0x9109dFf4CBaF022B9AD6F07F81FE5Db662Dd0024",
+        "lightNode": "0x7dBeacb895fe51dfD7B1d52189B2221104e15208"
     },
     {
         "name": "Blast",
@@ -140,6 +130,16 @@
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
+        "name": "Conflux",
+        "chainId": "1030",
+        "type": "evm",
+        "wToken": "0x14b2d3bc65e74dae1030eafd8ac30c533c976a9b",
+        "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
+        "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+        "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
+        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+    },
+    {
         "name": "Klaytn",
         "chainId": "8217",
         "type": "evm",
@@ -147,9 +147,8 @@
         "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
         "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
-        "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
+        "lightNode": "0x2C77024B4D7E2549C9303B46C0F95607472AbFCe"
     },
-
     {
         "name": "Merlin",
         "chainId": "4200",
@@ -169,12 +168,5 @@
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
         "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
         "lightNode": "0x00071196A9129b7068404523E2047ef79F4Ed0de"
-    },
-    {
-        "name": "Near",
-        "bridge": "bridgev21.mfac.butternetwork.near",
-        "chainId": "1360100178526209",
-        "wToken": "wrap.near",
-        "mos": "client2.cfac.mapprotocol.near"
     }
 ]

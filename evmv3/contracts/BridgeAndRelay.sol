@@ -154,7 +154,16 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _toChain,
         bool _withSwap
     ) external view returns (uint256 fromChainFee, uint256 vaultBalance) {
-        return tokenRegister.getBridgeFeeInfoV3(_caller, _fromToken, _bridgeToken, _fromChain, _fromAmount, _toChain, _withSwap);
+        return
+            tokenRegister.getBridgeFeeInfoV3(
+                _caller,
+                _fromToken,
+                _bridgeToken,
+                _fromChain,
+                _fromAmount,
+                _toChain,
+                _withSwap
+            );
     }
 
     function getSourceFeeByTarget(

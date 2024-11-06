@@ -30,7 +30,7 @@ async function getChain(network) {
     }
   }
 
-  throw "can't find the chain";
+  throw `can't find the chain ${network}`;
 }
 
 async function getTokenList(network) {
@@ -59,7 +59,7 @@ async function getToken(network, token) {
   if (token === "native") {
     return ethers.constants.AddressZero;
   }
-  let chain = await getChain(network, network);
+  let chain = await getChain(network);
   let chainId = chain.chainId;
 
   if (chainId === 1360100178526209 || chainId === 1360100178526210) {
@@ -82,7 +82,7 @@ async function getToken(network, token) {
     return tokens[token];
   }
 
-  throw "token not support ..";
+  throw `token [${token}] not support ..`;
 }
 
 async function getFeeList(chain) {

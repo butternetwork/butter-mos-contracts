@@ -94,7 +94,8 @@ abstract contract BridgeAbstract is
 
     function initialize(address _wToken, address _defaultAdmin) public initializer {
         _checkAddress(_wToken);
-        _checkAddress(_defaultAdmin);
+        // _checkAddress(_defaultAdmin);
+        Helper._isContract(_defaultAdmin);
         __Pausable_init();
         __ReentrancyGuard_init();
         __AccessManaged_init(_defaultAdmin);
@@ -352,7 +353,12 @@ abstract contract BridgeAbstract is
         _notifyLightClient(_inEvent.toChain);
     }
 
-    function _emitMessageIn(MessageInEvent memory _inEvent, bool success, uint256 _gasBefore, bytes memory _reason) internal {
+    function _emitMessageIn(
+        MessageInEvent memory _inEvent,
+        bool success,
+        uint256 _gasBefore,
+        bytes memory _reason
+    ) internal {
         uint256 gasUsed = _gasBefore - gasleft();
         uint256 chainAndGasLimit = _getChainAndGasLimit(
             uint64(_inEvent.fromChain),
@@ -375,10 +381,13 @@ abstract contract BridgeAbstract is
         } else {
             _storeMessageData(_inEvent, _reason, chainAndGasLimit);
         }
-
     }
 
-    function _storeMessageData(MessageInEvent memory _inEvent, bytes memory _reason, uint256 _chainAndGasLimit) internal {
+    function _storeMessageData(
+        MessageInEvent memory _inEvent,
+        bytes memory _reason,
+        uint256 _chainAndGasLimit
+    ) internal {
         orderList[_inEvent.orderId] = uint256(
             keccak256(
                 abi.encodePacked(

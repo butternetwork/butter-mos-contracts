@@ -1,5 +1,5 @@
-let { create, toHex, fromHex} = require("../../utils/create.js");
-let {stringToHex} = require("../../utils/helper.js");
+let { create, tronToHex, tronFromHex } = require("../../utils/create.js");
+let { stringToHex } = require("../../utils/helper.js");
 const {
   getToken,
   getFeeList,
@@ -7,7 +7,8 @@ const {
   getChainList,
   getFeeInfo,
   getFeeConfig,
-  readFromFile, writeToFile
+  readFromFile,
+  writeToFile,
 } = require("../utils/utils.js");
 const { task } = require("hardhat/config");
 
@@ -129,7 +130,7 @@ task("register:mapToken", "mapping token")
     // get mapped token
     let targetToken = taskArgs.target;
     if (taskArgs.chain === "728126428" || taskArgs.chain === "3448148188") {
-      targetToken = await toHex(targetToken, "Tron");
+      targetToken = await tronToHex(targetToken, "Tron");
     } else if (targetToken.substr(0, 2) !== "0x") {
       let hex = stringToHex(targetToken);
       targetToken = "0x" + hex;
@@ -546,7 +547,11 @@ task("register:update", "update token bridge and fee to target chain")
           continue;
         }
 
-        if (!taskArgs.v2) {
+        if (taskArgs.v2) {
+          if (tokenName === "trx" || tokenName === "ton" || tokenName === "sol") {
+            continue;
+          }
+        } else {
           if (
             tokenName === "m-btc" ||
             tokenName === "solvbtc" ||
@@ -557,7 +562,7 @@ task("register:update", "update token bridge and fee to target chain")
             tokenName === "merl" ||
             tokenName === "mp" ||
             tokenName === "mstar" ||
-            tokenName === "bnb" || tokenName === "mapo"
+            tokenName === "mapo"
           ) {
             continue;
           }

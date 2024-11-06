@@ -148,7 +148,6 @@ task("relay:registerChain", "register Chain")
     console.log(`register chain ${taskArgs.chain} address ${taskArgs.address} success`);
   });
 
-
 task("relay:updateToken", "update token bridge and fee to target chain")
   .addParam("token", "relay chain token name")
   .setAction(async (taskArgs, hre) => {

@@ -1,6 +1,6 @@
-let { create, getTronContract, fromHex, toHex } = require("../../utils/create.js");
+let { create, getTronContract, tronToHex } = require("../../utils/create.js");
 let { verify } = require("../../utils/verify.js");
-let { stringToHex, isTron} = require("../../utils/helper");
+let { stringToHex, isTron } = require("../../utils/helper");
 let { getChain, getToken, getFeeList, getFeeInfo, getChainList, writeToFile } = require("../utils/utils.js");
 const { getDeployment, saveDeployment } = require("../utils/utils");
 
@@ -30,6 +30,7 @@ task("bridge:deploy", "bridge deploy")
   .addOptionalParam("client", "omni-chain service address", "", types.string)
   .addOptionalParam("auth", "auth address", "", types.string)
   .addOptionalParam("fee", "fee service address", "", types.string)
+  .addOptionalParam("impl", "implementation address", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const { deploy } = hre.deployments;
     const accounts = await ethers.getSigners();
@@ -45,11 +46,15 @@ task("bridge:deploy", "bridge deploy")
     console.log("wrapped token:", wrapped);
     console.log("lightclient address:", client);
 
-    let implAddr = await create(hre, deployer, "Bridge", [], [], "");
+    let implAddr = taskArgs.impl;
+    if (taskArgs.impl === "") {
+      implAddr = await create(hre, deployer, "Bridge", [], [], "");
+    }
 
     let Bridge = await ethers.getContractFactory("Bridge");
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      wrapped = await toHex(wrapped, hre.network.name);
+      wrapped = await tronToHex(wrapped, hre.network.name);
+      authority = await tronToHex(authority, hre.network.name);
     }
     let data = await Bridge.interface.encodeFunctionData("initialize", [wrapped, authority]);
     let proxy_salt = process.env.BRIDGE_PROXY_SALT;
@@ -57,8 +62,9 @@ task("bridge:deploy", "bridge deploy")
 
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
       // bridge_addr = await fromHex(bridge_addr, networkName);
-      let bridge = await getTronContract("Bridge", hre.artifacts, networkName, proxy);
+      let bridge = await getTronContract("Bridge", hre.artifacts, hre.network.name, proxy);
       await bridge.setServiceContract(1, client).send();
+      await (await bridge.setServiceContract(2, feeService).send()).wait();
       console.log("wToken", await bridge.getServiceContract(0).call());
       console.log("client", await bridge.getServiceContract(1).call());
     } else {
@@ -134,7 +140,8 @@ task("bridge:setServiceContract", "set contract")
     }
 
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      await bridge.setServiceContract(type, taskArgs.contract).send();
+      let contract = await tronToHex(taskArgs.contract, hre.network.name);
+      await bridge.setServiceContract(type, contract).send();
       console.log("contract:", await bridge.getServiceContract(type).call());
     } else {
       await (await bridge.setServiceContract(type, taskArgs.contract)).wait();
@@ -153,14 +160,16 @@ task("bridge:setRelay", "set relay")
 
     let bridge = await getBridge(hre.network.name, false);
 
+    let relay;
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
       await bridge.setRelay(taskArgs.chain, taskArgs.address).send();
+      relay = await bridge.getRelay().call();
     } else {
       await (await bridge.setRelay(taskArgs.chain, taskArgs.address)).wait();
-      let relay = await bridge.getRelay();
-      console.log("relay chain", relay[0]);
-      console.log("relay address", relay[1]);
+      relay = await bridge.getRelay();
     }
+    console.log("relay chain", relay[0]);
+    console.log("relay address", relay[1]);
   });
 
 task("bridge:registerTokenChains", "register token Chains")
@@ -178,7 +187,12 @@ task("bridge:registerTokenChains", "register token Chains")
 
     let updateList = [];
     for (let i = 0; i < chainList.length; i++) {
-      let bridgeable = await bridge.tokenMappingList(chainList[i], tokenAddr);
+      let bridgeable;
+      if (isTron(hre.network.name)) {
+        bridgeable = await bridge.tokenMappingList(chainList[i], tokenAddr).call();
+      } else {
+        bridgeable = await bridge.tokenMappingList(chainList[i], tokenAddr);
+      }
       if ((taskArgs.enable && bridgeable.toString() === "1") || (!taskArgs.enable && bridgeable.toString() === "0")) {
         continue;
       }
@@ -210,8 +224,13 @@ task("bridge:updateTokenFeature", "update tokens")
     let bridge = await getBridge(hre.network.name, true);
 
     let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
-    let isMintable = await bridge.isMintable(tokenAddr);
 
+    let isMintable;
+    if (isTron(hre.network.name)) {
+      isMintable = await bridge.isMintable(tokenAddr).call();
+    } else {
+      isMintable = await bridge.isMintable(tokenAddr);
+    }
     if (isMintable === taskArgs.mintable) {
       console.log(`token [${taskArgs.token}] feature no update`);
       return;
@@ -292,51 +311,52 @@ task("bridge:updateToken", "update token to target chain")
   });
 
 task("bridge:setTrust", "set relay")
-    .addParam("addr", "trust address")
-    .addParam("enable", "enable")
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
+  .addParam("addr", "trust address")
+  .addParam("enable", "enable")
+  .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
 
-        console.log("deployer address is:", deployer.address);
+    console.log("deployer address is:", deployer.address);
 
-        let bridge = await getBridge(hre.network.name, false);
+    let bridge = await getBridge(hre.network.name, false);
 
-        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-            await bridge.setTrustAddress(taskArgs.addr, taskArgs.enable).send();
-        } else {
-            await (await bridge.setTrustAddress(taskArgs.addr, taskArgs.enable)).wait();
-        }
-    });
+    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+      await bridge.setTrustAddress(taskArgs.addr, taskArgs.enable).send();
+    } else {
+      await (await bridge.setTrustAddress(taskArgs.addr, taskArgs.enable)).wait();
+    }
+  });
 
 task("bridge:withdraw", "update token to target chain")
-    .addParam("token", "token name")
-    .addOptionalParam("addr", "the adress", "", types.string)
-    .addOptionalParam("amount", "the token amount", "", types.string)
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
-        console.log("deployer address:", deployer.address);
+  .addParam("token", "token name")
+  .addOptionalParam("addr", "the adress", "", types.string)
+  .addOptionalParam("amount", "the token amount", "", types.string)
+  .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
 
-        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
-        console.log(`token ${taskArgs.token}  address: ${tokenAddr}`);
+    let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+    console.log(`token ${taskArgs.token}  address: ${tokenAddr}`);
 
-        let receiver = taskArgs.addr;
-        if (taskArgs.addr === "") {
-            receiver = deployer.address;
-        }
+    let receiver = taskArgs.addr;
+    if (taskArgs.addr === "") {
+      receiver = deployer.address;
+    }
 
-        let bridge = await getBridge(hre.network.name, true);
+    let bridge = await getBridge(hre.network.name, true);
 
-        let amount = await bridge.feeList(receiver, tokenAddr);
-        console.log(`[${receiver}] can withdraw token [${tokenAddr}] amount [${amount}]`);
-        if (amount.gt(ethers.BigNumber.from("0"))) {
-            await (await bridge.withdrawFee(receiver, tokenAddr)).wait();
+    let amount = await bridge.feeList(receiver, tokenAddr);
+    console.log(`[${receiver}] can withdraw token [${tokenAddr}] amount [${amount}]`);
+    if (amount.gt(ethers.BigNumber.from("0"))) {
+      await (await bridge.withdrawFee(receiver, tokenAddr)).wait();
 
-            console.log(`[${receiver}] can withdraw token [${tokenAddr}] amount [${await bridge.feeList(receiver, tokenAddr)}]`);
-        }
-
-    });
+      console.log(
+        `[${receiver}] can withdraw token [${tokenAddr}] amount [${await bridge.feeList(receiver, tokenAddr)}]`,
+      );
+    }
+  });
 
 task("bridge:transferOut", "Cross-chain transfer token")
   .addOptionalParam("initiator", "The initiator", "", types.string)
@@ -373,16 +393,38 @@ task("bridge:transferOut", "Cross-chain transfer token")
     let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
     console.log(`token [${taskArgs.token}] address: ${tokenAddr}`);
 
-    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-    }
-
     let bridge = await getBridge(hre.network.name, true);
 
     let value;
-    //let fee = await bridge.getNativeFee(tokenAddr, 0, targetChainId);
 
     let fee = (value = ethers.utils.parseUnits("0", 18));
 
+    if (isTron(hre.network.name)) {
+      if (tokenAddr === "0x0000000000000000000000000000000000000000") {
+        value = ethers.utils.parseUnits(taskArgs.value, 6);
+        fee = fee.add(value);
+      } else {
+        let token = await getTronContract("IERC20Metadata", hre.artifacts, hre.network.name, tokenAddr);
+        let decimals = await token.decimals().call();
+        value = ethers.utils.parseUnits(taskArgs.value, decimals);
+
+        let approved = await token.allowance(deployer.address, bridge.address).call();
+        console.log("approved ", approved);
+        if (approved.lt(value)) {
+          console.log(`${tokenAddr} approve ${bridge.address} value [${value}] ...`);
+          await token.approve(bridge.address, value).send();
+        }
+      }
+
+      console.log(`transfer [${taskArgs.token}] with value [${fee}] ...`);
+      let rst = await bridge
+        .swapOutToken(initiator, tokenAddr, receiver, value, targetChainId, "0x")
+        .send({ callValue: fee });
+
+      //console.log(rst);
+      console.log(`transfer token ${taskArgs.token} ${taskArgs.value} to ${receiver} successful`);
+      return;
+    }
     if (tokenAddr === "0x0000000000000000000000000000000000000000") {
       value = ethers.utils.parseUnits(taskArgs.value, 18);
       fee = fee.add(value);
@@ -398,6 +440,7 @@ task("bridge:transferOut", "Cross-chain transfer token")
         await (await token.approve(bridge.address, value)).wait();
       }
     }
+
     console.log(`transfer [${taskArgs.token}] with value [${fee}] ...`);
     let rst;
     if (taskArgs.gas === 0) {
@@ -413,25 +456,30 @@ task("bridge:transferOut", "Cross-chain transfer token")
       });
     }
     // console.log(rst);
-
     console.log(`transfer token ${taskArgs.token} ${taskArgs.value} to ${receiver} successful`);
   });
-
-
 
 task("bridge:list", "List bridge info")
   .addOptionalParam("mos", "The mos address, default mos", "mos", types.string)
   .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
   .setAction(async (taskArgs, hre) => {
-    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      await tronList(hre.artifacts, hre.network.name, taskArgs.mos, taskArgs.token);
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
+
+    let bridge = await getBridge(hre.network.name, false);
+
+    if (isTron(hre.network.name)) {
+      let selfChainId = await bridge.selfChainId().call();
+      console.log("selfChainId:\t", selfChainId.toString());
+      console.log("wToken address:\t", await bridge.getServiceContract(0).call());
+      console.log("light node:\t", await bridge.getServiceContract(1).call());
+      console.log("fee service:\t", await bridge.getServiceContract(2).call());
+      let relay = await bridge.getRelay().call();
+      console.log("relay chain:\t", relay[0]);
+      console.log("relay contract:\t", relay[1]);
+      console.log("Impl:\t", await bridge.getImplementation().call());
     } else {
-      const accounts = await ethers.getSigners();
-      const deployer = accounts[0];
-      console.log("deployer address:", deployer.address);
-
-      let bridge = await getBridge(hre.network.name, false);
-
       let selfChainId = await bridge.selfChainId();
       console.log("selfChainId:\t", selfChainId.toString());
       console.log("wToken address:\t", await bridge.getServiceContract(0));
@@ -448,43 +496,57 @@ task("bridge:tokenInfo", "list token info")
   .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
   .addOptionalParam("gas", "The gas limit", 0, types.int)
   .setAction(async (taskArgs, hre) => {
-    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      await tronList(hre.artifacts, hre.network.name, taskArgs.mos, taskArgs.token);
-    } else {
-      const accounts = await ethers.getSigners();
-      const deployer = accounts[0];
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
 
-      let bridge = await getBridge(hre.network.name, true);
+    let bridge = await getBridge(hre.network.name, true);
 
-      let tokenAddr = taskArgs.token;
-      if (tokenAddr === "wtoken") {
+    let tokenAddr = taskArgs.token;
+    if (tokenAddr === "wtoken") {
+      if (isTron(hre.network.name)) {
+        tokenAddr = await bridge.getServiceContract(0).call();
+      } else {
         tokenAddr = await bridge.getServiceContract(0);
       }
-      tokenAddr = await getToken(hre.network.config.chainId, tokenAddr);
-
-      console.log("\ntoken:", taskArgs.token);
-      console.log("token address:", tokenAddr);
-      console.log(`token mintalbe:\t ${await bridge.isMintable(tokenAddr)}`);
-
-      let feature = await bridge.tokenFeatureList(tokenAddr);
-      console.log(`token feature:\t ${feature.toHexString()}`);
-
-      // let nativeFee = await bridge.nativeFees(tokenAddr, 0x00);
-      // console.log(`default native fee:\t ${ethers.utils.formatUnits(nativeFee, "ether")}`);
-
-      console.log("register chains:");
-      let chains = await getChainList(hre.network.name);
-      for (let i = 0; i < chains.length; i++) {
-        let chainId = chains[i].chainId;
-        let bridgeable = await bridge.tokenMappingList(chainId, tokenAddr);
-        if (bridgeable.toString() === "1") {
-          // let fee = await bridge.nativeFees(tokenAddr, chainId);
-          // console.log(`${chains[i].chain} (${chainId}) \t native fee (${ethers.utils.formatUnits(fee, "ether")})`);
-          console.log(`${chains[i].name} (${chainId}))`);
-
-          // console.log(`native fee to ${chains[i].chain} (${chainId}) with gas limt [${taskArgs.gas}] when inter transfer:\t`, await bridge.getNativeFee(tokenAddr, taskArgs.gas, chainId));
-        }
-      }
-      console.log("");
     }
+    tokenAddr = await getToken(hre.network.config.chainId, tokenAddr);
+
+    console.log("\ntoken:", taskArgs.token);
+    console.log("token address:", tokenAddr);
+    if (isTron(hre.network.name)) {
+      console.log(`token mintalbe:\t ${await bridge.isMintable(tokenAddr).call()}`);
+    } else {
+      console.log(`token mintalbe:\t ${await bridge.isMintable(tokenAddr)}`);
+    }
+
+    let feature;
+    if (isTron(hre.network.name)) {
+      feature = await bridge.tokenFeatureList(tokenAddr).call();
+    } else {
+      feature = await bridge.tokenFeatureList(tokenAddr);
+    }
+    console.log(`token feature:\t ${feature.toHexString()}`);
+
+    // let nativeFee = await bridge.nativeFees(tokenAddr, 0x00);
+    // console.log(`default native fee:\t ${ethers.utils.formatUnits(nativeFee, "ether")}`);
+
+    console.log("register chains:");
+    let chains = await getChainList(hre.network.name);
+    for (let i = 0; i < chains.length; i++) {
+      let chainId = chains[i].chainId;
+      let bridgeable;
+      if (isTron(hre.network.name)) {
+        bridgeable = await bridge.tokenMappingList(chainId, tokenAddr).call();
+      } else {
+        bridgeable = await bridge.tokenMappingList(chainId, tokenAddr);
+      }
+      if (bridgeable.toString() === "1") {
+        // let fee = await bridge.nativeFees(tokenAddr, chainId);
+        // console.log(`${chains[i].chain} (${chainId}) \t native fee (${ethers.utils.formatUnits(fee, "ether")})`);
+        console.log(`${chains[i].name} (${chainId}))`);
+
+        // console.log(`native fee to ${chains[i].chain} (${chainId}) with gas limt [${taskArgs.gas}] when inter transfer:\t`, await bridge.getNativeFee(tokenAddr, taskArgs.gas, chainId));
+      }
+    }
+    console.log("");
   });
