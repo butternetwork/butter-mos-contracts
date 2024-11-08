@@ -114,7 +114,8 @@ contract Bridge is BridgeAbstract {
         inEvent.fromChain = selfChainId;
         inEvent.toChain = _toChain;
         inEvent.to = _to;
-        (, inEvent.mos) = _getRelay();
+        uint256 relayChainId;
+        (relayChainId, inEvent.mos) = _getRelay();
         inEvent.amount = _amount;
         inEvent.token = _tokenTransferIn(_token, sender, inEvent.amount, true, true);
 
@@ -124,7 +125,7 @@ contract Bridge is BridgeAbstract {
         }
         inEvent.gasLimit = msgData.gasLimit;
         inEvent.swapData = msgData.swapData;
-
+        _checkBridgeable(inEvent.token, msgData.relay ? relayChainId : inEvent.toChain);
         // messageType,fromChain,toChain,gasLimit,mos,to,token,amount,swapData
         orderId = _messageOut(msgData.relay, _initiator, sender, inEvent);
     }

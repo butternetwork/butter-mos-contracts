@@ -266,7 +266,7 @@ contract BridgeAndRelay is BridgeAbstract {
             msgData = abi.decode(_bridgeData, (BridgeParam));
         }
         inEvent.gasLimit = msgData.gasLimit;
-
+        _checkBridgeable(inEvent.token, inEvent.toChain);
         // messageType,fromChain,toChain,gasLimit,token,amount,to
         inEvent.orderId = _messageOut(false, _initiator, sender, inEvent);
 

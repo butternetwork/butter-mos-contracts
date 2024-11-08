@@ -323,11 +323,11 @@ abstract contract BridgeAbstract is
         MessageInEvent memory _inEvent
     ) internal returns (bytes32 orderId) {
         uint256 header = EvmDecoder.encodeMessageHeader(_relay, _inEvent.messageType);
-        if (_inEvent.messageType == uint8(MessageType.BRIDGE)) {
-            // todo: add transfer limit check
-            // _checkLimit(_amount, _toChain, _token);
-            _checkBridgeable(_inEvent.token, _inEvent.toChain);
-        }
+        // if (_inEvent.messageType == uint8(MessageType.BRIDGE)) {
+        //     // todo: add transfer limit check
+        //     // _checkLimit(_amount, _toChain, _token);
+        //     _checkBridgeable(_inEvent.token, _inEvent.toChain);
+        // }
         if (_inEvent.toChain == _inEvent.fromChain) revert bridge_same_chain();
         if (_inEvent.mos == ZERO_ADDRESS) revert invalid_mos_contract();
 
