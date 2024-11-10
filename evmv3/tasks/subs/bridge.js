@@ -479,6 +479,17 @@ task("bridge:list", "List bridge info")
       console.log("relay chain:\t", relay[0]);
       console.log("relay contract:\t", relay[1]);
       console.log("Impl:\t", await bridge.getImplementation().call());
+
+      console.log("Paused:\t", await bridge.paused().call());
+
+      let stat = await bridge
+        .getOrderStatus(
+          hre.network.config.chainId,
+          1,
+          "0x0000000000000000000000000000000000000000000000000000000000000001",
+        )
+        .call();
+      console.log("light node type:\t", stat[2]);
     } else {
       let selfChainId = await bridge.selfChainId();
       console.log("selfChainId:\t", selfChainId.toString());
@@ -489,6 +500,15 @@ task("bridge:list", "List bridge info")
       console.log("relay chain:\t", relay[0]);
       console.log("relay contract:\t", relay[1]);
       console.log("Impl:\t", await bridge.getImplementation());
+
+      console.log("Paused:\t", await bridge.paused());
+
+      let stat = await bridge.getOrderStatus(
+        hre.network.config.chainId,
+        1,
+        "0x0000000000000000000000000000000000000000000000000000000000000001",
+      );
+      console.log("light node type:\t", stat[2]);
     }
   });
 

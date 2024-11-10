@@ -221,7 +221,7 @@ abstract contract BridgeAbstract is
         uint256 gasLimit = _gasleft ? gasLeft : _inEvent.gasLimit;
 
         if (!Helper._isContract(to)) {
-            return _emitMessageIn(_inEvent, false, gasLeft, bytes("NotContract"));
+            return _emitMessageIn(_inEvent.from, _inEvent, false, gasLeft, bytes("NotContract"));
             //return _storeMessageData(_inEvent, bytes("NotContract"), 0);
         }
 
@@ -234,9 +234,9 @@ abstract contract BridgeAbstract is
                 _inEvent.swapData
             )
         {
-            _emitMessageIn(_inEvent, true, gasLeft, "");
+            _emitMessageIn(_inEvent.from, _inEvent, true, gasLeft, "");
         } catch (bytes memory reason) {
-            _emitMessageIn(_inEvent, false, gasLeft, reason);
+            _emitMessageIn(_inEvent.from, _inEvent, false, gasLeft, reason);
         }
     }
 
@@ -263,7 +263,7 @@ abstract contract BridgeAbstract is
             _tokenTransferOut(_inEvent.token, to, _inEvent.amount, true, false);
             if (_inEvent.token == wToken) outToken = ZERO_ADDRESS;
         }
-        _emitMessageIn(_inEvent, true, gasLeft, "");
+        _emitMessageIn(_inEvent.from, _inEvent, true, gasLeft, "");
     }
 
     function _tokenTransferIn(
@@ -323,11 +323,7 @@ abstract contract BridgeAbstract is
         MessageInEvent memory _inEvent
     ) internal returns (bytes32 orderId) {
         uint256 header = EvmDecoder.encodeMessageHeader(_relay, _inEvent.messageType);
-        // if (_inEvent.messageType == uint8(MessageType.BRIDGE)) {
-        //     // todo: add transfer limit check
-        //     // _checkLimit(_amount, _toChain, _token);
-        //     _checkBridgeable(_inEvent.token, _inEvent.toChain);
-        // }
+
         if (_inEvent.toChain == _inEvent.fromChain) revert bridge_same_chain();
         if (_inEvent.mos == ZERO_ADDRESS) revert invalid_mos_contract();
 
@@ -354,12 +350,13 @@ abstract contract BridgeAbstract is
     }
 
     function _emitMessageIn(
+        bytes memory _initiator,
         MessageInEvent memory _inEvent,
         bool success,
         uint256 _gasBefore,
         bytes memory _reason
     ) internal {
-        uint256 gasUsed = _gasBefore - gasleft();
+        uint256 gasUsed = (_gasBefore > 0) ? (_gasBefore - gasleft()) : 0;
         uint256 chainAndGasLimit = _getChainAndGasLimit(
             uint64(_inEvent.fromChain),
             uint64(_inEvent.toChain),
@@ -379,11 +376,12 @@ abstract contract BridgeAbstract is
                 bytes("")
             );
         } else {
-            _storeMessageData(_inEvent, _reason, chainAndGasLimit);
+            _storeMessageData(_initiator, _inEvent, _reason, chainAndGasLimit);
         }
     }
 
     function _storeMessageData(
+        bytes memory _initiator,
         MessageInEvent memory _inEvent,
         bytes memory _reason,
         uint256 _chainAndGasLimit
@@ -397,6 +395,7 @@ abstract contract BridgeAbstract is
                     _inEvent.token,
                     _inEvent.amount,
                     _inEvent.gasLimit,
+                    _initiator,
                     _inEvent.from,
                     _inEvent.to,
                     _inEvent.swapData
@@ -405,8 +404,8 @@ abstract contract BridgeAbstract is
         );
         bytes memory payload = abi.encode(
             _inEvent.messageType,
-            _inEvent.toChain,
             _inEvent.gasLimit,
+            _initiator,
             _inEvent.to,
             _inEvent.swapData
         );
@@ -424,34 +423,36 @@ abstract contract BridgeAbstract is
     }
 
     function _getStoredMessage(
-        uint256 _fromChain,
+        uint256 _chainAndGas,
         bytes32 _orderId,
         address _token,
         uint256 _amount,
         bytes calldata _fromAddress,
         bytes calldata _swapData
-    ) internal returns (MessageInEvent memory inEvent) {
-        (inEvent.messageType, inEvent.toChain, inEvent.gasLimit, inEvent.to, inEvent.swapData) = abi.decode(
+    ) internal returns (bytes memory initiator, MessageInEvent memory inEvent) {
+        (inEvent.fromChain, inEvent.toChain, ) = EvmDecoder._decodeChainAndGasLimit(_chainAndGas);
+        (inEvent.messageType, inEvent.gasLimit, initiator, inEvent.to, inEvent.swapData) = abi.decode(
             _swapData,
-            (uint8, uint256, uint256, bytes, bytes)
+            (uint8, uint256, bytes, bytes, bytes)
         );
 
         bytes32 retryHash = keccak256(
             abi.encodePacked(
                 inEvent.messageType,
-                _fromChain,
+                inEvent.fromChain,
                 inEvent.toChain,
                 _token,
                 _amount,
                 inEvent.gasLimit,
                 _fromAddress,
+                initiator,
                 inEvent.to,
                 inEvent.swapData
             )
         );
         if (uint256(retryHash) != orderList[_orderId]) revert retry_verify_fail();
 
-        inEvent.fromChain = _fromChain;
+        //inEvent.fromChain = _fromChain;
         inEvent.orderId = _orderId;
         inEvent.token = _token;
         inEvent.amount = _amount;

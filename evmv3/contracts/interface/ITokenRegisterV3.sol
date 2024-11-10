@@ -36,16 +36,25 @@ interface ITokenRegisterV3 {
 
     function getBaseFeeReceiver() external view returns (address);
 
-    function getTransferFee(
+    // get from chain fee
+    function getTransferInFee(
+        bytes memory _caller,
+        address _token,
+        uint256 _amount,
+        uint256 _fromChain
+    ) external view returns (uint256 bridgeFee);
+
+    // get to chain fee
+    function getTransferOutFee(
         bytes memory _caller,
         address _token,
         uint256 _amount,
         uint256 _fromChain,
         uint256 _toChain,
         bool _withSwap
-    ) external view returns (uint256 totalFee, uint256 baseFee, uint256 bridgeFee);
+    ) external view returns (address baseReceiver, uint256 baseFee, uint256 bridgeFee);
 
-    // get token transfer fee, the larger one of tranfer in or transfer out fee
+    // get token transfer fee, the larger one of transfer in or transfer out fee
     function getTransferFeeV3(
         bytes memory _caller,
         address _token,

@@ -126,6 +126,8 @@ contract Bridge is BridgeAbstract {
         inEvent.gasLimit = msgData.gasLimit;
         inEvent.swapData = msgData.swapData;
         _checkBridgeable(inEvent.token, msgData.relay ? relayChainId : inEvent.toChain);
+        // todo: add transfer limit check
+        // _checkLimit(_amount, _toChain, _token);
         // messageType,fromChain,toChain,gasLimit,mos,to,token,amount,swapData
         orderId = _messageOut(msgData.relay, _initiator, sender, inEvent);
     }
@@ -189,7 +191,7 @@ contract Bridge is BridgeAbstract {
     }
 
     function retryMessageIn(
-        uint256 _fromChain,
+        uint256 _chainAndGas,
         bytes32 _orderId,
         address _token,
         uint256 _amount,
@@ -197,8 +199,8 @@ contract Bridge is BridgeAbstract {
         bytes calldata _payload,
         bytes calldata
     ) external override nonReentrant whenNotPaused {
-        MessageInEvent memory outEvent = _getStoredMessage(
-            _fromChain,
+        (, MessageInEvent memory outEvent) = _getStoredMessage(
+            _chainAndGas,
             _orderId,
             _token,
             _amount,

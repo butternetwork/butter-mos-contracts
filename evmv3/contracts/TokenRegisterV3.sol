@@ -353,15 +353,26 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         baseFee = token.baseFees[_chain];
     }
 
-    function getTransferFee(
+    function getTransferInFee(
+        bytes memory _caller,
+        address _token,
+        uint256 _amount,
+        uint256 _fromChain
+    ) external view override returns (uint256 bridgeFee) {
+        return _getFromChainFee(_caller, _token, _amount, _fromChain);
+    }
+
+    function getTransferOutFee(
         bytes memory _caller,
         address _token,
         uint256 _amount,
         uint256 _fromChain,
         uint256 _toChain,
         bool _withSwap
-    ) external view override returns (uint256 totalFee, uint256 baseFee, uint256 bridgeFee) {
-        return _getTransferFee(_caller, _token, _amount, _fromChain, _toChain, _withSwap);
+    ) external view override returns (address baseReceiver, uint256 baseFee, uint256 bridgeFee) {
+        (, baseFee, bridgeFee) = _getToChainFee(_caller, _token, _amount, _fromChain, _toChain, _withSwap);
+
+        baseReceiver = baseFeeReceiver;
     }
 
     // get bridge fee info based on the relay chain token and amount
@@ -538,10 +549,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _toChain,
         bytes memory _caller
     ) external view returns (bool isWhitelist, uint256 rate) {
-        bytes32 key = _getKey(_fromChain, _caller, _token);
-        uint256 toChainWhitelistRate = toChainFeeList[key][_toChain];
-        isWhitelist = (toChainWhitelistRate != 0);
-        rate = toChainWhitelistRate >> 1;
+        return _getToChainCallerFeeRate(_token, _fromChain, _toChain, _caller);
     }
 
     function getFromChainCallerFeeRate(
@@ -549,10 +557,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _fromChain,
         bytes memory _caller
     ) external view returns (bool isWhitelist, uint256 rate) {
-        bytes32 key = _getKey(_fromChain, _caller, _token);
-        uint256 fromChainWhitelistRate = fromChainFeeList[key];
-        isWhitelist = (fromChainWhitelistRate != 0);
-        rate = fromChainWhitelistRate >> 1;
+        return _getFromChainCallerFeeRate(_token, _fromChain, _caller);
     }
 
     function getVaultBalance(address _token, uint256 _chainId) public view returns (uint256) {
@@ -604,15 +609,90 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         require(token.tokenAddress != address(0), "register: invalid relay token");
 
         uint256 decimalsFrom = token.decimals[_fromChain];
-        require(decimalsFrom > 0, "register: token decimals not register");
+        require(decimalsFrom > 0, "register: from token decimals not register");
 
         uint256 decimalsTo = token.decimals[_toChain];
-        require(decimalsTo > 0, "register: from token decimals not register");
+        require(decimalsTo > 0, "register: to token decimals not register");
 
         if (decimalsFrom == decimalsTo) {
             return _amount;
         }
         return (_amount * (10 ** decimalsTo)) / (10 ** decimalsFrom);
+    }
+
+    function _getFromChainFee(
+        bytes memory _caller,
+        address _relayToken,
+        uint256 _relayAmount,
+        uint256 _fromChain
+    ) internal view returns (uint256 bridgeFee) {
+        Token storage token = tokenList[_relayToken];
+        require(token.tokenAddress != address(0), "register: invalid relay token");
+
+        uint256 rate;
+        bool isWhitelistCaller;
+        (isWhitelistCaller, rate) = _getFromChainCallerFeeRate(_relayToken, _fromChain, _caller);
+
+        if (isWhitelistCaller) {
+            bridgeFee = (_relayAmount * rate) / MAX_RATE_UNI;
+        } else {
+            FeeRate memory fromChainFeeRate = token.fromChainFees[_fromChain];
+            uint256 fromChainFee = _getFee(fromChainFeeRate, _relayAmount);
+            bridgeFee = fromChainFee;
+        }
+    }
+
+    function _getToChainFee(
+        bytes memory _caller,
+        address _relayToken,
+        uint256 _relayAmount,
+        uint256 _fromChain,
+        uint256 _toChain,
+        bool _withSwap
+    ) internal view returns (uint256 totalFee, uint256 baseFee, uint256 bridgeFee) {
+        Token storage token = tokenList[_relayToken];
+        require(token.tokenAddress != address(0), "register: invalid relay token");
+
+        uint256 rate;
+        bool isWhitelistCaller;
+        (isWhitelistCaller, rate) = _getToChainCallerFeeRate(_relayToken, _fromChain, _toChain, _caller);
+
+        if (isWhitelistCaller) {
+            bridgeFee = (_relayAmount * rate) / MAX_RATE_UNI;
+        } else {
+            FeeRate memory toChainFeeRate = token.toChainFees[_toChain];
+            uint256 toChainFee = _getFee(toChainFeeRate, _relayAmount);
+            bridgeFee = toChainFee;
+        }
+
+        BaseFee memory baseFeeInfo = token.baseFees[_toChain];
+        if (baseFeeReceiver != address(0)) {
+            baseFee = _withSwap ? baseFeeInfo.withSwap : baseFeeInfo.noSwap;
+        }
+        totalFee = baseFee + bridgeFee;
+    }
+
+    function _getToChainCallerFeeRate(
+        address _token,
+        uint256 _fromChain,
+        uint256 _toChain,
+        bytes memory _caller
+    ) internal view returns (bool isWhitelist, uint256 rate) {
+        bytes32 key = _getKey(_fromChain, _caller, _token);
+        uint256 toChainWhitelistRate = toChainFeeList[key][_toChain];
+        isWhitelist = (toChainWhitelistRate != 0);
+        rate = toChainWhitelistRate >> 1;
+    }
+
+    function _getFromChainCallerFeeRate(
+        address _token,
+        uint256 _fromChain,
+        bytes memory _caller
+    ) internal view returns (bool isWhitelist, uint256 rate) {
+        bytes32 key = _getKey(_fromChain, _caller, _token);
+        uint256 fromChainWhitelistRate = fromChainFeeList[key];
+        isWhitelist = (fromChainWhitelistRate != 0);
+        rate = fromChainWhitelistRate >> 1;
     }
 
     function _getKey(uint256 _fromChain, bytes memory _caller, address _token) private pure returns (bytes32) {

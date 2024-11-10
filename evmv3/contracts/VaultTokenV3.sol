@@ -27,6 +27,8 @@ contract VaultTokenV3 is IVaultTokenV3, AccessControlEnumerable, ERC20Burnable {
     event DepositVault(address indexed token, address indexed to, uint256 vaultValue, uint256 value);
     event WithdrawVault(address indexed token, address indexed to, uint256 vaultValue, uint256 value);
 
+    event UpdateVault(address indexed token, uint256 fromChain, uint256 toChain, uint256);
+
     /**
      * @dev Grants `DEFAULT_ADMIN_ROLE`, `MANAGER_ROLE` to the
      * account that deploys the contract.
@@ -138,12 +140,32 @@ contract VaultTokenV3 is IVaultTokenV3, AccessControlEnumerable, ERC20Burnable {
         vaultBalance[_fromChain] += _amount.toInt256();
         vaultBalance[_toChain] -= _outAmount.toInt256();
 
-        uint256 fee = _amount - _outAmount - _fee;
-        vaultBalance[_relayChain] += fee.toInt256();
-        totalVault += fee;
+        uint256 vaultFee = _amount - _outAmount - _fee;
+        totalVault += vaultFee;
 
         _chainSet.add(_fromChain);
         _chainSet.add(_toChain);
         _chainSet.add(_relayChain);
+    }
+
+    function updateVault(
+        uint256 _fromChain,
+        uint256 _amount,
+        uint256 _toChain,
+        uint256 _outAmount,
+        uint256 _relayChain,
+        uint256 _vaultFee
+    ) external override onlyManager {
+        vaultBalance[_fromChain] += _amount.toInt256();
+        vaultBalance[_toChain] -= _outAmount.toInt256();
+
+        totalVault += _vaultFee;
+
+        _chainSet.add(_fromChain);
+        _chainSet.add(_toChain);
+        _chainSet.add(_relayChain);
+
+        // todo
+        // emit UpdateVault();
     }
 }

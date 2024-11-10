@@ -46,7 +46,7 @@
         "wToken": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
         "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
@@ -56,7 +56,7 @@
         "wToken": "0x4200000000000000000000000000000000000006",
         "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
@@ -76,7 +76,7 @@
         "wToken": "0x4200000000000000000000000000000000000006",
         "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
@@ -87,7 +87,7 @@
         "mos": "0xdeF84C4B412361E3A98A5277C108D7F0Df02fA3d",
         "auth": "0xB439C30B996093845BBAFa2b2e483F619A032d2A",
         "feeService": "0x9109dFf4CBaF022B9AD6F07F81FE5Db662Dd0024",
-        "lightNode": "0x7dBeacb895fe51dfD7B1d52189B2221104e15208"
+        "lightNode": "0x41aA92eD1646d441D9D1Fedd7b01Dfe9e86b7c46"
     },
     {
         "name": "Blast",
@@ -96,7 +96,7 @@
         "wToken": "0x4300000000000000000000000000000000000004",
         "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
@@ -106,7 +106,7 @@
         "wToken": "0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f",
         "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
@@ -116,7 +116,7 @@
         "wToken": "0x5300000000000000000000000000000000000004",
         "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
         "lightNode": "0x00071196A9129b7068404523E2047ef79F4Ed0de"
     },
     {
@@ -126,7 +126,7 @@
         "wToken": "0x78c1b0C915c4FAA5FffA6CAbf0219DA63d7f4cb8",
         "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
@@ -146,7 +146,7 @@
         "wToken": "0x19aac5f612f524b754ca7e7c41cbfa2e981a4432",
         "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
         "lightNode": "0x2C77024B4D7E2549C9303B46C0F95607472AbFCe"
     },
     {
@@ -156,7 +156,7 @@
         "wToken": "0xF6D226f9Dc15d9bB51182815b320D3fBE324e1bA",
         "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
         "lightNode": "0x00071196A9129b7068404523E2047ef79F4Ed0de"
     },
     {
@@ -166,7 +166,7 @@
         "wToken": "0x1470a4831F76954686BfB4dE8180F7469EA8dE6F",
         "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
-        "feeService": "0xFEE31bC008789Be81E7EE984aC57739D58a7Ae33",
+        "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
         "lightNode": "0x00071196A9129b7068404523E2047ef79F4Ed0de"
     }
 ]

@@ -51,6 +51,7 @@ contract BridgeAndRelay is BridgeAbstract {
     event CollectFee(
         bytes32 indexed orderId,
         address indexed token,
+        uint256 isFromChain,
         uint256 baseFee,
         uint256 bridgeFee,
         uint256 messageFee,
@@ -246,7 +247,7 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _amount,
         uint256 _toChain, // target chain id
         bytes calldata _bridgeData
-    ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
+    ) external payable override nonReentrant whenNotPaused returns (bytes32) {
         if (_amount == 0) revert zero_amount();
 
         address sender = msg.sender;
@@ -267,27 +268,20 @@ contract BridgeAndRelay is BridgeAbstract {
         }
         inEvent.gasLimit = msgData.gasLimit;
         _checkBridgeable(inEvent.token, inEvent.toChain);
+        // todo: add transfer limit check
+        // _checkLimit(_amount, _toChain, _token);
+
         // messageType,fromChain,toChain,gasLimit,token,amount,to
         inEvent.orderId = _messageOut(false, _initiator, sender, inEvent);
 
-        uint256 amountAfterFee = _collectFee(
-            Helper._toBytes(sender),
-            orderId,
-            inEvent.token,
-            inEvent.amount,
-            inEvent.fromChain,
-            inEvent.toChain,
-            msgData.swapData.length != 0
-        );
-
-        bytes memory toToken = tokenRegister.getToChainToken(inEvent.token, _toChain);
-        if (Helper._checkBytes(toToken, bytes(""))) revert out_token_not_registered();
-        uint256 toAmount = _getToChainAmount(inEvent.token, amountAfterFee, _toChain);
-
         inEvent.swapData = msgData.swapData;
         inEvent.from = Helper._toBytes(sender);
-        // messageType,orderId,fromChain,toChain,gasLimit,to,from,swapData
-        _emitMessageRelay(inEvent, toToken, toAmount);
+
+        inEvent.amount = _collectFee(inEvent.from, inEvent, false);
+        // todo: check out amount
+        if (inEvent.amount == 0) revert in_amount_low();
+
+        _swapRelay(inEvent);
 
         return inEvent.orderId;
     }
@@ -331,7 +325,7 @@ contract BridgeAndRelay is BridgeAbstract {
     }
 
     function retryMessageIn(
-        uint256 _fromChain,
+        uint256 _chainAndGas,
         bytes32 _orderId,
         address _token,
         uint256 _amount,
@@ -339,8 +333,8 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes calldata _payload,
         bytes calldata _retryMessage
     ) external override nonReentrant whenNotPaused {
-        MessageInEvent memory outEvent = _getStoredMessage(
-            _fromChain,
+        (bytes memory initiator, MessageInEvent memory outEvent) = _getStoredMessage(
+            _chainAndGas,
             _orderId,
             _token,
             _amount,
@@ -351,7 +345,7 @@ contract BridgeAndRelay is BridgeAbstract {
         if (outEvent.toChain == selfChainId) {
             _messageIn(outEvent, true);
         } else {
-            _messageRelay(true, outEvent, _retryMessage);
+            _messageRelay(true, initiator, outEvent, _retryMessage);
         }
     }
 
@@ -376,7 +370,7 @@ contract BridgeAndRelay is BridgeAbstract {
             _outEvent.swapData,
             _retryMessage
         );
-        if (_amount > 0) _tokenTransferIn(tokenOut, to, amountOut, false, false);
+        if (amountOut > 0) _tokenTransferIn(tokenOut, to, amountOut, false, false);
     }
 
     // --------------------------------------------- internal ----------------------------------------------
@@ -385,57 +379,43 @@ contract BridgeAndRelay is BridgeAbstract {
         if (Helper._fromBytes(_outEvent.mos) != address(this)) revert invalid_mos_contract();
         if (_chainId != _outEvent.fromChain) revert invalid_chain_id();
 
-        address token;
-        uint256 relayAmount;
-        if (_outEvent.messageType != uint8(MessageType.MESSAGE)) {
-            (token, relayAmount) = _swapInToken(_outEvent);
-            if (_outEvent.messageType != uint8(MessageType.DEPOSIT)) {
-                relayAmount = _collectFee(
-                    _outEvent.initiator,
-                    _outEvent.orderId,
-                    token,
-                    relayAmount,
-                    _outEvent.fromChain,
-                    _outEvent.toChain,
-                    _outEvent.swapData.length != 0
-                );
-            }
-        }
+        MessageInEvent memory inEvent = _swapInToken2(_outEvent);
 
-        MessageInEvent memory _inEvent = MessageInEvent({
-            messageType: _outEvent.messageType,
-            fromChain: _outEvent.fromChain,
-            toChain: _outEvent.toChain,
-            orderId: _outEvent.orderId,
-            mos: Helper._fromBytes(_outEvent.mos),
-            token: token,
-            from: _outEvent.from,
-            to: _outEvent.to,
-            amount: relayAmount,
-            gasLimit: _outEvent.gasLimit,
-            swapData: _outEvent.swapData
-        });
-        if (_outEvent.toChain == selfChainId) {
-            if (_outEvent.messageType == uint8(MessageType.MESSAGE)) {
-                _messageIn(_inEvent, true);
-            } else if (_outEvent.messageType == uint8(MessageType.DEPOSIT)) {
-                _deposit(
-                    _inEvent.token,
-                    _inEvent.from,
-                    Helper._fromBytes(_inEvent.to),
-                    _inEvent.amount,
-                    _inEvent.orderId,
-                    _inEvent.fromChain
-                );
-            } else {
-                _swapIn(_inEvent);
+        if (inEvent.toChain != selfChainId) {
+            inEvent.amount = _collectFromFee(_outEvent.initiator, inEvent);
+            if (inEvent.amount == 0) {
+                return _emitMessageIn(_outEvent.initiator, inEvent, false, 0, "InsufficientToken");
             }
+            return _messageRelay(_outEvent.relay, _outEvent.initiator, inEvent, bytes(""));
+        }
+        // inEvent.toChain == selfChainId
+        if (inEvent.messageType == uint8(MessageType.MESSAGE)) {
+            _messageIn(inEvent, true);
+        } else if (inEvent.messageType == uint8(MessageType.DEPOSIT)) {
+            _deposit(
+                inEvent.token,
+                inEvent.from,
+                Helper._fromBytes(inEvent.to),
+                inEvent.amount,
+                inEvent.orderId,
+                inEvent.fromChain
+            );
         } else {
-            _messageRelay(_outEvent.relay, _inEvent, bytes(""));
+            // collect fee
+            inEvent.amount = _collectFee(_outEvent.initiator, inEvent, false);
+            if (inEvent.amount == 0) {
+                return _emitMessageIn(_outEvent.initiator, inEvent, false, 0, "InsufficientToken");
+            }
+            _swapIn(inEvent);
         }
     }
 
-    function _messageRelay(bool _relay, MessageInEvent memory _inEvent, bytes memory _retryMessage) internal {
+    function _messageRelay(
+        bool _relay,
+        bytes memory _initiator,
+        MessageInEvent memory _inEvent,
+        bytes memory _retryMessage
+    ) internal {
         address token = _inEvent.token;
         uint256 relayOutAmount = _inEvent.amount;
         if (_relay) {
@@ -451,24 +431,24 @@ contract BridgeAndRelay is BridgeAbstract {
                 _inEvent.to = target;
                 _inEvent.swapData = newMessage;
             } catch (bytes memory reason) {
-                _emitMessageIn(_inEvent, false, gasLeft, reason);
+                _emitMessageIn(_initiator, _inEvent, false, gasLeft, reason);
                 //_storeMessageData(_inEvent, reason);
                 return;
             }
         }
-        _notifyLightClient(_inEvent.toChain);
-        bytes memory toChainToken;
-        uint256 toChainAmount;
-        if (_inEvent.messageType == uint8(MessageType.MESSAGE)) {
-            toChainToken = Helper._toBytes(ZERO_ADDRESS);
-        } else {
-            toChainToken = tokenRegister.getToChainToken(token, _inEvent.toChain);
-            if (Helper._checkBytes(toChainToken, bytes(""))) revert token_not_registered();
-            toChainAmount = _getToChainAmount(token, relayOutAmount, _inEvent.toChain);
+
+        _inEvent.amount = _collectFee(_initiator, _inEvent, true);
+        if (_inEvent.amount == 0) {
+            return _emitMessageIn(_initiator, _inEvent, false, 0, "InsufficientToken");
         }
 
-        // messageType,orderId,fromChain,toChain,gasLimit,to,from,swapData
-        _emitMessageRelay(_inEvent, toChainToken, toChainAmount);
+        _notifyLightClient(_inEvent.toChain);
+
+        if (_inEvent.messageType == uint8(MessageType.MESSAGE)) {
+            _emitMessageRelay(_inEvent, Helper._toBytes(ZERO_ADDRESS), 0);
+        } else {
+            _swapRelay(_inEvent);
+        }
     }
 
     function _swapInToken(MessageOutEvent memory _outEvent) internal returns (address token, uint256 relayAmount) {
@@ -477,6 +457,26 @@ contract BridgeAndRelay is BridgeAbstract {
         relayAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
 
         _checkAndMint(token, relayAmount);
+    }
+
+    function _swapInToken2(MessageOutEvent memory _outEvent) internal returns (MessageInEvent memory inEvent) {
+        if (_outEvent.messageType != uint8(MessageType.MESSAGE)) {
+            inEvent.token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
+            if (inEvent.token == ZERO_ADDRESS) revert token_not_registered();
+            inEvent.amount = tokenRegister.getRelayChainAmount(inEvent.token, _outEvent.fromChain, _outEvent.amount);
+
+            _checkAndMint(inEvent.token, inEvent.amount);
+        }
+
+        inEvent.messageType = _outEvent.messageType;
+        inEvent.fromChain = _outEvent.fromChain;
+        inEvent.toChain = _outEvent.toChain;
+        inEvent.orderId = _outEvent.orderId;
+        inEvent.mos = Helper._fromBytes(_outEvent.mos);
+        inEvent.from = _outEvent.from;
+        inEvent.to = _outEvent.to;
+        inEvent.gasLimit = _outEvent.gasLimit;
+        inEvent.swapData = _outEvent.swapData;
     }
 
     // messageType,orderId,fromChain,toChain,gasLimit,to,from,swapData
@@ -520,6 +520,18 @@ contract BridgeAndRelay is BridgeAbstract {
     function _getToChainAmount(address _token, uint256 _amount, uint256 _toChain) internal returns (uint256 toAmount) {
         _checkAndBurn(_token, _amount);
         toAmount = tokenRegister.getToChainAmount(_token, _amount, _toChain);
+    }
+
+    function _swapRelay(MessageInEvent memory inEvent) internal {
+        bytes memory toToken = tokenRegister.getToChainToken(inEvent.token, inEvent.toChain);
+        if (Helper._checkBytes(toToken, bytes(""))) revert out_token_not_registered();
+
+        uint256 toAmount = tokenRegister.getToChainAmount(inEvent.token, inEvent.amount, inEvent.toChain);
+
+        _checkAndBurn(inEvent.token, inEvent.amount);
+
+        // messageType,orderId,fromChain,toChain,gasLimit,to,from,swapData
+        _emitMessageRelay(inEvent, toToken, toAmount);
     }
 
     function _pack(
@@ -580,90 +592,123 @@ contract BridgeAndRelay is BridgeAbstract {
         if (vaultToken == ZERO_ADDRESS) revert vault_token_not_registered();
         IVaultTokenV3(vaultToken).deposit(_fromChain, _amount, _to);
         emit DepositIn(_fromChain, _token, _orderId, _from, _to, _amount);
+
+        uint256 chainAndGasLimit = _getChainAndGasLimit(_fromChain, selfChainId, 0);
+        if (_orderId != bytes32("")) {
+            emit MessageIn(_orderId, chainAndGasLimit, _token, _amount, _to, _from, bytes(""), true, bytes(""));
+        }
+    }
+
+    function _collectFromFee(bytes memory _caller, MessageInEvent memory _event) internal returns (uint256 outAmount) {
+        uint256 proportionFee = tokenRegister.getTransferInFee(_caller, _event.token, _event.amount, _event.fromChain);
+        if (_event.amount > proportionFee) {
+            outAmount = _event.amount - proportionFee;
+        } else {
+            proportionFee = _event.amount;
+            outAmount = 0;
+        }
+
+        _collectBridgeFee(_event, 0, proportionFee, _event.amount, 0, true);
     }
 
     function _collectFee(
         bytes memory _caller,
-        bytes32 _orderId,
-        address _token,
-        uint256 _relayAmount,
-        uint256 _fromChain,
-        uint256 _toChain,
-        bool _withSwap
-    ) internal returns (uint256 relayOutAmount) {
-        address vaultToken = tokenRegister.getVaultToken(_token);
-        if (vaultToken == ZERO_ADDRESS) revert vault_token_not_registered();
-
+        MessageInEvent memory _event,
+        bool _toChainOnly
+    ) internal returns (uint256 outAmount) {
         uint256 proportionFee;
-        uint256 excludeVaultFee = 0;
-        uint256 totalFee;
         uint256 baseFee;
 
-        (totalFee, baseFee, proportionFee) = tokenRegister.getTransferFeeV3(
-            _caller,
-            _token,
-            _relayAmount,
-            _fromChain,
-            _toChain,
-            _withSwap
-        );
-        if (_relayAmount >= totalFee) {
-            relayOutAmount = _relayAmount - totalFee;
-        } else if (_relayAmount >= baseFee) {
-            proportionFee = _relayAmount - baseFee;
+        if (_toChainOnly) {
+            (, baseFee, proportionFee) = tokenRegister.getTransferOutFee(
+                _caller,
+                _event.token,
+                _event.amount,
+                _event.fromChain,
+                _event.toChain,
+                _event.swapData.length != 0
+            );
         } else {
-            baseFee = _relayAmount;
+            (, baseFee, proportionFee) = tokenRegister.getTransferFeeV3(
+                _caller,
+                _event.token,
+                _event.amount,
+                _event.fromChain,
+                _event.toChain,
+                _event.swapData.length != 0
+            );
+        }
+
+        if (_event.amount > baseFee + proportionFee) {
+            outAmount = _event.amount - baseFee - proportionFee;
+        } else if (_event.amount >= baseFee) {
+            proportionFee = _event.amount - baseFee;
+        } else {
+            baseFee = _event.amount;
             proportionFee = 0;
         }
 
-        if (baseFee != 0) {
-            address baseFeeReceiver = tokenRegister.getBaseFeeReceiver();
-            feeList[baseFeeReceiver][_token] += baseFee;
-            excludeVaultFee += baseFee;
-        }
+        uint256 fromAmount = _toChainOnly ? 0 : _event.amount;
 
-        if (proportionFee > 0) {
-            excludeVaultFee += _collectBridgeFee(_orderId, _token, baseFee, proportionFee);
-        }
-
-        IVaultTokenV3(vaultToken).transferToken(
-            _fromChain,
-            _relayAmount,
-            _toChain,
-            relayOutAmount,
-            selfChainId,
-            excludeVaultFee
-        );
+        _collectBridgeFee(_event, baseFee, proportionFee, fromAmount, outAmount, false);
     }
 
     function _collectBridgeFee(
-        bytes32 _orderId,
-        address _token,
-        uint256 baseFee,
-        uint256 proportionFee
-    ) internal returns (uint256 excludeVaultFee) {
+        MessageInEvent memory _event,
+        uint256 _baseFee,
+        uint256 _proportionFee,
+        uint256 _fromAmount,
+        uint256 _outAmount,
+        bool _fromChainOnly
+    ) internal {
         uint256 messageFee;
         uint256 protocolFee;
-        address receiver;
+        uint256 vaultFee;
 
-        excludeVaultFee = 0;
-
-        // messenger fee
-        (messageFee, receiver) = _getFee(1, proportionFee);
-        if (messageFee != 0 && receiver != ZERO_ADDRESS) {
-            feeList[receiver][_token] += messageFee;
-            excludeVaultFee += messageFee;
+        if (_proportionFee > 0) {
+            address receiver;
+            // messenger fee
+            (messageFee, receiver) = _getFee(1, _proportionFee);
+            if (messageFee != 0 && receiver != ZERO_ADDRESS) {
+                feeList[receiver][_event.token] += messageFee;
+            }
+            // protocol fee
+            (protocolFee, receiver) = _getFee(2, _proportionFee);
+            if (protocolFee != 0 && receiver != ZERO_ADDRESS) {
+                feeList[receiver][_event.token] += protocolFee;
+            }
+            vaultFee = _proportionFee - messageFee - protocolFee;
         }
-        // protocol fee
-        (protocolFee, receiver) = _getFee(2, proportionFee);
-        if (protocolFee != 0 && receiver != ZERO_ADDRESS) {
-            feeList[receiver][_token] += protocolFee;
-            excludeVaultFee += protocolFee;
+        if (_baseFee > 0) {
+            address baseFeeReceiver = tokenRegister.getBaseFeeReceiver();
+            feeList[baseFeeReceiver][_event.token] += _baseFee;
         }
 
-        uint256 vaultFee = proportionFee - messageFee - protocolFee;
+        uint256 isFromChain = _fromChainOnly ? 1 : 0;
+        if (_baseFee + _proportionFee > 0) {
+            emit CollectFee(
+                _event.orderId,
+                _event.token,
+                isFromChain,
+                _baseFee,
+                _proportionFee,
+                messageFee,
+                vaultFee,
+                protocolFee
+            );
+        }
 
-        emit CollectFee(_orderId, _token, baseFee, proportionFee, messageFee, vaultFee, protocolFee);
+        address vaultToken = tokenRegister.getVaultToken(_event.token);
+        if (vaultToken == ZERO_ADDRESS) revert vault_token_not_registered();
+
+        IVaultTokenV3(vaultToken).updateVault(
+            _event.fromChain,
+            _fromAmount,
+            _event.toChain,
+            _outAmount,
+            selfChainId,
+            vaultFee
+        );
     }
 
     function _notifyLightClient(uint256 _chainId) internal override {

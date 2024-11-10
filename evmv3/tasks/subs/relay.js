@@ -1,5 +1,5 @@
-let { create } = require("../../utils/create.js");
-let { stringToHex } = require("../../utils/helper");
+let { create, tronToHex } = require("../../utils/create.js");
+let { stringToHex, isTron } = require("../../utils/helper");
 const { getDeployment, getChain, getToken, getChainList, getFeeList, saveDeployment } = require("../utils/utils");
 const { verify } = require("../../utils/verify");
 
@@ -127,7 +127,7 @@ task("relay:setDistributeRate", "set distribute rate")
   });
 
 task("relay:registerChain", "register Chain")
-  .addParam("chain", "chainId")
+  .addParam("chain", "chainId", 0, types.int)
   .addOptionalParam("address", "chainId => address")
   .addOptionalParam("type", "chain type, default 1", 1, types.int)
   .setAction(async (taskArgs, hre) => {
@@ -139,7 +139,11 @@ task("relay:registerChain", "register Chain")
 
     let mos = taskArgs.address;
     if (mos.substr(0, 2) !== "0x") {
-      mos = "0x" + stringToHex(taskArgs.address);
+      if (isTron(taskArgs.chain)) {
+        mos = await tronToHex(mos, "Tron");
+      } else {
+        mos = "0x" + stringToHex(taskArgs.address);
+      }
 
       console.log(`mos address: ${taskArgs.address} (${mos})`);
     }
@@ -234,9 +238,9 @@ task("relay:list", "List relay infos")
     let vaultFee = await relay.distributeRate(0);
     let relayFee = await relay.distributeRate(1);
     let protocolFee = await relay.distributeRate(2);
-    console.log(`distribute vault rate: rate(${vaultFee[1]})`);
-    console.log(`distribute relay rate: rate(${relayFee[1]}), receiver(${relayFee[0]})`);
-    console.log(`distribute protocol rate: rate(${protocolFee[1]}), receiver(${protocolFee[0]})`);
+    console.log(`distribute vault rate: rate(${vaultFee[0]})`);
+    console.log(`distribute relay rate: rate(${relayFee[0]}), receiver(${relayFee[1]})`);
+    console.log(`distribute protocol rate: rate(${protocolFee[0]}), receiver(${protocolFee[1]})`);
 
     let chainList = await getChainList(chainId);
     console.log("\nRegister chains:");
@@ -274,9 +278,9 @@ task("relay:tokenInfo", "List token infos")
 
     let vault = await ethers.getContractAt("VaultTokenV3", token.vaultToken);
     let totalVault = await vault.totalVault();
-    console.log(`total token:\t ${totalVault}`);
+    console.log(`total vault and fee:\t ${totalVault}`);
     let totalSupply = await vault.totalSupply();
-    console.log(`total vault supply: ${totalSupply}`);
+    console.log(`total vault token: ${totalSupply}`);
 
     let chainList = await getChainList(hre.network.name);
     let chains = [hre.network.config.chainId];

@@ -203,10 +203,15 @@ async function readFromFile(network) {
   return deploy;
 }
 
-async function getDeployment(network, contract) {
+async function getDeployment(network, key1, key2) {
   let deployment = await readFromFile(network);
-  let deployAddress = deployment[network][contract];
-  if (!deployAddress) throw `no ${contract} deployment in ${network}`;
+  let deployAddress = deployment[network][key1];
+  if (!deployAddress) throw `no ${key1} deployment in ${network}`;
+  if (key2 === undefined || key2 === "") {
+    return deployAddress;
+  }
+  deployAddress = deployment[network][key1][key2];
+  if (!deployAddress) throw `no ${key1[key2]} deployment in ${network}`;
 
   return deployAddress;
 }
@@ -217,9 +222,17 @@ async function writeToFile(deploy) {
   fs.writeFileSync(p, JSON.stringify(deploy, null, "\t"));
 }
 
-async function saveDeployment(network, contract, addr) {
+async function saveDeployment(network, key1, addr, key2) {
   let deployment = await readFromFile(network);
-  deployment[network][contract] = addr;
+
+  if (key2 === undefined || key2 === "") {
+    deployment[network][key1] = addr;
+  } else {
+    if (!deployment[hre.network.name][key1]) {
+      deployment[hre.network.name][key1] = {};
+    }
+    deployment[hre.network.name][key1][key2] = addr;
+  }
 
   let p = path.join(__dirname, "../../deployments/deploy.json");
   await folder("../../deployments/");

@@ -51,7 +51,7 @@
             "mintable": true,
             "decimals": 18,
             "base": {"bridge": "1", "swap": "2"},
-            "fee": { "rate": "0.001", "min": "0", "max": "5" },
+            "fee": { "rate": "0.001", "min": "0.1", "max": "5" },
             "target": ["Makalu", "BscTest", "ArbitrumSepolia", "DodoTest"]
         }
     },
@@ -79,7 +79,7 @@
             "mintable": true,
             "decimals": 18,
             "base": {"bridge": "1", "swap": "2"},
-            "fee": { "rate": "0.001", "min": "0", "max": "5" },
+            "fee": { "rate": "0.001", "min": "0.1", "max": "5" },
             "target": ["Sepolia", "Makalu", "ArbitrumSepolia", "DodoTest"]
         }
     },
@@ -107,7 +107,7 @@
             "mintable": true,
             "decimals": 18,
             "base": {"bridge": "1", "swap": "2"},
-            "fee": { "rate": "0.001", "min": "0", "max": "5" },
+            "fee": { "rate": "0.001", "min": "0.1", "max": "5" },
             "target": ["Sepolia", "BscTest", "Makalu", "DodoTest"]
         }
     },
@@ -121,7 +121,7 @@
             "mintable": true,
             "decimals": 18,
             "base": {"bridge": "0.1", "swap": "0.2"},
-            "fee": { "rate": "0.001", "min": "0", "max": "2" },
+            "fee": { "rate": "0.001", "min": "0.1", "max": "2" },
             "target": ["Makalu", "Sepolia", "BscTest", "ArbitrumSepolia"]
         }
     },
@@ -138,7 +138,7 @@
             "mintable": false,
             "decimals": 9,
             "base": {"bridge": "1", "swap": "2"},
-            "fee": { "rate": "0.001", "min": "0", "max": "2" },
+            "fee": { "rate": "0.001", "min": "0.1", "max": "2" },
             "target": ["Makalu", "Sepolia", "BscTest", "ArbitrumSepolia"]
         }
     }

@@ -107,7 +107,7 @@ task("register:registerToken", "register token")
 
     let register = await getRegister(hre.network.name, taskArgs.v2);
 
-    await register.registerToken(tokenAddr, vaultAddr, taskArgs.mintable);
+    await (await register.registerToken(tokenAddr, vaultAddr, taskArgs.mintable)).wait();
     console.log("token", await register.tokenList(tokenAddr));
   });
 
