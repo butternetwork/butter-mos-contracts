@@ -89,7 +89,7 @@ contract Bridge is BridgeAbstract {
         inEvent.swapData = msgData.payload;
 
         // messageType,fromChain,toChain,gasLimit,mos,to,swapData
-        orderId = _messageOut(msgData.relay, sender, sender, inEvent);
+        orderId = _messageOut(true, msgData.relay, sender, sender, inEvent);
 
         // todo: emit extra info
         //emit MessageTransfer(msg.sender, ZERO_ADDRESS, msg.sender, orderId, bytes32(0), _feeToken, 0);
@@ -129,7 +129,7 @@ contract Bridge is BridgeAbstract {
         // todo: add transfer limit check
         // _checkLimit(_amount, _toChain, _token);
         // messageType,fromChain,toChain,gasLimit,mos,to,token,amount,swapData
-        orderId = _messageOut(msgData.relay, _initiator, sender, inEvent);
+        orderId = _messageOut(true, msgData.relay, _initiator, sender, inEvent);
     }
 
     function depositToken(
@@ -152,7 +152,7 @@ contract Bridge is BridgeAbstract {
         inEvent.gasLimit = DEPOSIT_GAS;
 
         // messageType,fromChain,toChain,gasLimit,mos,to,token,amount
-        orderId = _messageOut(false, sender, sender, inEvent);
+        orderId = _messageOut(true, false, sender, sender, inEvent);
     }
 
     function messageIn(

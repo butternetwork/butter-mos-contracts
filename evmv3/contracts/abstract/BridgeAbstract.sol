@@ -317,6 +317,7 @@ abstract contract BridgeAbstract is
 
     // messageType,fromChain,toChain,gasLimit,mos,to,token,amount,swapData
     function _messageOut(
+        bool _notify,
         bool _relay,
         address _initiator,
         address _sender,
@@ -346,7 +347,9 @@ abstract contract BridgeAbstract is
 
         emit MessageOut(orderId, chainAndGasLimit, payload);
 
-        _notifyLightClient(_inEvent.toChain);
+        if (_notify) {
+            _notifyLightClient(_inEvent.toChain);
+        }
     }
 
     function _emitMessageIn(

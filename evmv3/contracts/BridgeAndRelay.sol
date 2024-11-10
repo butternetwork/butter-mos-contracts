@@ -220,7 +220,7 @@ contract BridgeAndRelay is BridgeAbstract {
         inEvent.gasLimit = msgData.gasLimit;
 
         // messageType,fromChain,toChain,gasLimit,to
-        inEvent.orderId = _messageOut(msgData.relay, sender, sender, inEvent);
+        inEvent.orderId = _messageOut(false, msgData.relay, sender, sender, inEvent);
 
         inEvent.from = Helper._toBytes(sender);
         inEvent.swapData = msgData.payload;
@@ -272,7 +272,7 @@ contract BridgeAndRelay is BridgeAbstract {
         // _checkLimit(_amount, _toChain, _token);
 
         // messageType,fromChain,toChain,gasLimit,token,amount,to
-        inEvent.orderId = _messageOut(false, _initiator, sender, inEvent);
+        inEvent.orderId = _messageOut(false, false, _initiator, sender, inEvent);
 
         inEvent.swapData = msgData.swapData;
         inEvent.from = Helper._toBytes(sender);
@@ -379,7 +379,7 @@ contract BridgeAndRelay is BridgeAbstract {
         if (Helper._fromBytes(_outEvent.mos) != address(this)) revert invalid_mos_contract();
         if (_chainId != _outEvent.fromChain) revert invalid_chain_id();
 
-        MessageInEvent memory inEvent = _swapInToken2(_outEvent);
+        MessageInEvent memory inEvent = _swapInToken(_outEvent);
 
         if (inEvent.toChain != selfChainId) {
             inEvent.amount = _collectFromFee(_outEvent.initiator, inEvent);
@@ -416,8 +416,8 @@ contract BridgeAndRelay is BridgeAbstract {
         MessageInEvent memory _inEvent,
         bytes memory _retryMessage
     ) internal {
-        address token = _inEvent.token;
-        uint256 relayOutAmount = _inEvent.amount;
+        //address token = _inEvent.token;
+        //uint256 relayOutAmount = _inEvent.amount;
         if (_relay) {
             uint256 gasLeft = gasleft();
             try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, _retryMessage) returns (
@@ -426,8 +426,8 @@ contract BridgeAndRelay is BridgeAbstract {
                 bytes memory target,
                 bytes memory newMessage
             ) {
-                token = tokenOut;
-                relayOutAmount = amountOut;
+                _inEvent.token = tokenOut;
+                _inEvent.amount = amountOut;
                 _inEvent.to = target;
                 _inEvent.swapData = newMessage;
             } catch (bytes memory reason) {
@@ -437,29 +437,19 @@ contract BridgeAndRelay is BridgeAbstract {
             }
         }
 
-        _inEvent.amount = _collectFee(_initiator, _inEvent, true);
-        if (_inEvent.amount == 0) {
-            return _emitMessageIn(_initiator, _inEvent, false, 0, "InsufficientToken");
-        }
-
-        _notifyLightClient(_inEvent.toChain);
-
         if (_inEvent.messageType == uint8(MessageType.MESSAGE)) {
             _emitMessageRelay(_inEvent, Helper._toBytes(ZERO_ADDRESS), 0);
         } else {
+            _inEvent.amount = _collectFee(_initiator, _inEvent, true);
+            if (_inEvent.amount == 0) {
+                return _emitMessageIn(_initiator, _inEvent, false, 0, "InsufficientToken");
+            }
+
             _swapRelay(_inEvent);
         }
     }
 
-    function _swapInToken(MessageOutEvent memory _outEvent) internal returns (address token, uint256 relayAmount) {
-        token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
-        if (token == ZERO_ADDRESS) revert token_not_registered();
-        relayAmount = tokenRegister.getRelayChainAmount(token, _outEvent.fromChain, _outEvent.amount);
-
-        _checkAndMint(token, relayAmount);
-    }
-
-    function _swapInToken2(MessageOutEvent memory _outEvent) internal returns (MessageInEvent memory inEvent) {
+    function _swapInToken(MessageOutEvent memory _outEvent) internal returns (MessageInEvent memory inEvent) {
         if (_outEvent.messageType != uint8(MessageType.MESSAGE)) {
             inEvent.token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
             if (inEvent.token == ZERO_ADDRESS) revert token_not_registered();
@@ -514,7 +504,10 @@ contract BridgeAndRelay is BridgeAbstract {
                 amount
             );
         }
+
         emit MessageRelay(_inEvent.orderId, chainAndGasLimit, messageData);
+
+        _notifyLightClient(_inEvent.toChain);
     }
 
     function _getToChainAmount(address _token, uint256 _amount, uint256 _toChain) internal returns (uint256 toAmount) {
