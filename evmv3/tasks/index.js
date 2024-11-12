@@ -5,3 +5,4 @@ require("./subs/relay.js");
 require("./subs/authority.js");
 require("./subs/feeService.js");
 require("./subs/misc.js");
+require("./subs/quoter.js");
