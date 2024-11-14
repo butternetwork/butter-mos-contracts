@@ -277,8 +277,9 @@ contract BridgeAndRelay is BridgeAbstract {
         inEvent.swapData = msgData.swapData;
         inEvent.from = Helper._toBytes(sender);
 
-        inEvent.amount = _collectFee(inEvent.from, inEvent, false);
-        // todo: check out amount
+        address caller = (trustList[sender] == 0x01) ? _initiator : sender;
+
+        inEvent.amount = _collectFee(Helper._toBytes(caller), inEvent, false);
         if (inEvent.amount == 0) revert in_amount_low();
 
         _swapRelay(inEvent);
