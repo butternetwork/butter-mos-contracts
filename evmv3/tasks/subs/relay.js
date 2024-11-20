@@ -1,7 +1,13 @@
 let { create, tronToHex } = require("../../utils/create.js");
 let { stringToHex, isTron } = require("../../utils/helper");
-const { getDeployment, getChain, getToken, getChainList, getFeeList, saveDeployment } = require("../utils/utils");
+const { getDeployment, getChain, getToken, getChainList, getFeeList, saveDeployment, getTokenList} = require("../utils/utils");
 const { verify } = require("../../utils/verify");
+const {deploy} = require("../../test/util");
+const {getTronContract} = require("../../utils/create");
+
+
+let outputAddr = true;
+
 
 async function getRelay(network) {
   let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
@@ -9,7 +15,10 @@ async function getRelay(network) {
 
   let relay = BridgeAndRelay.attach(addr);
 
-  console.log("relay address:", relay.address);
+  if (outputAddr) {
+      console.log("relay address:", relay.address);
+  }
+
   return relay;
 }
 
@@ -282,6 +291,14 @@ task("relay:tokenInfo", "List token infos")
     let totalSupply = await vault.totalSupply();
     console.log(`total vault token: ${totalSupply}`);
 
+    // get base
+      // get protocol
+      // get relay
+      let relayFee = await relay.distributeRate(1);
+      let protocolFee = await relay.distributeRate(2);
+      console.log()
+    relay.feeList(relayFee[1], token.address);
+
     let chainList = await getChainList(hre.network.name);
     let chains = [hre.network.config.chainId];
     for (let i = 0; i < chainList.length; i++) {
@@ -299,3 +316,73 @@ task("relay:tokenInfo", "List token infos")
       console.log(`\t vault(${balance}), fee min(${info[2][0]}), max(${info[2][1]}), rate(${info[2][2]})`);
     }
   });
+
+async function getAllAddr(addr1) {
+    if (addr1 !== "") {
+        return new Map([[addr1, true]]);
+    }
+
+    let relay = await getRelay(hre.network.name);
+
+    let addr = await relay.getServiceContract(4);
+    let manager = await ethers.getContractAt("TokenRegisterV3", addr);
+
+    addr = await relay.getServiceContract(2);
+    let feeService = await ethers.getContractAt("FeeService", addr);
+
+    let addrList = new Map();
+    // get base addr
+    addr = await manager.getBaseFeeReceiver();
+    console.log("base receiver: ", addr);
+    addrList.set(addr, true);
+
+    addr = await feeService.feeReceiver();
+    console.log("message fee receiver: ", addr);
+    addrList.set(addr, true);
+
+    let relayFee = await relay.distributeRate(1);
+    let protocolFee = await relay.distributeRate(2);
+    console.log("relayer fee receiver: ", relayFee[1]);
+    addrList.set(relayFee[1], true);
+    console.log("protocol fee receiver: ", protocolFee[1]);
+    addrList.set(protocolFee[1], true);
+
+    return addrList;
+}
+
+
+task("relay:feeInfo", "List fee infos")
+    .addOptionalParam("addr", "The receiver address", "", types.string)
+    .addOptionalParam("token", "The token address, default wtoken", "", types.string)
+    .setAction(async (taskArgs, hre) => {
+        let relay = await getRelay(hre.network.name);
+        outputAddr = false;
+
+        let addrList = await getAllAddr(taskArgs.addr);
+
+        let tokenList;
+        if (taskArgs.token === "") {
+            tokenList = await getTokenList(hre.network.name);
+            //tokenList.insert("native", "0x0000000000000000000000000000000000000000");
+        } else if (taskArgs.token === "wtoken") {
+            let tokenAddr = await relay.getServiceContract(0);
+            tokenList = new Map([["wrapped", tokenAddr]]);
+        } else {
+            let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+            tokenList = new Map([[taskArgs.token, tokenAddr]]);
+        }
+
+        for (let [addr, exist] of addrList) {
+            console.log("address: ", addr);
+            for (let tokenInfo in tokenList) {
+                let decimals = 18;
+                if (tokenName !== "native") {
+                    let token = await ethers.getContractAt("IERC20Metadata", tokenAddr);
+                    decimals = await token.decimals();
+                }
+                let info = await relay.feeList(addr, tokenAddr);
+                console.log(`${tokenName}\t => ${await ethers.utils.formatUnits(info, decimals)} `);
+            }
+
+        }
+    });

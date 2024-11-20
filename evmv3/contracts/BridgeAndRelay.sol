@@ -6,7 +6,7 @@ import "./interface/IVaultTokenV3.sol";
 import "./abstract/BridgeAbstract.sol";
 import "./interface/ITokenRegisterV3.sol";
 import "./lib/NearDecoder.sol";
-import "./lib/IsomericDecoder.sol";
+import {NonEvmDecoder} from "./lib/NonEvmDecoder.sol";
 import "./interface/IRelayExecutor.sol";
 import {MessageOutEvent} from "./lib/Types.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
@@ -296,6 +296,8 @@ contract BridgeAndRelay is BridgeAbstract {
     ) external nonReentrant whenNotPaused {
         _checkOrder(_orderId);
 
+        //uint256 logIndex = _logParam & 0xFFFF;
+        //uint256 tryError = (_logParam >> 16) & 0xFF;
         if (chainTypes[_chainId] == ChainType.EVM) {
             (bool success, string memory message, ILightVerifier.txLog memory log) = lightClientManager.verifyProofData(
                 _chainId,
@@ -321,14 +323,14 @@ contract BridgeAndRelay is BridgeAbstract {
                 MessageOutEvent memory outEvent = NearDecoder.decodeNearSwapLog(log);
                 _messageIn(_orderId, _chainId, outEvent);
             } else if (chainTypes[_chainId] == ChainType.TON || chainTypes[_chainId] == ChainType.SOLANA) {
-                (bytes memory addr, bytes memory topic, bytes memory log) = IsomericDecoder.getTopic(logArray);
+                (bytes memory addr, bytes memory topic, bytes memory log) = NonEvmDecoder.getTopic(logArray);
                 if (!Helper._checkBytes(addr, mosContracts[_chainId])) revert invalid_mos_contract();
                 if (chainTypes[_chainId] == ChainType.TON) {
-                    if(!Helper._checkBytes(topic, IsomericDecoder.TON_TOPIC)) revert invalid_bridge_log();
+                    if (!Helper._checkBytes(topic, NonEvmDecoder.TON_TOPIC)) revert invalid_bridge_log();
                 } else {
-                    if(!Helper._checkBytes(topic, IsomericDecoder.SOLANA_TOPIC)) revert invalid_bridge_log();
+                    if (!Helper._checkBytes(topic, NonEvmDecoder.SOLANA_TOPIC)) revert invalid_bridge_log();
                 }
-                MessageOutEvent memory outEvent = IsomericDecoder.decodeMessageOut(log);
+                MessageOutEvent memory outEvent = NonEvmDecoder.decodeMessageOut(log);
                 _messageIn(_orderId, _chainId, outEvent);
             } else {
                 revert chain_type_error();
@@ -444,7 +446,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 _inEvent.to = target;
                 _inEvent.swapData = newMessage;
             } catch (bytes memory reason) {
-                if(needTryCatch) {
+                if (needTryCatch) {
                     _emitMessageIn(_initiator, _inEvent, false, gasLeft, reason);
                     //_storeMessageData(_inEvent, reason);
                     return;

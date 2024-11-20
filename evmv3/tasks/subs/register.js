@@ -440,7 +440,7 @@ task("register:setFromChainWhitelistFee", "set to chain token outFee")
 
     let sender = taskArgs.sender;
     if (fromChain.name === "Tron") {
-      sender = toHex(taskArgs.sender, "Tron");
+      sender = tronToHex(taskArgs.sender, "Tron");
     }
 
     let info = await register.getFromChainCallerFeeRate(token, fromChain.chainId, sender);
@@ -693,13 +693,14 @@ task("register:getFee", "get token fees")
 
     let fromToken = token;
     if (fromChain.name === "Tron" || fromChain.name === "TronTest") {
-      fromToken = await toHex(token, "Tron");
+      fromToken = await tronToHex(token, "Tron");
     } else if (token.substr(0, 2) !== "0x") {
       let hex = stringToHex(token);
       fromToken = "0x" + hex;
     }
 
-    console.log(`relay token [${await register.getRelayChainToken(fromChain.chainId, fromToken)}]`);
+    let bridgeToken = await register.getRelayChainToken(fromChain.chainId, fromToken);
+    console.log(`relay token [${bridgeToken}]`);
     console.log(`mintable [${await register.checkMintable(relayToken)}]`);
     console.log(`vault token [${await register.getVaultToken(relayToken)}]`);
 
@@ -742,6 +743,7 @@ task("register:getFee", "get token fees")
     let swapInfo = await register.getBridgeFeeInfoV3(
       caller,
       fromToken,
+        bridgeToken,
       fromChain.chainId,
       amount,
       toChain.chainId,
@@ -751,13 +753,14 @@ task("register:getFee", "get token fees")
     let bridgeInfo = await register.getBridgeFeeInfoV3(
       caller,
       fromToken,
+        bridgeToken,
       fromChain.chainId,
       amount,
       toChain.chainId,
       false,
     );
 
-    let swapFee = await register.getTransferFee(
+    let swapFee = await register.getTransferFeeV3(
       caller,
       relayToken,
       relayAmount,
@@ -765,7 +768,7 @@ task("register:getFee", "get token fees")
       toChain.chainId,
       true,
     );
-    let bridgeFee = await register.getTransferFee(
+    let bridgeFee = await register.getTransferFeeV3(
       caller,
       relayToken,
       relayAmount,

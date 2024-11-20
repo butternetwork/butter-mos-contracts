@@ -95,7 +95,7 @@ task("misc:grant", "grantRole")
     let addr = await getAddress(hre.network.name, taskArgs.addr);
 
     let access = await ethers.getContractAt("AccessControlEnumerable", addr);
-    console.log("auth address", access.address);
+    console.log("AccessControl address", access.address);
 
     let role = getRole(taskArgs.role);
     console.log("role:", role);
@@ -119,7 +119,7 @@ task("misc:revoke", "revokeRole")
     let addr = await getAddress(hre.network.name, taskArgs.addr);
 
     let access = await ethers.getContractAt("AccessControlEnumerable", addr);
-    console.log("authority address", access.address);
+    console.log("AccessControl address", access.address);
 
     let role = getRole(taskArgs.role);
     console.log("role:", role);

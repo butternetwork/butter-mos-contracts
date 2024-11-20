@@ -8,6 +8,7 @@ import "@mapprotocol/protocol/contracts/utils/Utils.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
+import {Helper} from "./lib/Helper.sol";
 
 contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     uint256 constant MAX_RATE_UNI = 1000000;
@@ -586,6 +587,9 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
             token = tokenMappingList[_fromChain][_fromToken];
         }
         require(token != address(0), "register: token not registered");
+        // check
+        bytes memory fromToken = tokenList[token].mappingList[_fromChain];
+        require(Helper._checkBytes(_fromToken, fromToken), "register: not matched");
     }
 
     function _getToChainToken(address _token, uint256 _toChain) internal view returns (bytes memory token) {
