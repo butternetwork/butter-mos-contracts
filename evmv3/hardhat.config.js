@@ -59,7 +59,7 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Polygon: {
-      url: `https://rpc.ankr.com/polygon`,
+      url: `https://polygon.blockpi.network/v1/rpc/public`,
       chainId: 137,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
@@ -69,7 +69,7 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Klaytn: {
-      url: `https://public-en-cypress.klaytn.net`,
+      url: `https://kaia.blockpi.network/v1/rpc/public`,
       chainId: 8217,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },

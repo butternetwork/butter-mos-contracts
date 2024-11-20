@@ -51,7 +51,7 @@ module.exports = {
       accounts: accounts,
     },
     Matic: {
-      url: `https://rpc.ankr.com/polygon`,
+      url: `https://polygon.blockpi.network/v1/rpc/public`,
       chainId: 137,
       accounts: accounts,
     },
@@ -186,6 +186,32 @@ module.exports = {
       chainId : 5000,
       accounts: accounts,
     },
+
+    Sepolia: {
+      url: `https://eth-sepolia.api.onfinality.io/public`,
+      chainId: 11155111,
+      accounts: accounts,
+    },
+    BscTest: {
+      url: "https://bsc-testnet.blockpi.network/v1/rpc/public",
+      chainId: 97,
+      accounts: accounts,
+    },
+    Makalu: {
+      chainId: 212,
+      url: "https://testnet-rpc.maplabs.io",
+      accounts: accounts,
+    },
+    ArbitrumSepolia: {
+      url: "https://sepolia-rollup.arbitrum.io/rpc",
+      chainId: 421614,
+      accounts: accounts,
+    },
+    DodoTest: {
+      url: `https://dodochain-testnet.alt.technology`,
+      chainId : 53457,
+      accounts: accounts,
+    }
   },
   zksolc: {
     version: "1.4.0",

@@ -597,16 +597,21 @@ task("mos:withdraw", "changeOwner for mos")
             const deployer = accounts[0];
             const chainId = await hre.network.config.chainId;
             let mos = await getMos(chainId, hre.network.name);
-            if (mos == undefined) {
+            if (mos === undefined) {
                 throw "mos not deployed ...";
             }
             console.log("mos address", mos.address);
 
             let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
-            let token = await ethers.getContractAt("MintableToken", tokenAddr);
-            let decimals = await token.decimals();
-            console.log(`token address ${token.address}, decimals ${decimals}`);
-            let amount = ethers.utils.parseUnits(taskArgs.amount, decimals);
+            let amount;
+            if (tokenAddr === "0x0000000000000000000000000000000000000000") {
+                amount = ethers.utils.parseUnits(taskArgs.amount, 18);
+            } else {
+                let token = await ethers.getContractAt("MintableToken", tokenAddr);
+                let decimals = await token.decimals();
+                console.log(`token address ${token.address}, decimals ${decimals}`);
+                amount = ethers.utils.parseUnits(taskArgs.amount, decimals);
+            }
 
             if (taskArgs.auth) {
                 let deployment = await readFromFile(hre.network.name);
@@ -717,10 +722,12 @@ task("mos:list", "List mos  infos")
             console.log("Owner:\t", await mos.getAdmin());
             console.log("Impl:\t", await mos.getImplementation());
 
+            console.log("Paused:\t", await mos.paused());
+
             console.log("butterRouter:\t", await mos.butterRouter());
 
             address = taskArgs.token;
-            if (address == "wtoken") {
+            if (address === "wtoken") {
                 address = wtoken;
             }
 

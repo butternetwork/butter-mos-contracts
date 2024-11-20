@@ -330,6 +330,7 @@ task("token:mintableDeploy", "Deploy a token with role control")
 task("token:mint", "mint token")
     .addParam("token", "token address")
     .addParam("amount", "mint amount")
+    .addOptionalParam("receiver", "receiver address", "", types.string)
     .setAction(async (taskArgs, hre) => {
         const { deploy } = hre.deployments;
         const accounts = await ethers.getSigners();
@@ -337,7 +338,15 @@ task("token:mint", "mint token")
 
         console.log("deployer address:", deployer.address);
 
-        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        let receiver = taskArgs.receiver;
+        if (receiver === "") {
+            receiver = deployer.address;
+        }
+
+        let tokenAddr = taskArgs.token;
+        if (tokenAddr.substr(0, 2) !== "0x") {
+            tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        }
         let token = await ethers.getContractAt("MintableToken", tokenAddr);
 
         console.log("Mintable Token address:", token.address);
@@ -345,7 +354,7 @@ task("token:mint", "mint token")
         let decimals = await token.decimals();
         let amount = ethers.utils.parseUnits(taskArgs.amount, decimals);
 
-        await token.mint(deployer.address, amount);
+        await token.mint(receiver, amount);
 
         console.log(`Mint '${taskArgs.token}' Token ${taskArgs.amount} `);
     });
