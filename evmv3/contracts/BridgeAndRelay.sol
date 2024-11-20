@@ -6,6 +6,7 @@ import "./interface/IVaultTokenV3.sol";
 import "./abstract/BridgeAbstract.sol";
 import "./interface/ITokenRegisterV3.sol";
 import "./lib/NearDecoder.sol";
+import "./lib/IsomericDecoder.sol";
 import "./interface/IRelayExecutor.sol";
 import {MessageOutEvent} from "./lib/Types.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
@@ -319,6 +320,16 @@ contract BridgeAndRelay is BridgeAbstract {
                 if (topic != NearDecoder.NEAR_SWAPOUT) revert invalid_bridge_log();
                 MessageOutEvent memory outEvent = NearDecoder.decodeNearSwapLog(log);
                 _messageIn(_orderId, _chainId, outEvent);
+            } else if (chainTypes[_chainId] == ChainType.TON || chainTypes[_chainId] == ChainType.SOLANA) {
+                (bytes memory addr, bytes memory topic, bytes memory log) = IsomericDecoder.getTopic(logArray);
+                if (!Helper._checkBytes(addr, mosContracts[_chainId])) revert invalid_mos_contract();
+                if (chainTypes[_chainId] == ChainType.TON) {
+                    if(!Helper._checkBytes(topic, IsomericDecoder.TON_TOPIC)) revert invalid_bridge_log();
+                } else {
+                    if(!Helper._checkBytes(topic, IsomericDecoder.SOLANA_TOPIC)) revert invalid_bridge_log();
+                }
+                MessageOutEvent memory outEvent = IsomericDecoder.decodeMessageOut(log);
+                _messageIn(_orderId, _chainId, outEvent);
             } else {
                 revert chain_type_error();
             }
@@ -346,7 +357,7 @@ contract BridgeAndRelay is BridgeAbstract {
         if (outEvent.toChain == selfChainId) {
             _messageIn(outEvent, true);
         } else {
-            _messageRelay(true, initiator, outEvent, _retryMessage);
+            _messageRelay(true, initiator, outEvent, _retryMessage, false);
         }
     }
 
@@ -387,7 +398,7 @@ contract BridgeAndRelay is BridgeAbstract {
             if (inEvent.amount == 0) {
                 return _emitMessageIn(_outEvent.initiator, inEvent, false, 0, "InsufficientToken");
             }
-            return _messageRelay(_outEvent.relay, _outEvent.initiator, inEvent, bytes(""));
+            return _messageRelay(_outEvent.relay, _outEvent.initiator, inEvent, bytes(""), true);
         }
         // inEvent.toChain == selfChainId
         if (inEvent.messageType == uint8(MessageType.MESSAGE)) {
@@ -415,7 +426,8 @@ contract BridgeAndRelay is BridgeAbstract {
         bool _relay,
         bytes memory _initiator,
         MessageInEvent memory _inEvent,
-        bytes memory _retryMessage
+        bytes memory _retryMessage,
+        bool needTryCatch
     ) internal {
         //address token = _inEvent.token;
         //uint256 relayOutAmount = _inEvent.amount;
@@ -432,9 +444,13 @@ contract BridgeAndRelay is BridgeAbstract {
                 _inEvent.to = target;
                 _inEvent.swapData = newMessage;
             } catch (bytes memory reason) {
-                _emitMessageIn(_initiator, _inEvent, false, gasLeft, reason);
-                //_storeMessageData(_inEvent, reason);
-                return;
+                if(needTryCatch) {
+                    _emitMessageIn(_initiator, _inEvent, false, gasLeft, reason);
+                    //_storeMessageData(_inEvent, reason);
+                    return;
+                } else {
+                    revert(string(reason));
+                }
             }
         }
 
