@@ -214,7 +214,7 @@ abstract contract BridgeAbstract is
         feeList[receiverFeeAddress][_feeToken] += amount;
     }
 
-    function _messageIn(MessageInEvent memory _inEvent, bool _gasleft) internal {
+    function _transferIn(MessageInEvent memory _inEvent, bool _gasleft, bool _revertError) internal {
         address to = Helper._fromBytes(_inEvent.to);
 
         uint256 gasLeft = gasleft();
@@ -236,6 +236,9 @@ abstract contract BridgeAbstract is
         {
             _emitMessageIn(_inEvent.from, _inEvent, true, gasLeft, "");
         } catch (bytes memory reason) {
+            if (_revertError) {
+                revert(string(reason));
+            }
             _emitMessageIn(_inEvent.from, _inEvent, false, gasLeft, reason);
         }
     }

@@ -157,16 +157,20 @@ contract Bridge is BridgeAbstract {
 
     function messageIn(
         uint256 _chainId,
-        uint256 _logIndex,
+        uint256 _logParam,
         bytes32 _orderId,
         bytes calldata _receiptProof
     ) external nonReentrant whenNotPaused {
         _checkOrder(_orderId);
         (uint256 relayChainId, address mosRelay) = _getRelay();
         if (relayChainId != _chainId) revert invalid_relay_chain();
+
+        uint256 logIndex = _logParam & 0xFFFF;
+        bool revertError = ((_logParam >> 16) & 0xFF == 0x0);
+
         (bool success, string memory message, ILightVerifier.txLog memory log) = lightNode.verifyProofDataWithCache(
             false,
-            _logIndex,
+            logIndex,
             _receiptProof
         );
         require(success, message);
@@ -174,19 +178,19 @@ contract Bridge is BridgeAbstract {
         if (mosRelay != log.addr) revert invalid_relay_contract();
         if (EvmDecoder.MESSAGE_RELAY_TOPIC != log.topics[0]) revert invalid_bridge_log();
 
-        (bool result, MessageInEvent memory outEvent) = EvmDecoder.decodeMessageRelay(log);
+        (bool result, MessageInEvent memory inEvent) = EvmDecoder.decodeMessageRelay(log);
         if (!result) revert invalid_pack_version();
 
-        if (outEvent.mos != address(this)) revert invalid_mos_contract();
-        if (selfChainId != outEvent.toChain) revert invalid_to_chain();
-        if (_orderId != outEvent.orderId) revert invalid_order_Id();
+        if (inEvent.mos != address(this)) revert invalid_mos_contract();
+        if (selfChainId != inEvent.toChain) revert invalid_to_chain();
+        if (_orderId != inEvent.orderId) revert invalid_order_Id();
 
-        if (MessageType(outEvent.messageType) == MessageType.MESSAGE) {
-            _messageIn(outEvent, false);
+        if (MessageType(inEvent.messageType) == MessageType.MESSAGE) {
+            _transferIn(inEvent, false, revertError);
         } else {
             // token bridge
-            _checkAndMint(outEvent.token, outEvent.amount);
-            _swapIn(outEvent);
+            _checkAndMint(inEvent.token, inEvent.amount);
+            _swapIn(inEvent);
         }
     }
 
@@ -208,7 +212,7 @@ contract Bridge is BridgeAbstract {
             _payload
         );
 
-        _messageIn(outEvent, true);
+        _transferIn(outEvent, true, true);
     }
 
     // --------------------------------------------- internal ----------------------------------------------

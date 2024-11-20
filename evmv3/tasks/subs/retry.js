@@ -13,7 +13,7 @@ async function getRelay(network) {
 
 let messageInTopic = "0x13d3a5b2d6aaada5c31b5654f99c2ab9587cf9a53ee4b2e25b6c68a8dfaa4472"
 
-task("relay:retry", "retry")
+task("retry:retry", "retry")
   .addParam("hash", "transation hash")
   .setAction(async (taskArgs, hre) => {
     let bridge = await getRelay(hre.network.name);
@@ -27,7 +27,7 @@ task("relay:retry", "retry")
         }
     });
     }
-    if(!retryLog) throw "not messageIn event";
+    if(!retryLog) throw "no messageIn event";
     let orderId = retryLog.topics[1];
     let chainAndGasLimit = BigNumber.from(retryLog.topics[2]);
     let fromChain = BigNumber.from(retryLog.topics[2].substring(0, 18));

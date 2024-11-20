@@ -362,8 +362,12 @@ task("relay:feeInfo", "List fee infos")
 
         let tokenList;
         if (taskArgs.token === "") {
-            tokenList = await getTokenList(hre.network.name);
-            //tokenList.insert("native", "0x0000000000000000000000000000000000000000");
+            let feeList = await getFeeList(hre.network.name);
+            let tokens = Object.keys(feeList);
+            for (let tokenName of tokenList) {
+                let tokenAddr = await getToken(hre.network.config.chainId, tokenName);
+                tokenList.insert(tokenName, tokenAddr);
+            }
         } else if (taskArgs.token === "wtoken") {
             let tokenAddr = await relay.getServiceContract(0);
             tokenList = new Map([["wrapped", tokenAddr]]);
@@ -380,7 +384,7 @@ task("relay:feeInfo", "List fee infos")
                     let token = await ethers.getContractAt("IERC20Metadata", tokenAddr);
                     decimals = await token.decimals();
                 }
-                let info = await relay.feeList(addr, tokenAddr);
+                let info = await relay.feeList(addr, tokenInfo.addr);
                 console.log(`${tokenName}\t => ${await ethers.utils.formatUnits(info, decimals)} `);
             }
 
