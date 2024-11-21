@@ -147,6 +147,14 @@ contract BridgeAndRelay is BridgeAbstract {
         return tokenRegister.getTargetToken(_fromChain, _toChain, _fromToken);
     }
 
+    function getBridgeTokenInfoV2(
+        uint256 _fromChain,
+        uint256 _toChain,
+        bytes memory _fromToken
+    ) external view returns (bytes memory toChainToken, uint8 decimals, bool mintable, uint256 vaultBalance) {
+        return tokenRegister.getTargetTokenV2(_fromChain, _toChain, _fromToken);
+    }
+
     function getBridgeFeeInfo(
         bytes memory _caller,
         bytes memory _fromToken,
@@ -447,9 +455,14 @@ contract BridgeAndRelay is BridgeAbstract {
                 _inEvent.amount = amountOut;
                 _inEvent.to = target;
                 _inEvent.swapData = newMessage;
+            } catch Error(string memory reason) {
+                if (_revertError) {
+                    revert(reason);
+                }
+                return _emitMessageIn(_initiator, _inEvent, false, gasLeft, bytes(reason));
             } catch (bytes memory reason) {
                 if (_revertError) {
-                    revert(string(reason));
+                    revert bubbling(reason);
                 }
                 return _emitMessageIn(_initiator, _inEvent, false, gasLeft, reason);
             }
