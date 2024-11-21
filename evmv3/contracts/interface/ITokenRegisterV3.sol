@@ -19,7 +19,7 @@ interface ITokenRegisterV3 {
         uint256 _fromChain,
         uint256 _toChain,
         bytes memory _fromToken
-    ) external view returns (bytes memory toToken, uint8 decimals, bool mintable);
+    ) external view returns (bytes memory toToken, uint8 decimals, bool mintable, uint256 vaultBalance);
 
     function getTargetAmount(
         uint256 _fromChain,

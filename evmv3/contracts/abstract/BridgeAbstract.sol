@@ -67,6 +67,8 @@ abstract contract BridgeAbstract is
     error not_support_target_chain();
     error unsupported_message_type();
     error retry_verify_fail();
+    error bubbling(bytes e);
+
 
     event SetContract(uint256 t, address addr);
     event RegisterToken(address token, uint256 toChain, bool enable);
@@ -235,9 +237,14 @@ abstract contract BridgeAbstract is
             )
         {
             _emitMessageIn(_inEvent.from, _inEvent, true, gasLeft, "");
+        } catch Error(string memory reason) {
+            if (_revertError) {
+                revert(reason);
+            }
+            _emitMessageIn(_inEvent.from, _inEvent, false, gasLeft, bytes(reason));
         } catch (bytes memory reason) {
             if (_revertError) {
-                revert(string(reason));
+                revert bubbling(reason);
             }
             _emitMessageIn(_inEvent.from, _inEvent, false, gasLeft, reason);
         }

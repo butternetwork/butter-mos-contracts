@@ -292,7 +292,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _fromChain,
         uint256 _toChain,
         bytes memory _fromToken
-    ) external view returns (bytes memory toToken, uint8 decimals, bool mintable) {
+    ) external view returns (bytes memory toToken, uint8 decimals, bool mintable, uint256 vaultBalance) {
         address tokenAddr = _getRelayChainToken(_fromChain, _fromToken);
 
         Token storage token = tokenList[tokenAddr];
@@ -301,6 +301,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         toToken = token.mappingList[_toChain];
         decimals = token.decimals[_toChain];
         mintable = token.mintable[_toChain];
+        vaultBalance = getVaultBalance(tokenAddr, _toChain);
     }
 
     function getTargetAmount(
