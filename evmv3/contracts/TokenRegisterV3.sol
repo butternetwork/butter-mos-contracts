@@ -292,16 +292,31 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint256 _fromChain,
         uint256 _toChain,
         bytes memory _fromToken
+    ) external view returns (bytes memory toToken, uint8 decimals, bool mintable) {
+        address tokenAddr = _getRelayChainToken(_fromChain, _fromToken);
+        (toToken, decimals, mintable) = _getTargetToken(_toChain, tokenAddr);
+    }
+
+    function getTargetTokenV2(
+        uint256 _fromChain,
+        uint256 _toChain,
+        bytes memory _fromToken
     ) external view returns (bytes memory toToken, uint8 decimals, bool mintable, uint256 vaultBalance) {
         address tokenAddr = _getRelayChainToken(_fromChain, _fromToken);
+        (toToken, decimals, mintable) = _getTargetToken(_toChain, tokenAddr);
+        vaultBalance = getVaultBalance(tokenAddr, _toChain);
+    }
 
-        Token storage token = tokenList[tokenAddr];
+    function  _getTargetToken(
+        uint256 _toChain,
+        address _relayToken
+    ) private view  returns (bytes memory toToken, uint8 decimals, bool mintable) {
+        Token storage token = tokenList[_relayToken];
         require(token.tokenAddress != address(0), "register: invalid relay token");
 
         toToken = token.mappingList[_toChain];
         decimals = token.decimals[_toChain];
         mintable = token.mintable[_toChain];
-        vaultBalance = getVaultBalance(tokenAddr, _toChain);
     }
 
     function getTargetAmount(

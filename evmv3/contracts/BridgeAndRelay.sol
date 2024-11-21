@@ -143,8 +143,16 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _fromChain,
         uint256 _toChain,
         bytes memory _fromToken
-    ) external view returns (bytes memory toChainToken, uint8 decimals, bool mintable, uint256 vaultBalance) {
+    ) external view returns (bytes memory toChainToken, uint8 decimals, bool mintable) {
         return tokenRegister.getTargetToken(_fromChain, _toChain, _fromToken);
+    }
+
+    function getBridgeTokenInfoV2(
+        uint256 _fromChain,
+        uint256 _toChain,
+        bytes memory _fromToken
+    ) external view returns (bytes memory toChainToken, uint8 decimals, bool mintable, uint256 vaultBalance) {
+        return tokenRegister.getTargetTokenV2(_fromChain, _toChain, _fromToken);
     }
 
     function getBridgeFeeInfo(
