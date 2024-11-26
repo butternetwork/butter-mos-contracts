@@ -700,7 +700,8 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
     ) internal view returns (bool isWhitelist, uint256 rate) {
         bytes32 key = _getKey(_fromChain, _caller, _token);
         uint256 toChainWhitelistRate = toChainFeeList[key][_toChain];
-        isWhitelist = (toChainWhitelistRate != 0);
+        uint256 fromChainWhitelistRate = fromChainFeeList[key];
+        isWhitelist = (toChainWhitelistRate != 0) || (fromChainWhitelistRate != 0);
         rate = toChainWhitelistRate >> 1;
     }
 
