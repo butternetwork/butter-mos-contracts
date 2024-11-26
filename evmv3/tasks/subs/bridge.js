@@ -294,16 +294,20 @@ task("bridge:updateToken", "update token to target chain")
       removeList.push(chainList[i].chainId);
     }
 
-    await hre.run("bridge:registerTokenChains", {
-      token: taskArgs.token,
-      chains: addList.toString(),
-      enable: true,
-    });
-    await hre.run("bridge:registerTokenChains", {
-      token: taskArgs.token,
-      chains: removeList.toString(),
-      enable: false,
-    });
+    if (addList.length > 0) {
+        await hre.run("bridge:registerTokenChains", {
+            token: taskArgs.token,
+            chains: addList.toString(),
+            enable: true,
+        });
+    }
+      if (removeList.length > 0) {
+          await hre.run("bridge:registerTokenChains", {
+              token: taskArgs.token,
+              chains: removeList.toString(),
+              enable: false,
+          });
+      }
 
     outputAddr = true;
 

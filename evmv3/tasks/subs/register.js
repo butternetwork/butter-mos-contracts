@@ -699,6 +699,7 @@ task("register:getFee", "get token fees")
       fromToken = "0x" + hex;
     }
 
+      console.log(`from token [${fromToken}]`);
     let bridgeToken = await register.getRelayChainToken(fromChain.chainId, fromToken);
     console.log(`relay token [${bridgeToken}]`);
     console.log(`mintable [${await register.checkMintable(relayToken)}]`);
@@ -747,7 +748,7 @@ task("register:getFee", "get token fees")
       fromChain.chainId,
       amount,
       toChain.chainId,
-      true,
+      true
     );
 
     let bridgeInfo = await register.getBridgeFeeInfoV3(
@@ -757,7 +758,7 @@ task("register:getFee", "get token fees")
       fromChain.chainId,
       amount,
       toChain.chainId,
-      false,
+      false
     );
 
     let swapFee = await register.getTransferFeeV3(
@@ -782,19 +783,13 @@ task("register:getFee", "get token fees")
       `bridge: fromChain fee [${ethers.utils.formatUnits(
         bridgeInfo[0],
         fromTokenInfo[1],
-      )}], to amount [${ethers.utils.formatUnits(
-        bridgeInfo[1],
-        toTokenInfo[1],
-      )}], vault [${ethers.utils.formatUnits(bridgeInfo[2], toTokenInfo[1])}]`,
+      )}], vault [${ethers.utils.formatUnits(bridgeInfo[1], toTokenInfo[1])}]`,
     );
     console.log(
       `  swap: fromChain fee [${ethers.utils.formatUnits(
         swapInfo[0],
         fromTokenInfo[1],
-      )}], to amount [${ethers.utils.formatUnits(
-        swapInfo[1],
-        toTokenInfo[1],
-      )}], vault [${ethers.utils.formatUnits(swapInfo[2], toTokenInfo[1])}]`,
+      )}], vault [${ethers.utils.formatUnits(swapInfo[1], toTokenInfo[1])}]`,
     );
 
     console.log(

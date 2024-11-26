@@ -139,6 +139,10 @@ contract BridgeAndRelay is BridgeAbstract {
         nodeType = lightClientManager.nodeType(_chainId);
     }
 
+    //function getBridgeTokenList() external view returns (address[] memory) {
+    //    return tokenRegister.getBridgeTokenList();
+    //}
+
     function getBridgeTokenInfo(
         uint256 _fromChain,
         uint256 _toChain,
@@ -408,9 +412,11 @@ contract BridgeAndRelay is BridgeAbstract {
 
         MessageInEvent memory inEvent = _swapInToken(_outEvent);
         if (inEvent.toChain != selfChainId) {
-            inEvent.amount = _collectFromFee(_outEvent.initiator, inEvent);
-            if (inEvent.amount == 0) {
-                return _emitMessageIn(_outEvent.initiator, inEvent, false, 0, "InsufficientToken");
+            if (inEvent.messageType != uint8(MessageType.MESSAGE)) {
+                inEvent.amount = _collectFromFee(_outEvent.initiator, inEvent);
+                if (inEvent.amount == 0) {
+                    return _emitMessageIn(_outEvent.initiator, inEvent, false, 0, "InsufficientToken");
+                }
             }
             return _messageRelay(_revertError, _outEvent.relay, _outEvent.initiator, inEvent, bytes(""));
         }

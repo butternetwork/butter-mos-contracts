@@ -360,11 +360,11 @@ task("relay:feeInfo", "List fee infos")
 
         let addrList = await getAllAddr(taskArgs.addr);
 
-        let tokenList;
+        let tokenList = new Map();
         if (taskArgs.token === "") {
             let feeList = await getFeeList(hre.network.name);
             let tokens = Object.keys(feeList);
-            for (let tokenName of tokenList) {
+            for (let tokenName in tokenList) {
                 let tokenAddr = await getToken(hre.network.config.chainId, tokenName);
                 tokenList.insert(tokenName, tokenAddr);
             }
