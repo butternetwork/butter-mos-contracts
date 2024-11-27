@@ -53,7 +53,7 @@ interface IButterBridgeV3 {
         //  abi.encode((version | messageType), mos, token, amount, to, bytes(from), bytes(message))
         // version 0x10 - packed message, for non-evm chain
         //   version (1 bytes), majorVersion(4bit) | minorVersion(4bit), same major version means the same structure
-        //   reserved (1 bytes)
+        //   messageType (1 bytes)
         //   token len (1 bytes)
         //   mos len (1 bytes)
         //   from len (1 bytes)

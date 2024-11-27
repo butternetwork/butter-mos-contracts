@@ -4,8 +4,8 @@ pragma solidity 0.8.25;
 import {MessageOutEvent} from "./Types.sol";
 
 library NonEvmDecoder {
-    bytes internal constant SOLANA_TOPIC = "";
-    bytes internal constant TON_TOPIC = "";
+    bytes internal constant SOLANA_TOPIC = "MessageOutEvent";
+    bytes internal constant TON_TOPIC = hex"34a7e0e8";
 
     function getTopic(
         bytes memory log
