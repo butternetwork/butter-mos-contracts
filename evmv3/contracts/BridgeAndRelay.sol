@@ -574,7 +574,7 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes memory swapData,
         uint256 amount
     ) internal pure returns (bytes memory packed) {
-        uint256 word = _getWord(messageType, token.length, mos.length, from.length, to.length, swapData.length, amount);
+        uint256 word = _getWord(uint256(messageType), token.length, mos.length, from.length, to.length, swapData.length, amount);
         packed = abi.encodePacked(word, token, mos, from, to, swapData);
     }
 
@@ -588,7 +588,7 @@ contract BridgeAndRelay is BridgeAbstract {
     //   reserved (8 bytes)
     //   token amount (16 bytes)
     function _getWord(
-        uint8 messageType,
+        uint256 messageType,
         uint256 tokenLen,
         uint256 mosLen,
         uint256 fromLen,
