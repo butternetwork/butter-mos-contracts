@@ -68,10 +68,10 @@
     },
     {
         "name": "SolanaDev",
-        "chainId": "1360108768460802",
+        "chainId": "1360108768460811",
         "type": "solana",
         "wToken": "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a",
-        "mos": "0x800031F0f47e0D4Aaed6e0d2505596447395f848",
+        "mos": "0x448c25794efcac012ccdecf5e737b11ad1bf81a368b5c91748e78a7d96f6ea5c", 
         "lightNode": "THC5GuvTQtjCpqB8Lg1aPeenvYntDwv7gS"
     }
 ]

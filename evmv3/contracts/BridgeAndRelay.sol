@@ -533,6 +533,7 @@ contract BridgeAndRelay is BridgeAbstract {
             );
         } else {
             messageData = _pack(
+                _inEvent.messageType,
                 token,
                 mosContracts[_inEvent.toChain],
                 _inEvent.from,
@@ -565,6 +566,7 @@ contract BridgeAndRelay is BridgeAbstract {
     }
 
     function _pack(
+        uint8 messageType,
         bytes memory token,
         bytes memory mos,
         bytes memory from,
@@ -572,12 +574,12 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes memory swapData,
         uint256 amount
     ) internal pure returns (bytes memory packed) {
-        uint256 word = _getWord(token.length, mos.length, from.length, to.length, swapData.length, amount);
+        uint256 word = _getWord(messageType, token.length, mos.length, from.length, to.length, swapData.length, amount);
         packed = abi.encodePacked(word, token, mos, from, to, swapData);
     }
 
     //   version (1 bytes)
-    //   relay (1 bytes)
+    //   messageType (1 bytes)
     //   token len (1 bytes)
     //   mos len (1 bytes)
     //   from len (1 bytes)
@@ -586,6 +588,7 @@ contract BridgeAndRelay is BridgeAbstract {
     //   reserved (8 bytes)
     //   token amount (16 bytes)
     function _getWord(
+        uint8 messageType,
         uint256 tokenLen,
         uint256 mosLen,
         uint256 fromLen,
@@ -596,7 +599,9 @@ contract BridgeAndRelay is BridgeAbstract {
         require(payloadLen <= type(uint16).max);
         require(amount <= type(uint128).max);
         require(toLen <= type(uint8).max);
-        return ((PACK_VERSION << 248) |
+        return (
+            (PACK_VERSION << 248) |
+            (messageType << 240) |
             (tokenLen << 232) |
             (mosLen << 224) |
             (fromLen << 216) |
