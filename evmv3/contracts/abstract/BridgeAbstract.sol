@@ -17,6 +17,7 @@ import {AccessManagedUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {EvmDecoder} from "../lib/EvmDecoder.sol";
 import {MessageInEvent} from "../lib/Types.sol";
 import {Helper} from "../lib/Helper.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 abstract contract BridgeAbstract is
     UUPSUpgradeable,
@@ -68,6 +69,7 @@ abstract contract BridgeAbstract is
     error unsupported_message_type();
     error retry_verify_fail();
     error bubbling(bytes e);
+    error tron_usdt_transfer_fail();
 
 
     event SetContract(uint256 t, address addr);
@@ -312,8 +314,11 @@ abstract contract BridgeAbstract is
             Helper._safeTransferNative(_receiver, _amount);
         } else {
             if (block.chainid == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
+                uint256 balanceBefore = IERC20(_token).balanceOf(address(this));
                 // Tron USDT
                 _token.call(abi.encodeWithSelector(0xa9059cbb, _receiver, _amount));
+                uint256 balanceAfter = IERC20(_token).balanceOf(address(this));
+                if(balanceAfter >= balanceBefore) revert tron_usdt_transfer_fail();
             } else {
                 if (_checkMint) {
                     _checkAndMint(_token, _amount);
