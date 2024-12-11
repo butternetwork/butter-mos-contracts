@@ -40,6 +40,11 @@ function isTron(network) {
   return networks.includes(network);
 }
 
+function isSolana(network) {
+  let networks = [1360108768460811, "Solana", "SolanaDev"];
+  return networks.includes(network);
+}
+
 function isTestnet(chainId) {
   let testnets = [
     212,
@@ -75,4 +80,5 @@ module.exports = {
   isTron,
   isTestnet,
   sleep,
+  isSolana
 };
