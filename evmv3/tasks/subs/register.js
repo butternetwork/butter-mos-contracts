@@ -1,5 +1,7 @@
 let { create, tronToHex, tronFromHex } = require("../../utils/create.js");
 let { stringToHex } = require("../../utils/helper.js");
+let { isSolana } = require("../../utils/helper");
+const { solanaAddressToHex } = require("../../utils/address.js")
 const {
   getToken,
   getFeeList,
@@ -131,6 +133,8 @@ task("register:mapToken", "mapping token")
     let targetToken = taskArgs.target;
     if (taskArgs.chain === "728126428" || taskArgs.chain === "3448148188") {
       targetToken = await tronToHex(targetToken, "Tron");
+    }else if(isSolana(taskArgs.chain)) {
+      targetToken = await solanaAddressToHex(targetToken);
     } else if (targetToken.substr(0, 2) !== "0x") {
       let hex = stringToHex(targetToken);
       targetToken = "0x" + hex;
@@ -441,6 +445,8 @@ task("register:setFromChainWhitelistFee", "set to chain token outFee")
     let sender = taskArgs.sender;
     if (fromChain.name === "Tron") {
       sender = tronToHex(taskArgs.sender, "Tron");
+    } else if(isSolana(fromChain.name)) {
+      sender = solanaAddressToHex(taskArgs.sender);
     }
 
     let info = await register.getFromChainCallerFeeRate(token, fromChain.chainId, sender);
@@ -694,6 +700,8 @@ task("register:getFee", "get token fees")
     let fromToken = token;
     if (fromChain.name === "Tron" || fromChain.name === "TronTest") {
       fromToken = await tronToHex(token, "Tron");
+    } else if(isSolana(fromChain.name)){
+      fromToken = await solanaAddressToHex(token);
     } else if (token.substr(0, 2) !== "0x") {
       let hex = stringToHex(token);
       fromToken = "0x" + hex;

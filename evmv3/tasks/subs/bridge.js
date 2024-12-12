@@ -1,9 +1,9 @@
 let { create, getTronContract, tronToHex } = require("../../utils/create.js");
 let { verify } = require("../../utils/verify.js");
-let { stringToHex, isTron } = require("../../utils/helper");
+let { stringToHex, isTron, isSolana } = require("../../utils/helper");
 let { getChain, getToken, getFeeList, getFeeInfo, getChainList, writeToFile } = require("../utils/utils.js");
 const { getDeployment, saveDeployment } = require("../utils/utils");
-
+const { solanaAddressToHex } = require("../../utils/address.js")
 let outputAddr = true;
 
 async function getBridge(network, abstract) {
@@ -388,7 +388,11 @@ task("bridge:transferOut", "Cross-chain transfer token")
     if (taskArgs.receiver === "") {
       receiver = deployer.address;
     } else {
-      if (taskArgs.receiver.substr(0, 2) != "0x") {
+      if(isTron(taskArgs.chain)){
+        receiver = tronToHex(taskArgs.receiver, "Tron")
+      } else if(isSolana(taskArgs.chain)) {
+        receiver = solanaAddressToHex(taskArgs.receiver)
+      }else if (taskArgs.receiver.substr(0, 2) != "0x") {
         receiver = "0x" + stringToHex(taskArgs.receiver);
       }
     }

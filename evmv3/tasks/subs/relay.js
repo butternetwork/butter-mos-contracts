@@ -1,10 +1,10 @@
 let { create, tronToHex } = require("../../utils/create.js");
-let { stringToHex, isTron } = require("../../utils/helper");
+let { stringToHex, isTron, isSolana } = require("../../utils/helper");
 const { getDeployment, getChain, getToken, getChainList, getFeeList, saveDeployment, getTokenList} = require("../utils/utils");
 const { verify } = require("../../utils/verify");
-const {deploy} = require("../../test/util");
-const {getTronContract} = require("../../utils/create");
-
+const { deploy } = require("../../test/util");
+const { getTronContract } = require("../../utils/create");
+const { solanaAddressToHex } = require("../../utils/address.js")
 
 let outputAddr = true;
 
@@ -150,6 +150,8 @@ task("relay:registerChain", "register Chain")
     if (mos.substr(0, 2) !== "0x") {
       if (isTron(taskArgs.chain)) {
         mos = await tronToHex(mos, "Tron");
+      } else if(isSolana(taskArgs.chain)) {
+        mos = solanaAddressToHex(taskArgs.address);
       } else {
         mos = "0x" + stringToHex(taskArgs.address);
       }
