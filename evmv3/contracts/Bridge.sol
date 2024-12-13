@@ -166,7 +166,7 @@ contract Bridge is BridgeAbstract {
         if (relayChainId != _chainId) revert invalid_relay_chain();
 
         uint256 logIndex = _logParam & 0xFFFF;
-        bool revertError = ((_logParam >> 16) & 0xFF == 0x0);
+        bool revertError = ((_logParam >> 16) & 0xFF != 0x0);
 
         (bool success, string memory message, ILightVerifier.txLog memory log) = lightNode.verifyProofDataWithCache(
             false,
