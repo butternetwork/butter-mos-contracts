@@ -157,90 +157,86 @@ task("misc:getMember", "get role member")
     }
   });
 
-
 task("misc:deposit", "Cross-chain deposit token")
-    .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
-    .addOptionalParam("receiver", "The receiver address", "", types.string)
-    .addParam("value", "deposit value")
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
+  .addOptionalParam("token", "The token address", "0x0000000000000000000000000000000000000000", types.string)
+  .addOptionalParam("receiver", "The receiver address", "", types.string)
+  .addParam("value", "deposit value")
+  .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
 
-        console.log("deposit address:", deployer.address);
+    console.log("deposit address:", deployer.address);
 
-        let bridge = await getBridge(hre.network.name);
+    let bridge = await getBridge(hre.network.name);
 
-        let receiver = taskArgs.receiver;
-        if (taskArgs.receiver === "") {
-            receiver = deployer.address;
-        }
+    let receiver = taskArgs.receiver;
+    if (taskArgs.receiver === "") {
+      receiver = deployer.address;
+    }
 
-        let tokenAddr = await getToken(hre.network.name, taskArgs.token);
+    let tokenAddr = await getToken(hre.network.name, taskArgs.token);
 
-        let value;
-        let fee = (value = ethers.utils.parseUnits("0", 18));
-        if (tokenAddr === "0x0000000000000000000000000000000000000000") {
-            value = ethers.utils.parseUnits(taskArgs.value, 18);
-            fee = fee.add(value);
-        } else {
-            let token = await ethers.getContractAt("IERC20Metadata", tokenAddr);
-            let decimals = await token.decimals();
-            value = ethers.utils.parseUnits(taskArgs.value, decimals);
+    let value;
+    let fee = (value = ethers.utils.parseUnits("0", 18));
+    if (tokenAddr === "0x0000000000000000000000000000000000000000") {
+      value = ethers.utils.parseUnits(taskArgs.value, 18);
+      fee = fee.add(value);
+    } else {
+      let token = await ethers.getContractAt("IERC20Metadata", tokenAddr);
+      let decimals = await token.decimals();
+      value = ethers.utils.parseUnits(taskArgs.value, decimals);
 
-            let approved = await token.allowance(deployer.address, bridge.address);
-            console.log("approved ", approved);
-            if (approved.lt(value)) {
-                console.log(`${tokenAddr} approve ${bridge.address} value [${value}] ...`);
-                await (await token.approve(bridge.address, value)).wait();
-            }
-        }
+      let approved = await token.allowance(deployer.address, bridge.address);
+      console.log("approved ", approved);
+      if (approved.lt(value)) {
+        console.log(`${tokenAddr} approve ${bridge.address} value [${value}] ...`);
+        await (await token.approve(bridge.address, value)).wait();
+      }
+    }
 
-        let rst = await (await bridge.depositToken(tokenAddr, receiver, value, { value: fee })).wait();
+    let rst = await (await bridge.depositToken(tokenAddr, receiver, value, { value: fee })).wait();
 
-        console.log(`deposit token ${taskArgs.token} ${taskArgs.value} to ${receiver} successful`);
-    });
-
+    console.log(`deposit token ${taskArgs.token} ${taskArgs.value} to ${receiver} successful`);
+  });
 
 task("misc:withdraw", "withdraw token")
-    .addOptionalParam("token", "The token address", "native", types.string)
-    .addOptionalParam("receiver", "The receiver address", "", types.string)
-    .addOptionalParam("value", "withdraw value, 0 for all", "0", types.string)
-    .setAction(async (taskArgs, hre) => {
-        const accounts = await ethers.getSigners();
-        const deployer = accounts[0];
-        console.log("deployer address:", deployer.address);
+  .addOptionalParam("token", "The token address", "native", types.string)
+  .addOptionalParam("receiver", "The receiver address", "", types.string)
+  .addOptionalParam("value", "withdraw value, 0 for all", "0", types.string)
+  .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
 
-        let bridge = await getBridge(hre.network.name);
+    let bridge = await getBridge(hre.network.name);
 
-        let receiver = taskArgs.receiver;
-        if (taskArgs.receiver === "") {
-            receiver = deployer.address;
-        }
+    let receiver = taskArgs.receiver;
+    if (taskArgs.receiver === "") {
+      receiver = deployer.address;
+    }
 
-        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+    let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
 
-        let managerAddress = await bridge.tokenRegister();
-        let manager = await ethers.getContractAt("TokenRegisterV3", managerAddress);
+    let managerAddress = await bridge.tokenRegister();
+    let manager = await ethers.getContractAt("TokenRegisterV3", managerAddress);
 
-        let vaultAddress = await manager.getVaultToken(tokenAddr);
+    let vaultAddress = await manager.getVaultToken(tokenAddr);
 
-        let vaultToken = await ethers.getContractAt("VaultTokenV3", vaultAddress);
-        let decimals = await vaultToken.decimals();
-        let value;
-        if (taskArgs.value === "0") {
-            value = await vaultToken.balanceOf(deployer.address);
-        } else {
-            value = ethers.utils.parseUnits(taskArgs.value, decimals);
-        }
+    let vaultToken = await ethers.getContractAt("VaultTokenV3", vaultAddress);
+    let decimals = await vaultToken.decimals();
+    let value;
+    if (taskArgs.value === "0") {
+      value = await vaultToken.balanceOf(deployer.address);
+    } else {
+      value = ethers.utils.parseUnits(taskArgs.value, decimals);
+    }
 
-        console.log(`token address: ${tokenAddr}`);
-        console.log(`vault token address: ${vaultAddress}`);
-        console.log(`vault token value: ${value}`);
-        console.log(`receiver: ${receiver}`);
+    console.log(`token address: ${tokenAddr}`);
+    console.log(`vault token address: ${vaultAddress}`);
+    console.log(`vault token value: ${value}`);
+    console.log(`receiver: ${receiver}`);
 
-        await (await bridge.withdraw(vaultAddress, value)).wait();
+    await (await bridge.withdraw(vaultAddress, value)).wait();
 
-        console.log(
-            `withdraw token ${taskArgs.token} from vault ${vaultAddress} ${value} successful`
-        );
-    });
+    console.log(`withdraw token ${taskArgs.token} from vault ${vaultAddress} ${value} successful`);
+  });

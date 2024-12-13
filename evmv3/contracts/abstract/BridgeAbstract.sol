@@ -71,7 +71,6 @@ abstract contract BridgeAbstract is
     error bubbling(bytes e);
     error tron_usdt_transfer_fail();
 
-
     event SetContract(uint256 t, address addr);
     event RegisterToken(address token, uint256 toChain, bool enable);
     event UpdateToken(address token, uint256 feature);
@@ -318,7 +317,7 @@ abstract contract BridgeAbstract is
                 // Tron USDT
                 _token.call(abi.encodeWithSelector(0xa9059cbb, _receiver, _amount));
                 uint256 balanceAfter = IERC20(_token).balanceOf(address(this));
-                if(balanceAfter >= balanceBefore) revert tron_usdt_transfer_fail();
+                if (balanceAfter >= balanceBefore) revert tron_usdt_transfer_fail();
             } else {
                 if (_checkMint) {
                     _checkAndMint(_token, _amount);

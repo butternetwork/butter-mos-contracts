@@ -295,19 +295,19 @@ task("bridge:updateToken", "update token to target chain")
     }
 
     if (addList.length > 0) {
-        await hre.run("bridge:registerTokenChains", {
-            token: taskArgs.token,
-            chains: addList.toString(),
-            enable: true,
-        });
+      await hre.run("bridge:registerTokenChains", {
+        token: taskArgs.token,
+        chains: addList.toString(),
+        enable: true,
+      });
     }
-      if (removeList.length > 0) {
-          await hre.run("bridge:registerTokenChains", {
-              token: taskArgs.token,
-              chains: removeList.toString(),
-              enable: false,
-          });
-      }
+    if (removeList.length > 0) {
+      await hre.run("bridge:registerTokenChains", {
+        token: taskArgs.token,
+        chains: removeList.toString(),
+        enable: false,
+      });
+    }
 
     outputAddr = true;
 
@@ -578,3 +578,37 @@ task("bridge:tokenInfo", "list token info")
     }
     console.log("");
   });
+
+
+
+task("bridge:feeInfo", "List fee infos")
+    .addOptionalParam("addr", "The receiver address", "", types.string)
+    .addOptionalParam("token", "The token address, default wtoken", "native", types.string)
+    .setAction(async (taskArgs, hre) => {
+        let bridge = await getBridge(hre.network.name);
+        outputAddr = false;
+
+        let addr = taskArgs.addr;
+        if (taskArgs.addr === "") {
+            let feeAddr = await bridge.getServiceContract(2);
+            let feeService = await ethers.getContractAt("FeeService", feeAddr);
+
+            addr = await feeService.feeReceiver();
+            console.log("message fee receiver: ", addr);
+        }
+
+        let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        //console.log("token: ", tokenInfo);
+        let decimals = 18;
+        if (tokenAddr !== ethers.constants.AddressZero) {
+            let token = await ethers.getContractAt("IERC20Metadata", tokenAddr);
+            decimals = await token.decimals();
+        } else if (isTron(hre.network.name)) {
+            decimals = 6;
+        }
+        let info = await bridge.feeList(addr, tokenAddr);
+        console.log(`${taskArgs.toString()}\t => ${await ethers.utils.formatUnits(info, decimals)} `);
+
+
+    });
+

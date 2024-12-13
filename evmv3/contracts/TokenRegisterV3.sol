@@ -307,10 +307,10 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         vaultBalance = getVaultBalance(tokenAddr, _toChain);
     }
 
-    function  _getTargetToken(
+    function _getTargetToken(
         uint256 _toChain,
         address _relayToken
-    ) private view  returns (bytes memory toToken, uint8 decimals, bool mintable) {
+    ) private view returns (bytes memory toToken, uint8 decimals, bool mintable) {
         Token storage token = tokenList[_relayToken];
         require(token.tokenAddress != address(0), "register: invalid relay token");
 

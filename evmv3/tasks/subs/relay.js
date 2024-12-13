@@ -1,13 +1,19 @@
 let { create, tronToHex } = require("../../utils/create.js");
-let { stringToHex, isTron, isSolana } = require("../../utils/helper");
-const { getDeployment, getChain, getToken, getChainList, getFeeList, saveDeployment, getTokenList} = require("../utils/utils");
+let { stringToHex, isTron } = require("../../utils/helper");
+const {
+  getDeployment,
+  getChain,
+  getToken,
+  getChainList,
+  getFeeList,
+  saveDeployment,
+  getTokenList,
+} = require("../utils/utils");
 const { verify } = require("../../utils/verify");
 const { deploy } = require("../../test/util");
 const { getTronContract } = require("../../utils/create");
-const { solanaAddressToHex } = require("../../utils/address.js")
 
 let outputAddr = true;
-
 
 async function getRelay(network) {
   let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
@@ -16,7 +22,7 @@ async function getRelay(network) {
   let relay = BridgeAndRelay.attach(addr);
 
   if (outputAddr) {
-      console.log("relay address:", relay.address);
+    console.log("relay address:", relay.address);
   }
 
   return relay;
@@ -150,8 +156,6 @@ task("relay:registerChain", "register Chain")
     if (mos.substr(0, 2) !== "0x") {
       if (isTron(taskArgs.chain)) {
         mos = await tronToHex(mos, "Tron");
-      } else if(isSolana(taskArgs.chain)) {
-        mos = solanaAddressToHex(taskArgs.address);
       } else {
         mos = "0x" + stringToHex(taskArgs.address);
       }
@@ -294,11 +298,11 @@ task("relay:tokenInfo", "List token infos")
     console.log(`total vault token: ${totalSupply}`);
 
     // get base
-      // get protocol
-      // get relay
-      let relayFee = await relay.distributeRate(1);
-      let protocolFee = await relay.distributeRate(2);
-      console.log()
+    // get protocol
+    // get relay
+    let relayFee = await relay.distributeRate(1);
+    let protocolFee = await relay.distributeRate(2);
+    console.log();
     relay.feeList(relayFee[1], token.address);
 
     let chainList = await getChainList(hre.network.name);
@@ -319,76 +323,78 @@ task("relay:tokenInfo", "List token infos")
     }
   });
 
-async function getAllAddr(addr1) {
-    if (addr1 !== "") {
-        return new Map([[addr1, true]]);
-    }
+async function getAllAddr(relay, taskAddr) {
+  if (taskAddr !== "") {
+    return new Map([[taskAddr, true]]);
+  }
 
-    let relay = await getRelay(hre.network.name);
+  //let relay = await getRelay(hre.network.name);
 
-    let addr = await relay.getServiceContract(4);
-    let manager = await ethers.getContractAt("TokenRegisterV3", addr);
+  let addr = await relay.getServiceContract(4);
+  let manager = await ethers.getContractAt("TokenRegisterV3", addr);
 
-    addr = await relay.getServiceContract(2);
-    let feeService = await ethers.getContractAt("FeeService", addr);
+  addr = await relay.getServiceContract(2);
+  let feeService = await ethers.getContractAt("FeeService", addr);
 
-    let addrList = new Map();
-    // get base addr
-    addr = await manager.getBaseFeeReceiver();
-    console.log("base receiver: ", addr);
-    addrList.set(addr, true);
+  let addrList = new Map();
+  // get base addr
+  addr = await manager.getBaseFeeReceiver();
+  console.log("base receiver: ", addr);
+  addrList.set(addr, true);
 
-    addr = await feeService.feeReceiver();
-    console.log("message fee receiver: ", addr);
-    addrList.set(addr, true);
+  addr = await feeService.feeReceiver();
+  console.log("message fee receiver: ", addr);
+  addrList.set(addr, true);
 
-    let relayFee = await relay.distributeRate(1);
-    let protocolFee = await relay.distributeRate(2);
-    console.log("relayer fee receiver: ", relayFee[1]);
-    addrList.set(relayFee[1], true);
-    console.log("protocol fee receiver: ", protocolFee[1]);
-    addrList.set(protocolFee[1], true);
+  let relayFee = await relay.distributeRate(1);
+  let protocolFee = await relay.distributeRate(2);
+  console.log("relayer fee receiver: ", relayFee[1]);
+  addrList.set(relayFee[1], true);
+  console.log("protocol fee receiver: ", protocolFee[1]);
+  addrList.set(protocolFee[1], true);
 
-    return addrList;
+  return addrList;
 }
 
-
 task("relay:feeInfo", "List fee infos")
-    .addOptionalParam("addr", "The receiver address", "", types.string)
-    .addOptionalParam("token", "The token address, default wtoken", "", types.string)
-    .setAction(async (taskArgs, hre) => {
-        let relay = await getRelay(hre.network.name);
-        outputAddr = false;
+  .addOptionalParam("addr", "The receiver address", "", types.string)
+  .addOptionalParam("token", "The token address, default wtoken", "", types.string)
+  .setAction(async (taskArgs, hre) => {
+    let relay = await getRelay(hre.network.name);
+    outputAddr = false;
 
-        let addrList = await getAllAddr(taskArgs.addr);
+    let addrList = await getAllAddr(relay, taskArgs.addr);
 
-        let tokenList = new Map();
-        if (taskArgs.token === "") {
-            let feeList = await getFeeList(hre.network.name);
-            let tokens = Object.keys(feeList);
-            for (let tokenName in tokenList) {
-                let tokenAddr = await getToken(hre.network.config.chainId, tokenName);
-                tokenList.insert(tokenName, tokenAddr);
-            }
-        } else if (taskArgs.token === "wtoken") {
-            let tokenAddr = await relay.getServiceContract(0);
-            tokenList = new Map([["wrapped", tokenAddr]]);
-        } else {
-            let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
-            tokenList = new Map([[taskArgs.token, tokenAddr]]);
+    let tokenList = new Map();
+    if (taskArgs.token === "") {
+      let feeList = await getFeeList(hre.network.name);
+      let tokens = Object.keys(feeList);
+      // console.log(tokens);
+      for (let tokenName of tokens) {
+        let tokenAddr = await getToken(hre.network.config.chainId, tokenName);
+        tokenList.set(tokenName, tokenAddr);
+      }
+    } else if (taskArgs.token === "wtoken") {
+      let tokenAddr = await relay.getServiceContract(0);
+      //tokenList = new Map([["wrapped", tokenAddr]]);
+      tokenList.set("wrapped", tokenAddr);
+    } else {
+      let tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+      //tokenList = new Map([[taskArgs.token, tokenAddr]]);
+      tokenList.set(taskArgs.token, tokenAddr);
+    }
+
+    for (let [addr, exist] of addrList) {
+      console.log("\naddress: ", addr);
+      for (let [tokenName, tokenAddr] of tokenList) {
+        //console.log("token: ", tokenInfo);
+        let decimals = 18;
+        if (tokenName !== "native") {
+          let token = await ethers.getContractAt("IERC20Metadata", tokenAddr);
+          decimals = await token.decimals();
         }
-
-        for (let [addr, exist] of addrList) {
-            console.log("address: ", addr);
-            for (let tokenInfo in tokenList) {
-                let decimals = 18;
-                if (tokenName !== "native") {
-                    let token = await ethers.getContractAt("IERC20Metadata", tokenAddr);
-                    decimals = await token.decimals();
-                }
-                let info = await relay.feeList(addr, tokenInfo.addr);
-                console.log(`${tokenName}\t => ${await ethers.utils.formatUnits(info, decimals)} `);
-            }
-
-        }
-    });
+        let info = await relay.feeList(addr, tokenAddr);
+        console.log(`${tokenName}\t => ${await ethers.utils.formatUnits(info, decimals)} `);
+      }
+    }
+  });

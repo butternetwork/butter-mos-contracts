@@ -599,8 +599,7 @@ contract BridgeAndRelay is BridgeAbstract {
         require(payloadLen <= type(uint16).max);
         require(amount <= type(uint128).max);
         require(toLen <= type(uint8).max);
-        return (
-            (PACK_VERSION << 248) |
+        return ((PACK_VERSION << 248) |
             (messageType << 240) |
             (tokenLen << 232) |
             (mosLen << 224) |

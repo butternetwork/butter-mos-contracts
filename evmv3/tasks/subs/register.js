@@ -707,7 +707,7 @@ task("register:getFee", "get token fees")
       fromToken = "0x" + hex;
     }
 
-      console.log(`from token [${fromToken}]`);
+    console.log(`from token [${fromToken}]`);
     let bridgeToken = await register.getRelayChainToken(fromChain.chainId, fromToken);
     console.log(`relay token [${bridgeToken}]`);
     console.log(`mintable [${await register.checkMintable(relayToken)}]`);
@@ -752,21 +752,21 @@ task("register:getFee", "get token fees")
     let swapInfo = await register.getBridgeFeeInfoV3(
       caller,
       fromToken,
-        bridgeToken,
+      bridgeToken,
       fromChain.chainId,
       amount,
       toChain.chainId,
-      true
+      true,
     );
 
     let bridgeInfo = await register.getBridgeFeeInfoV3(
       caller,
       fromToken,
-        bridgeToken,
+      bridgeToken,
       fromChain.chainId,
       amount,
       toChain.chainId,
-      false
+      false,
     );
 
     let swapFee = await register.getTransferFeeV3(
