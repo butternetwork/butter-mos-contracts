@@ -168,5 +168,11 @@
         "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
         "feeService": "0xfeE31a1FD7FcA0E05428ff751242e46F6D5769a6",
         "lightNode": "0x00071196A9129b7068404523E2047ef79F4Ed0de"
+    },
+    {
+        "name": "Solana",
+        "chainId": "1360108768460801",
+        "type": "solana",
+        "mos": "9morDALTT4UKNtJtvv6bmQ4sp5Z19Ux7qPQUokzBozkR"
     }
 ]

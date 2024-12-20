@@ -55,5 +55,5 @@ task("retry:retry", "retry")
     if (result === true) throw "relay not failed";
     // let d = ethers.utils.defaultAbiCoder.decode(["uint8", "uint256", "bytes", "bytes", "bytes"], payload);
     // let swapData = d[4];
-    await (await bridge.retryMessageIn(fromChain, orderId, token, amount, from, payload, "")).wait();
+    await (await bridge.retryMessageIn(chainAndGasLimit, orderId, token, amount, from, payload, "0x")).wait();
   });

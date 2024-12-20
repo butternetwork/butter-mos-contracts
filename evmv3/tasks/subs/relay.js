@@ -1,5 +1,5 @@
 let { create, tronToHex } = require("../../utils/create.js");
-let { stringToHex, isTron } = require("../../utils/helper");
+let { stringToHex, isTron, isSolana} = require("../../utils/helper");
 const {
   getDeployment,
   getChain,
@@ -12,6 +12,7 @@ const {
 const { verify } = require("../../utils/verify");
 const { deploy } = require("../../test/util");
 const { getTronContract } = require("../../utils/create");
+const {solanaAddressToHex} = require("../../utils/address");
 
 let outputAddr = true;
 
@@ -156,6 +157,8 @@ task("relay:registerChain", "register Chain")
     if (mos.substr(0, 2) !== "0x") {
       if (isTron(taskArgs.chain)) {
         mos = await tronToHex(mos, "Tron");
+      } else if (isSolana(taskArgs.chain)) {
+          mos = solanaAddressToHex(mos);
       } else {
         mos = "0x" + stringToHex(taskArgs.address);
       }
@@ -296,14 +299,6 @@ task("relay:tokenInfo", "List token infos")
     console.log(`total vault and fee:\t ${totalVault}`);
     let totalSupply = await vault.totalSupply();
     console.log(`total vault token: ${totalSupply}`);
-
-    // get base
-    // get protocol
-    // get relay
-    let relayFee = await relay.distributeRate(1);
-    let protocolFee = await relay.distributeRate(2);
-    console.log();
-    relay.feeList(relayFee[1], token.address);
 
     let chainList = await getChainList(hre.network.name);
     let chains = [hre.network.config.chainId];

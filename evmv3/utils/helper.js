@@ -41,7 +41,7 @@ function isTron(network) {
 }
 
 function isSolana(network) {
-  let networks = [1360108768460811, "Solana", "SolanaDev"];
+  let networks = [1360108768460811, 1360108768460801, "1360108768460811", "1360108768460801", "Solana", "SolanaDev"];
   return networks.includes(network);
 }
 
