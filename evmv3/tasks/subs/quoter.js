@@ -39,3 +39,45 @@ task("quoter:set", "grant Role")
 
     console.log("tokenRegister :", await q.tokenRegister());
   });
+
+
+let swap_addr = "0xd2947E481666B80D1fC130f9539812de6030de19"
+task("quoter:getAmountOut", "getAmountOut")
+  .addParam("tokenin", "token in address")
+  .addParam("tokenout", "token out address")
+  .addParam("amountin", "amount in")
+  .setAction(async (taskArgs, hre) => {
+    let [wallet] = await ethers.getSigners();
+    let abi = [
+      "function getAmountOut(address _tokenIn, address _tokenOut, uint256 _amountIn) external view returns(uint256 amountOut)",
+      "function getAmountIn(address _tokenIn, address _tokenOut, uint256 _amountOut) external view returns(uint256 amountIn) "
+    ]
+
+    let swap = await ethers.getContractAt(abi, swap_addr, wallet);
+
+    let amountIn = ethers.utils.parseEther(taskArgs.amountin);
+
+    let amountOut = await swap.getAmountOut(taskArgs.tokenin, taskArgs.tokenout, amountIn);
+
+    console.log("amountOut:", ethers.utils.formatEther(amountOut));
+  });
+
+task("quoter:getAmountIn", "getAmountIn")
+  .addParam("tokenin", "token in address")
+  .addParam("tokenout", "token out address")
+  .addParam("amountout", "amount out")
+  .setAction(async (taskArgs, hre) => {
+    let [wallet] = await ethers.getSigners();
+    let abi = [
+      "function getAmountOut(address _tokenIn, address _tokenOut, uint256 _amountIn) external view returns(uint256 amountOut)",
+      "function getAmountIn(address _tokenIn, address _tokenOut, uint256 _amountOut) external view returns(uint256 amountIn) "
+    ]
+
+    let swap = await ethers.getContractAt(abi, swap_addr, wallet);
+
+    let amountOut = ethers.utils.parseEther(taskArgs.amountout);
+
+    let amountIn = await swap.getAmountIn(taskArgs.tokenin, taskArgs.tokenout, amountOut);
+
+    console.log("amountIn:", ethers.utils.formatEther(amountIn));
+  });

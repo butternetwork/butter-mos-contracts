@@ -5,6 +5,7 @@ import {MessageOutEvent} from "./Types.sol";
 
 library NonEvmDecoder {
     bytes internal constant SOLANA_TOPIC = "MessageOutEvent";
+    bytes internal constant BTC_TOPIC = "MessageOutEvent";
     bytes internal constant TON_TOPIC = hex"34a7e0e8";
 
     function getTopic(

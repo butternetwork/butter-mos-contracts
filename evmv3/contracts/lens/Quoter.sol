@@ -67,7 +67,7 @@ contract Quoter is Ownable2Step {
         emit Set(_tokenRegister, _swap);
     }
 
-    function quote(
+    function quoter(
         bytes memory _caller,
         uint256 _fromChain,
         uint256 _toChain,
@@ -109,10 +109,7 @@ contract Quoter is Ownable2Step {
                 _toChain,
                 _withSwap
             );
-            if (_bridgeAmount < bridgeOutFee) {
-                bridgeOutFee = _bridgeAmount;
-            }
-            _bridgeOutOrInAmount = _bridgeAmount - bridgeOutFee;
+            _bridgeOutOrInAmount = (_bridgeAmount < bridgeOutFee) ? 0 : (_bridgeAmount - bridgeOutFee);
         } else if (_toChain == selfChainId) {
             (bridgeInFee, , ) = tokenRegister.getTransferFeeV3(
                 _caller,
@@ -122,36 +119,25 @@ contract Quoter is Ownable2Step {
                 _toChain,
                 _withSwap
             );
-            if (_bridgeAmount < bridgeInFee) {
-                bridgeInFee = _bridgeAmount;
-            }
-            _bridgeOutOrInAmount = _bridgeAmount - bridgeInFee;
+            _bridgeOutOrInAmount =  (_bridgeAmount < bridgeInFee) ? 0 : (_bridgeAmount - bridgeInFee);
         } else {
             bridgeInFee = tokenRegister.getTransferInFee(_caller, _bridgeInToken, _bridgeAmount, _fromChain);
-            if (_bridgeAmount < bridgeInFee) {
-                bridgeInFee = _bridgeAmount;
+            _bridgeOutOrInAmount = (_bridgeAmount < bridgeInFee) ? 0 : (_bridgeAmount - bridgeInFee);
+            if (_bridgeOutOrInAmount != 0 && _bridgeInToken != _bridgeOutToken) {
+                _bridgeOutOrInAmount = swap.getAmountOut(_bridgeInToken, _bridgeOutToken, _bridgeOutOrInAmount);
             }
-            _bridgeOutOrInAmount = _bridgeAmount - bridgeInFee;
-            if (_bridgeOutOrInAmount != 0) {
-                if (_bridgeInToken != _bridgeOutToken) {
-                    _bridgeOutOrInAmount = swap.getAmountOut(_bridgeInToken, _bridgeOutToken, _bridgeOutOrInAmount);
-                }
-                uint256 baseFee;
-                uint256 proportionFee;
-                (, baseFee, proportionFee) = tokenRegister.getTransferOutFee(
-                    _caller,
-                    _bridgeOutToken,
-                    _bridgeOutOrInAmount,
-                    _fromChain,
-                    _toChain,
-                    _withSwap
-                );
-                bridgeOutFee = baseFee + proportionFee;
-                if (_bridgeOutOrInAmount < bridgeOutFee) {
-                    bridgeOutFee = _bridgeOutOrInAmount;
-                }
-                _bridgeOutOrInAmount = _bridgeOutOrInAmount - bridgeOutFee;
-            }
+            uint256 baseFee;
+            uint256 proportionFee;
+            (, baseFee, proportionFee) = tokenRegister.getTransferOutFee(
+                _caller,
+                _bridgeOutToken,
+                _bridgeOutOrInAmount,
+                _fromChain,
+                _toChain,
+                _withSwap
+            );
+            bridgeOutFee = baseFee + proportionFee;
+            _bridgeOutOrInAmount = (_bridgeOutOrInAmount < bridgeOutFee) ? 0 : (_bridgeOutOrInAmount - bridgeOutFee);
         }
     }
 }
