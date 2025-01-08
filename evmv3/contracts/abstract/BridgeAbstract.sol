@@ -461,8 +461,8 @@ abstract contract BridgeAbstract is
                 _token,
                 _amount,
                 inEvent.gasLimit,
-                _fromAddress,
                 initiator,
+                _fromAddress,
                 inEvent.to,
                 inEvent.swapData
             )
