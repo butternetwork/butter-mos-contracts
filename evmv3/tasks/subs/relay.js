@@ -1,5 +1,5 @@
-let { create, tronToHex } = require("../../utils/create.js");
-let { stringToHex, isTron, isSolana} = require("../../utils/helper");
+let { create } = require("../../utils/create.js");
+let { stringToHex, isTron, isSolana, isBtc} = require("../../utils/helper");
 const {
   getDeployment,
   getChain,
@@ -12,7 +12,7 @@ const {
 const { verify } = require("../../utils/verify");
 const { deploy } = require("../../test/util");
 const { getTronContract } = require("../../utils/create");
-const {solanaAddressToHex} = require("../../utils/address");
+const {solanaAddressToHex, tronAddressToHex, btcAddressToHex} = require("../../utils/address");
 
 let outputAddr = true;
 
@@ -156,10 +156,12 @@ task("relay:registerChain", "register Chain")
     let mos = taskArgs.address;
     if (mos.substr(0, 2) !== "0x") {
       if (isTron(taskArgs.chain)) {
-        mos = await tronToHex(mos, "Tron");
+        mos = tronAddressToHex(mos);
       } else if (isSolana(taskArgs.chain)) {
-          mos = solanaAddressToHex(mos);
-      } else {
+        mos = solanaAddressToHex(mos);
+      } else if(isBtc(taskArgs.chain)){
+        mos = btcAddressToHex(mos);
+      } else  {
         mos = "0x" + stringToHex(taskArgs.address);
       }
 

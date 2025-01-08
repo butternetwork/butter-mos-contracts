@@ -1,7 +1,6 @@
-let { create, tronToHex, tronFromHex } = require("../../utils/create.js");
-let { stringToHex } = require("../../utils/helper.js");
-let { isSolana } = require("../../utils/helper");
-const { solanaAddressToHex } = require("../../utils/address.js")
+let { create } = require("../../utils/create.js");
+let { tronAddressToHex, btcAddressToHex, solanaAddressToHex } = require("../../utils/address.js");
+let { stringToHex, isSolana, isBtc } = require("../../utils/helper.js");
 const {
   getToken,
   getFeeList,
@@ -132,9 +131,11 @@ task("register:mapToken", "mapping token")
     // get mapped token
     let targetToken = taskArgs.target;
     if (taskArgs.chain === "728126428" || taskArgs.chain === "3448148188") {
-      targetToken = await tronToHex(targetToken, "Tron");
+      targetToken = tronAddressToHex(targetToken);
     }else if(isSolana(taskArgs.chain)) {
-      targetToken = await solanaAddressToHex(targetToken);
+      targetToken = solanaAddressToHex(targetToken);
+    }else if(isBtc(taskArgs.chain)){
+      targetToken = btcAddressToHex(targetToken);
     } else if (targetToken.substr(0, 2) !== "0x") {
       let hex = stringToHex(targetToken);
       targetToken = "0x" + hex;
@@ -444,9 +445,11 @@ task("register:setFromChainWhitelistFee", "set to chain token outFee")
 
     let sender = taskArgs.sender;
     if (fromChain.name === "Tron") {
-      sender = tronToHex(taskArgs.sender, "Tron");
+      sender = tronAddressToHex(taskArgs.sender);
     } else if(isSolana(fromChain.name)) {
       sender = solanaAddressToHex(taskArgs.sender);
+    } else if(isBtc(fromChain.name)){
+      sender = btcAddressToHex(taskArgs.sender);
     }
 
     let info = await register.getFromChainCallerFeeRate(token, fromChain.chainId, sender);
@@ -699,9 +702,11 @@ task("register:getFee", "get token fees")
 
     let fromToken = token;
     if (fromChain.name === "Tron" || fromChain.name === "TronTest") {
-      fromToken = await tronToHex(token, "Tron");
+      fromToken =  tronAddressToHex(token);
     } else if(isSolana(fromChain.name)){
-      fromToken = await solanaAddressToHex(token);
+      fromToken = solanaAddressToHex(token);
+    } else if(isBtc(fromChain.name)){
+      fromToken = btcAddressToHex(token);
     } else if (token.substr(0, 2) !== "0x") {
       let hex = stringToHex(token);
       fromToken = "0x" + hex;

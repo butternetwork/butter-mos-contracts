@@ -45,6 +45,11 @@ function isSolana(network) {
   return networks.includes(network);
 }
 
+function isBtc(network) {
+  let networks = [313230561203979757n, "313230561203979757", "Btc"];
+  return networks.includes(network);
+}
+
 function isTestnet(chainId) {
   let testnets = [
     212,
@@ -80,5 +85,6 @@ module.exports = {
   isTron,
   isTestnet,
   sleep,
-  isSolana
+  isSolana,
+  isBtc
 };

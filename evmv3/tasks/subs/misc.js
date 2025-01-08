@@ -1,5 +1,5 @@
 // const { types } = require("zksync-web3");
-let { getTronContract, tronFromHex, tronToHex } = require("../../utils/create.js");
+let { getTronContract } = require("../../utils/create.js");
 let { stringToHex, getRole, isRelayChain, isTron } = require("../../utils/helper");
 
 let { getChain, getToken, getDeployment } = require("../utils/utils");

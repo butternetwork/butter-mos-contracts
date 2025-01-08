@@ -23,7 +23,8 @@ contract BridgeAndRelay is BridgeAbstract {
         EVM,
         NEAR,
         TON,
-        SOLANA
+        SOLANA,
+        BTC
     }
 
     uint256 constant MAX_BASE_POINT = 10000;
@@ -334,19 +335,21 @@ contract BridgeAndRelay is BridgeAbstract {
                 if (topic != NearDecoder.NEAR_SWAPOUT) revert invalid_bridge_log();
                 MessageOutEvent memory outEvent = NearDecoder.decodeNearSwapLog(log);
                 _messageIn(revertError, _orderId, _chainId, outEvent);
-            } else if (chainTypes[_chainId] == ChainType.TON || chainTypes[_chainId] == ChainType.SOLANA) {
+            } else {
                 (bytes memory addr, bytes memory topic, bytes memory log) = NonEvmDecoder.getTopic(logArray);
                 if (!Helper._checkBytes(addr, mosContracts[_chainId])) revert invalid_mos_contract();
                 if (chainTypes[_chainId] == ChainType.TON) {
                     if (!Helper._checkBytes(topic, NonEvmDecoder.TON_TOPIC)) revert invalid_bridge_log();
-                } else {
+                } else if(chainTypes[_chainId] == ChainType.SOLANA){
                     if (!Helper._checkBytes(topic, NonEvmDecoder.SOLANA_TOPIC)) revert invalid_bridge_log();
+                } else if(chainTypes[_chainId] == ChainType.BTC){
+                    if (!Helper._checkBytes(topic, NonEvmDecoder.BTC_TOPIC)) revert invalid_bridge_log();
+                } else {
+                    revert chain_type_error();
                 }
                 MessageOutEvent memory outEvent = NonEvmDecoder.decodeMessageOut(log);
                 _messageIn(revertError, _orderId, _chainId, outEvent);
-            } else {
-                revert chain_type_error();
-            }
+            } 
         }
     }
 

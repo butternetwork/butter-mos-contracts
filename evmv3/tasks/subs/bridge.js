@@ -1,4 +1,5 @@
-let { create, getTronContract, tronToHex } = require("../../utils/create.js");
+let { create, getTronContract } = require("../../utils/create.js");
+let { tronAddressToHex } = require("../../utils/address.js");
 let { verify } = require("../../utils/verify.js");
 let { stringToHex, isTron, isSolana } = require("../../utils/helper");
 let { getChain, getToken, getFeeList, getFeeInfo, getChainList, writeToFile } = require("../utils/utils.js");
@@ -53,8 +54,8 @@ task("bridge:deploy", "bridge deploy")
 
     let Bridge = await ethers.getContractFactory("Bridge");
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      wrapped = await tronToHex(wrapped, hre.network.name);
-      authority = await tronToHex(authority, hre.network.name);
+      wrapped =  tronAddressToHex(wrapped);
+      authority = tronAddressToHex(authority);
     }
     let data = await Bridge.interface.encodeFunctionData("initialize", [wrapped, authority]);
     let proxy_salt = process.env.BRIDGE_PROXY_SALT;
@@ -140,7 +141,7 @@ task("bridge:setServiceContract", "set contract")
     }
 
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
-      let contract = await tronToHex(taskArgs.contract, hre.network.name);
+      let contract = tronAddressToHex(taskArgs.contract);
       await bridge.setServiceContract(type, contract).send();
       console.log("contract:", await bridge.getServiceContract(type).call());
     } else {
@@ -389,7 +390,7 @@ task("bridge:transferOut", "Cross-chain transfer token")
       receiver = deployer.address;
     } else {
       if(isTron(taskArgs.chain)){
-        receiver = tronToHex(taskArgs.receiver, "Tron")
+        receiver = tronAddressToHex(taskArgs.receiver)
       } else if(isSolana(taskArgs.chain)) {
         receiver = solanaAddressToHex(taskArgs.receiver)
       }else if (taskArgs.receiver.substr(0, 2) != "0x") {

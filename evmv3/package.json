@@ -54,7 +54,8 @@
   "dependencies": {
     "@mapprotocol/protocol": "^0.8.5",
     "@openzeppelin/contracts": "^5.1.0",
-    "@openzeppelin/contracts-upgradeable": "^5.1.0"
+    "@openzeppelin/contracts-upgradeable": "^5.1.0",
+    "bech32": "^2.0.0"
   },
   "keywords": [
     "butternetwork",
