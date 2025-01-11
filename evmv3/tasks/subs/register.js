@@ -1,6 +1,6 @@
 let { create } = require("../../utils/create.js");
 let { tronAddressToHex, btcAddressToHex, solanaAddressToHex } = require("../../utils/address.js");
-let { stringToHex, isSolana, isBtc } = require("../../utils/helper.js");
+let { stringToHex, isTron, isSolana, isBtc } = require("../../utils/helper.js");
 const {
   getToken,
   getFeeList,
@@ -159,6 +159,51 @@ task("register:mapToken", "mapping token")
       console.log(`register chain [${taskArgs.chain}] token [${taskArgs.token}] success`);
     }
   });
+
+task("register:unmapToken", "mapping token")
+    .addParam("chain", "chain id")
+    .addParam("target", "target token")
+    .addParam("v2", "bridge version: v2/v3, true is v2", false, types.boolean)
+    .addOptionalParam("update", "update token config", false, types.boolean)
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+        // console.log("deployer address:", deployer.address);
+
+        let register = await getRegister(hre.network.name, taskArgs.v2);
+
+        // let tokenAddr = taskArgs.token;
+        // get mapped token
+        let targetToken = taskArgs.target;
+        if (isTron(taskArgs.chain)) {
+            targetToken = tronAddressToHex(targetToken);
+        } else if(isSolana(taskArgs.chain)) {
+            targetToken = solanaAddressToHex(targetToken);
+        } else if(isBtc(taskArgs.chain)){
+            targetToken = btcAddressToHex(targetToken);
+        } else if (targetToken.substr(0, 2) !== "0x") {
+            let hex = stringToHex(targetToken);
+            targetToken = "0x" + hex;
+        }
+        targetToken = targetToken.toLowerCase();
+        console.log("target token:", targetToken);
+
+        let relayToken = await register.tokenMappingList(taskArgs.chain, targetToken);
+        console.log(`chain[${taskArgs.chain}] token[${taskArgs.target}] mapped relay token ${relayToken}`);
+        if (relayToken !== ethers.constants.AddressZero) {
+            let info = await register.getTargetToken(hre.network.config.chainId, taskArgs.chain, relayToken);
+
+            console.log(`onchain token(${info[0]}), decimals(${info[1]}), mintable(${info[2]}) `);
+        }
+
+        // unmap token
+        if (taskArgs.update) {
+            await register.unmapToken(taskArgs.chain, targetToken, {
+                gasLimit: 500000,
+            });
+            console.log(`unmap chain [${taskArgs.chain}] token [${taskArgs.target}] success`);
+        }
+    });
 
 task("register:registerTokenChains", "register token Chains")
   .addParam("token", "token address")

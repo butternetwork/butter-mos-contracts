@@ -31,12 +31,12 @@ function getRole(role) {
 }
 
 function isRelayChain(network) {
-  let networks = [22776, "Mapo", "Map", 212, "Makalu"];
+  let networks = [22776, "22776", "Mapo", "Map", 212, "212", "Makalu"];
   return networks.includes(network);
 }
 
 function isTron(network) {
-  let networks = [728126428, "Tron", 3448148188, "TronTest"];
+  let networks = [728126428, "728126428", "Tron", 3448148188, "3448148188", "TronTest"];
   return networks.includes(network);
 }
 

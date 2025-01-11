@@ -70,6 +70,7 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         uint8 _decimals,
         bool _mintable
     );
+    event UnmapToken(uint256 indexed _fromChain, bytes _fromToken);
     event RegisterTokenChain(address indexed _token, uint256 indexed _toChain, bool _enable);
     event SetBaseFee(address indexed _token, uint256 indexed _toChain, uint256 _withSwap, uint256 _noSwap);
     event SetToChainTokenFee(
@@ -151,6 +152,25 @@ contract TokenRegisterV3 is ITokenRegisterV3, UUPSUpgradeable, AccessControlEnum
         tokenMappingList[_fromChain][_fromToken] = _token;
 
         emit MapToken(_token, _fromChain, _fromToken, _decimals, _mintable);
+    }
+
+    function unmapToken(uint256 _fromChain, bytes memory _fromToken) external onlyRole(MANAGER_ROLE) {
+        require(!Utils.checkBytes(_fromToken, bytes("")), "registry: invalid from token");
+        require(_fromChain != selfChainId, "registry: relay chain");
+
+        address relayToken = tokenMappingList[_fromChain][_fromToken];
+        require(relayToken != address(0), "registry: token not registered");
+        Token storage token = tokenList[relayToken];
+        if (token.tokenAddress != address(0)) {
+            if (Helper._checkBytes(_fromToken, token.mappingList[_fromChain])) {
+                delete token.decimals[_fromChain];
+                delete token.mappingList[_fromChain];
+                delete token.mintable[_fromChain];
+            }
+        }
+        delete tokenMappingList[_fromChain][_fromToken];
+
+        emit UnmapToken(_fromChain, _fromToken);
     }
 
     function registerTokenChains(
