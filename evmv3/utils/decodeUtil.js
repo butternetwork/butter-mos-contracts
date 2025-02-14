@@ -45,7 +45,7 @@ async function decodeEvent(hash, topic, targetEvm) {
         await decodeMessageOut(event);
         break;
     case messageRelay_topic:
-        await decodeSwapAndBridgeFun(event, targetEvm);
+        await decodeMessageRelay(event, targetEvm);
         break;
     default:
         console.log("unsupport event");
