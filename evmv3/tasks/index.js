@@ -8,3 +8,4 @@ require("./subs/misc.js");
 require("./subs/quoter.js");
 require("./subs/retry.js");
 require("./subs/swapDataValidator.js");
+require("./subs/decode.js");
