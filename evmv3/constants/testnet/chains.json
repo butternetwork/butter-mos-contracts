@@ -73,5 +73,13 @@
         "wToken": "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a",
         "mos": "9morDALTT4UKNtJtvv6bmQ4sp5Z19Ux7qPQUokzBozkR", 
         "lightNode": "THC5GuvTQtjCpqB8Lg1aPeenvYntDwv7gS"
+    },
+    {
+        "name": "BtcTest",
+        "chainId": "1360095883558914",
+        "type": "btc",
+        "wToken": "0x6d6f73",
+        "mos": "0x6d6f73", 
+        "lightNode": ""
     }
 ]

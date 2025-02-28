@@ -74,6 +74,8 @@ function isTestnet(chainId) {
     "TonTest",
     1360108768460802,
     "SolanaDev",
+    1360095883558914,
+    "BtcTest",
   ];
   return testnets.includes(chainId);
 }
