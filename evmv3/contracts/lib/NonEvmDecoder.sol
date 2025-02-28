@@ -5,7 +5,8 @@ import {MessageOutEvent} from "./Types.sol";
 
 library NonEvmDecoder {
     bytes internal constant SOLANA_TOPIC = "MessageOutEvent";
-    bytes internal constant BTC_TOPIC = "MessageOutEvent";
+    //keccak256("MessageOut()")
+    bytes internal constant BTC_TOPIC = hex'2aaebc938a5ab70e98644b0c6a8472fe02b7edece7e6e6dc71959dc34e109dfc';
     bytes internal constant TON_TOPIC = hex"34a7e0e8";
 
     function getTopic(
