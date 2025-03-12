@@ -296,8 +296,10 @@ contract BridgeAndRelay is BridgeAbstract {
 
         inEvent.amount = _collectFee(Helper._toBytes(caller), inEvent, false);
         if (inEvent.amount == 0) revert in_amount_low();
-        //if(msgData.relay)(inEvent.token, inEvent.amount, inEvent.to, inEvent.swapData) = _AffiliateRelay(inEvent, false);
-        //_checkBridgeable(inEvent.token, inEvent.toChain);
+        if(msgData.relay && inEvent.swapData.length != 0){
+            (inEvent.token, inEvent.amount, inEvent.to, inEvent.swapData) = this.relayExecute(inEvent.token, inEvent.amount, msg.sender, inEvent, bytes(""));
+            _checkBridgeable(inEvent.token, inEvent.toChain);
+        }
         _swapRelay(inEvent);
 
         return inEvent.orderId;
@@ -367,6 +369,8 @@ contract BridgeAndRelay is BridgeAbstract {
 
         if (outEvent.toChain == selfChainId) {
             _transferIn(outEvent, true, true);
+        } else if (outEvent.toChain == selfChainId) {
+           if(outEvent.amount != 0 && outEvent.swapData.length != 0) _AffiliateRelay(true, initiator, outEvent, _retryMessage);
         } else {
             _messageRelay(true, true, initiator, outEvent, _retryMessage);
         }
@@ -432,7 +436,9 @@ contract BridgeAndRelay is BridgeAbstract {
         } else {
             // collect fee
             inEvent.amount = _collectFee(_outEvent.initiator, inEvent, false);
-            //if(_outEvent.relay)(inEvent.token, inEvent.amount, inEvent.to, inEvent.swapData) = _AffiliateRelay(inEvent, true);
+            if(_outEvent.relay && inEvent.swapData.length != 0){
+               return _AffiliateRelay(_revertError, _outEvent.initiator, inEvent, bytes(""));
+            }
             if (inEvent.amount == 0) {
                 return _emitMessageIn(_outEvent.initiator, inEvent, false, 0, "InsufficientToken");
             }
@@ -440,27 +446,33 @@ contract BridgeAndRelay is BridgeAbstract {
         }
     }
 
-    function _AffiliateRelay(MessageInEvent memory _inEvent, bool needTryCatch) internal returns(address token, uint256 amount, bytes memory to, bytes memory swapData){
-        if(needTryCatch) {
-            try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, bytes("")) returns (
-                address tokenOut,
-                uint256 amountOut,
-                bytes memory target,
-                bytes memory newMessage
-            ) {
-                token = tokenOut;
-                amount = amountOut;
-                to = target;
-                swapData = newMessage;
-            } catch(bytes memory){
-                token = _inEvent.token;
-                amount = _inEvent.amount;
-                to = _inEvent.to;
-                swapData = _inEvent.swapData;
+    function _AffiliateRelay(bool _revertError, bytes memory _initiator, MessageInEvent memory _inEvent, bytes memory _retryMessage) internal {
+        uint256 gasLeft = gasleft();
+        try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, _retryMessage) returns (
+            address tokenOut,
+            uint256 amountOut,
+            bytes memory target,
+            bytes memory newMessage
+        ) {
+            _inEvent.token = tokenOut;
+            _inEvent.amount = amountOut;
+            _inEvent.to = target;
+            _inEvent.swapData = newMessage;
+        } catch Error(string memory reason) {
+            if (_revertError) {
+                revert(reason);
             }
-        } else {
-            return this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, bytes(""));
+            return _emitMessageIn(_initiator, _inEvent, false, gasLeft, bytes(reason));
+        } catch (bytes memory reason) {
+            if (_revertError) {
+                revert bubbling(reason);
+            }
+            return _emitMessageIn(_initiator, _inEvent, false, gasLeft, reason);
+        } 
+        if (_inEvent.amount == 0) {
+            return _emitMessageIn(_initiator, _inEvent, false, 0, "InsufficientToken");
         }
+        _swapIn(_inEvent);
     }
 
     function _messageRelay(
