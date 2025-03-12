@@ -24,7 +24,8 @@ contract BridgeAndRelay is BridgeAbstract {
         NEAR,
         TON,
         SOLANA,
-        BTC
+        BTC,
+        XRP
     }
 
     uint256 constant MAX_BASE_POINT = 10000;
@@ -295,7 +296,8 @@ contract BridgeAndRelay is BridgeAbstract {
 
         inEvent.amount = _collectFee(Helper._toBytes(caller), inEvent, false);
         if (inEvent.amount == 0) revert in_amount_low();
-
+        //if(msgData.relay)(inEvent.token, inEvent.amount, inEvent.to, inEvent.swapData) = _AffiliateRelay(inEvent, false);
+        //_checkBridgeable(inEvent.token, inEvent.toChain);
         _swapRelay(inEvent);
 
         return inEvent.orderId;
@@ -338,15 +340,7 @@ contract BridgeAndRelay is BridgeAbstract {
             } else {
                 (bytes memory addr, bytes memory topic, bytes memory log) = NonEvmDecoder.getTopic(logArray);
                 if (!Helper._checkBytes(addr, mosContracts[_chainId])) revert invalid_mos_contract();
-                if (chainTypes[_chainId] == ChainType.TON) {
-                    if (!Helper._checkBytes(topic, NonEvmDecoder.TON_TOPIC)) revert invalid_bridge_log();
-                } else if(chainTypes[_chainId] == ChainType.SOLANA){
-                    if (!Helper._checkBytes(topic, NonEvmDecoder.SOLANA_TOPIC)) revert invalid_bridge_log();
-                } else if(chainTypes[_chainId] == ChainType.BTC){
-                    if (!Helper._checkBytes(topic, NonEvmDecoder.BTC_TOPIC)) revert invalid_bridge_log();
-                } else {
-                    revert chain_type_error();
-                }
+                if (!Helper._checkBytes(topic, _getChainTopic(chainTypes[_chainId]))) revert invalid_bridge_log();
                 MessageOutEvent memory outEvent = NonEvmDecoder.decodeMessageOut(log);
                 _messageIn(revertError, _orderId, _chainId, outEvent);
             } 
@@ -438,10 +432,34 @@ contract BridgeAndRelay is BridgeAbstract {
         } else {
             // collect fee
             inEvent.amount = _collectFee(_outEvent.initiator, inEvent, false);
+            //if(_outEvent.relay)(inEvent.token, inEvent.amount, inEvent.to, inEvent.swapData) = _AffiliateRelay(inEvent, true);
             if (inEvent.amount == 0) {
                 return _emitMessageIn(_outEvent.initiator, inEvent, false, 0, "InsufficientToken");
             }
             _swapIn(inEvent);
+        }
+    }
+
+    function _AffiliateRelay(MessageInEvent memory _inEvent, bool needTryCatch) internal returns(address token, uint256 amount, bytes memory to, bytes memory swapData){
+        if(needTryCatch) {
+            try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, bytes("")) returns (
+                address tokenOut,
+                uint256 amountOut,
+                bytes memory target,
+                bytes memory newMessage
+            ) {
+                token = tokenOut;
+                amount = amountOut;
+                to = target;
+                swapData = newMessage;
+            } catch(bytes memory){
+                token = _inEvent.token;
+                amount = _inEvent.amount;
+                to = _inEvent.to;
+                swapData = _inEvent.swapData;
+            }
+        } else {
+            return this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, bytes(""));
         }
     }
 
@@ -556,6 +574,20 @@ contract BridgeAndRelay is BridgeAbstract {
         toAmount = tokenRegister.getToChainAmount(_token, _amount, _toChain);
     }
 
+    function _getChainTopic(ChainType _chainType) internal pure returns(bytes memory topic) {
+        if(_chainType == ChainType.TON){
+            topic = NonEvmDecoder.TON_TOPIC;
+        } else if(_chainType == ChainType.SOLANA){
+            topic = NonEvmDecoder.SOLANA_TOPIC;
+        } else if(_chainType == ChainType.BTC){
+            topic = NonEvmDecoder.BTC_TOPIC;
+        } else if(_chainType == ChainType.XRP){
+            topic = NonEvmDecoder.XRP_TOPIC;
+        } else {
+            revert chain_type_error();
+        }
+    }
+    
     function _swapRelay(MessageInEvent memory inEvent) internal {
         bytes memory toToken = tokenRegister.getToChainToken(inEvent.token, inEvent.toChain);
         if (Helper._checkBytes(toToken, bytes(""))) revert out_token_not_registered();

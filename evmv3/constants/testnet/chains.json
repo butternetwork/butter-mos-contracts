@@ -81,5 +81,14 @@
         "wToken": "0x6d6f73",
         "mos": "0x6d6f73", 
         "lightNode": ""
+    },
+
+    {
+        "name": "XrpTest",
+        "chainId": "1360095883558916",
+        "type": "xrp",
+        "wToken": "0x787270",
+        "mos": "0x6d6f73", 
+        "lightNode": ""
     }
 ]

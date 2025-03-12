@@ -76,6 +76,8 @@ function isTestnet(chainId) {
     "SolanaDev",
     1360095883558914,
     "BtcTest",
+    "1360095883558916",
+    "XrpTest"
   ];
   return testnets.includes(chainId);
 }

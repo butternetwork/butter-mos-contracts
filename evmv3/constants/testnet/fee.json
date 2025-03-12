@@ -32,6 +32,13 @@
             "base": {"bridge": "0.000001", "swap": "0.000002"},
             "fee": { "rate": "0.0001", "min": "0", "max": "0.0001" },
             "target": ["BscTest", "BtcTest"]
+        },
+        "xrp": {
+            "mintable": true,
+            "decimals": 18,
+            "base": {"bridge": "0.0001", "swap": "0.0002"},
+            "fee": { "rate": "0.0001", "min": "0", "max": "0.001" },
+            "target": ["BscTest", "XrpTest"]
         }
     },
     "Sepolia": {
@@ -95,6 +102,14 @@
             "base": {"bridge": "0.000001", "swap": "0.000002"},
             "fee": { "rate": "0.001", "min": "0", "max": "0.0001" },
             "target": ["Makalu", "BtcTest"]
+        },
+
+        "xrp": {
+            "mintable": true,
+            "decimals": 18,
+            "base": {"bridge": "0.0001", "swap": "0.0002"},
+            "fee": { "rate": "0.001", "min": "0", "max": "0.01" },
+            "target": ["Makalu", "XrpTest"]
         }
     },
     "ArbitrumSepolia": {
@@ -173,6 +188,16 @@
             "decimals": 8,
             "base": {"bridge": "0.000001", "swap": "0.000002"},
             "fee": { "rate": "0.001", "min": "0", "max": "0.000001" },
+            "target": ["Makalu", "BscTest"]
+        }
+    },
+
+    "XrpTest": {
+        "xrp": {
+            "mintable": false,
+            "decimals": 6,
+            "base": {"bridge": "0.0001", "swap": "0.0002"},
+            "fee": { "rate": "0.001", "min": "0", "max": "0.01" },
             "target": ["Makalu", "BscTest"]
         }
     }
