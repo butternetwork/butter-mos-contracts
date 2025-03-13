@@ -1,5 +1,7 @@
 const { bech32, bech32m } = require('bech32')
 const TronWeb = require("tronweb");
+const Basex = require("base-x");
+const xrpBase58 = new Basex("rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz");
 
 function solanaAddressToHex(solanaAddress) {
     return '0x' + bytesToHexString(ethers.utils.base58.decode(solanaAddress))
@@ -51,11 +53,24 @@ function hexToBtcAddress(hexAddress, encodeType) {
     }
 }
 
+function xrpAddressToHex(xrpAddress) {
+    if(! xrpAddress.startsWith("r")) throw("invalid xrp address");
+    let hex = '0x' + bytesToHexString(xrpBase58.decode(xrpAddress))
+    return hex.substring(0, (hex.length - 8));
+}
+
+function hexToXrpAddress(hexAddress) {
+    let checksum = ethers.utils.sha256(ethers.utils.sha256(hexAddress)).substring(2,10);
+    return xrpBase58.encode(ethers.utils.arrayify((hexAddress + checksum)));
+}
+
 module.exports = {
     solanaAddressToHex,
     hexToSolanaAddress,
     btcAddressToHex,
     hexToBtcAddress,
     tronAddressToHex,
-    hexToTronAddress
+    hexToTronAddress,
+    xrpAddressToHex,
+    hexToXrpAddress
 };
