@@ -282,7 +282,7 @@ contract BridgeAndRelay is BridgeAbstract {
             msgData = abi.decode(_bridgeData, (BridgeParam));
         }
         inEvent.gasLimit = msgData.gasLimit;
-        _checkBridgeable(inEvent.token, inEvent.toChain);
+        // _checkBridgeable(inEvent.token, inEvent.toChain);
         // todo: add transfer limit check
         // _checkLimit(_amount, _toChain, _token);
 
@@ -292,14 +292,13 @@ contract BridgeAndRelay is BridgeAbstract {
         inEvent.swapData = msgData.swapData;
         inEvent.from = Helper._toBytes(sender);
 
-        address caller = (trustList[sender] == 0x01) ? _initiator : sender;
-
-        inEvent.amount = _collectFee(Helper._toBytes(caller), inEvent, false);
-        if (inEvent.amount == 0) revert in_amount_low();
         if(msgData.relay && inEvent.swapData.length != 0){
             (inEvent.token, inEvent.amount, inEvent.to, inEvent.swapData) = this.relayExecute(inEvent.token, inEvent.amount, msg.sender, inEvent, bytes(""));
-            _checkBridgeable(inEvent.token, inEvent.toChain);
         }
+        _checkBridgeable(inEvent.token, inEvent.toChain);
+        address caller = (trustList[sender] == 0x01) ? _initiator : sender;
+        inEvent.amount = _collectFee(Helper._toBytes(caller), inEvent, false);
+        if (inEvent.amount == 0) revert in_amount_low();
         _swapRelay(inEvent);
 
         return inEvent.orderId;
@@ -367,7 +366,7 @@ contract BridgeAndRelay is BridgeAbstract {
             _payload
         );
 
-        if (outEvent.toChain == selfChainId) {
+        if (outEvent.messageType == uint8(MessageType.MESSAGE) && outEvent.toChain == selfChainId) {
             _transferIn(outEvent, true, true);
         } else if (outEvent.toChain == selfChainId) {
            if(outEvent.amount != 0 && outEvent.swapData.length != 0) _AffiliateRelay(true, initiator, outEvent, _retryMessage);
@@ -434,11 +433,11 @@ contract BridgeAndRelay is BridgeAbstract {
                 inEvent.fromChain
             );
         } else {
-            // collect fee
-            inEvent.amount = _collectFee(_outEvent.initiator, inEvent, false);
             if(_outEvent.relay && inEvent.swapData.length != 0){
                return _AffiliateRelay(_revertError, _outEvent.initiator, inEvent, bytes(""));
             }
+            // collect fee
+            inEvent.amount = _collectFee(_outEvent.initiator, inEvent, false);
             if (inEvent.amount == 0) {
                 return _emitMessageIn(_outEvent.initiator, inEvent, false, 0, "InsufficientToken");
             }
@@ -469,6 +468,7 @@ contract BridgeAndRelay is BridgeAbstract {
             }
             return _emitMessageIn(_initiator, _inEvent, false, gasLeft, reason);
         } 
+        _inEvent.amount = _collectFee(_initiator, _inEvent, false);
         if (_inEvent.amount == 0) {
             return _emitMessageIn(_initiator, _inEvent, false, 0, "InsufficientToken");
         }
@@ -591,12 +591,8 @@ contract BridgeAndRelay is BridgeAbstract {
             topic = NonEvmDecoder.TON_TOPIC;
         } else if(_chainType == ChainType.SOLANA){
             topic = NonEvmDecoder.SOLANA_TOPIC;
-        } else if(_chainType == ChainType.BTC){
-            topic = NonEvmDecoder.BTC_TOPIC;
-        } else if(_chainType == ChainType.XRP){
-            topic = NonEvmDecoder.XRP_TOPIC;
         } else {
-            revert chain_type_error();
+            topic = NonEvmDecoder.DEFAULT_NO_EVM_TOPIC;
         }
     }
     
