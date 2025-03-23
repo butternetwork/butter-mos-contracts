@@ -150,6 +150,26 @@ task("bridge:setServiceContract", "set contract")
     }
   });
 
+task("bridge:pause", "set relay")
+    .setAction(async (taskArgs, hre) => {
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
+        console.log("deployer address is:", deployer.address);
+
+        let bridge = await getBridge(hre.network.name, false);
+
+        let paused;
+        if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+            await bridge.trigger().send();
+            paused = await bridge.paused().call();
+        } else {
+            await (await bridge.trigger()).wait();
+            paused = await bridge.paused();
+        }
+        console.log("bridge paused: ", paused);
+    });
+
 task("bridge:setRelay", "set relay")
   .addParam("chain", "register address")
   .addParam("address", "register address")

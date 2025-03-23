@@ -68,7 +68,7 @@ module.exports = {
       chainId: 56,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
-    Klaytn: {
+    Kaia: {
       url: `https://kaia.blockpi.network/v1/rpc/public`,
       chainId: 8217,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],

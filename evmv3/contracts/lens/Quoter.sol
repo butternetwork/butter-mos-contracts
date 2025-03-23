@@ -119,7 +119,7 @@ contract Quoter is Ownable2Step {
                 _toChain,
                 _withSwap
             );
-            _bridgeOutOrInAmount =  (_bridgeAmount < bridgeInFee) ? 0 : (_bridgeAmount - bridgeInFee);
+            _bridgeOutOrInAmount = (_bridgeAmount < bridgeInFee) ? 0 : (_bridgeAmount - bridgeInFee);
         } else {
             bridgeInFee = tokenRegister.getTransferInFee(_caller, _bridgeInToken, _bridgeAmount, _fromChain);
             _bridgeOutOrInAmount = (_bridgeAmount < bridgeInFee) ? 0 : (_bridgeAmount - bridgeInFee);

@@ -271,6 +271,7 @@ contract BridgeAndRelay is BridgeAbstract {
         inEvent.messageType = uint8(MessageType.BRIDGE);
         inEvent.fromChain = selfChainId;
         inEvent.toChain = _toChain;
+        // set to check whether the chain has mos
         inEvent.mos = Helper._fromBytes(mosContracts[_toChain]);
 
         inEvent.to = _to;
@@ -292,8 +293,14 @@ contract BridgeAndRelay is BridgeAbstract {
         inEvent.swapData = msgData.swapData;
         inEvent.from = Helper._toBytes(sender);
 
-        if(msgData.relay && inEvent.swapData.length != 0){
-            (inEvent.token, inEvent.amount, inEvent.to, inEvent.swapData) = this.relayExecute(inEvent.token, inEvent.amount, msg.sender, inEvent, bytes(""));
+        if (msgData.relay && inEvent.swapData.length != 0) {
+            (inEvent.token, inEvent.amount, inEvent.to, inEvent.swapData) = this.relayExecute(
+                inEvent.token,
+                inEvent.amount,
+                sender,
+                inEvent,
+                bytes("")
+            );
         }
         _checkBridgeable(inEvent.token, inEvent.toChain);
         address caller = (trustList[sender] == 0x01) ? _initiator : sender;
@@ -313,7 +320,7 @@ contract BridgeAndRelay is BridgeAbstract {
         _checkOrder(_orderId);
 
         uint256 logIndex = _logParam & 0xFFFF;
-        bool revertError = ((_logParam >> 16) & 0xFF == 0x0);
+        bool revertError = ((_logParam >> 16) & 0xFF != 0x0);
         if (chainTypes[_chainId] == ChainType.EVM) {
             (bool success, string memory message, ILightVerifier.txLog memory log) = lightClientManager.verifyProofData(
                 _chainId,
@@ -344,7 +351,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 if (!Helper._checkBytes(topic, _getChainTopic(chainTypes[_chainId]))) revert invalid_bridge_log();
                 MessageOutEvent memory outEvent = NonEvmDecoder.decodeMessageOut(log);
                 _messageIn(revertError, _orderId, _chainId, outEvent);
-            } 
+            }
         }
     }
 
@@ -369,7 +376,8 @@ contract BridgeAndRelay is BridgeAbstract {
         if (outEvent.messageType == uint8(MessageType.MESSAGE) && outEvent.toChain == selfChainId) {
             _transferIn(outEvent, true, true);
         } else if (outEvent.toChain == selfChainId) {
-           if(outEvent.amount != 0 && outEvent.swapData.length != 0) _AffiliateRelay(true, initiator, outEvent, _retryMessage);
+            if (outEvent.amount != 0 && outEvent.swapData.length != 0)
+                _AffiliateRelay(true, initiator, outEvent, _retryMessage);
         } else {
             _messageRelay(true, true, initiator, outEvent, _retryMessage);
         }
@@ -433,8 +441,8 @@ contract BridgeAndRelay is BridgeAbstract {
                 inEvent.fromChain
             );
         } else {
-            if(_outEvent.relay && inEvent.swapData.length != 0){
-               return _AffiliateRelay(_revertError, _outEvent.initiator, inEvent, bytes(""));
+            if (_outEvent.relay && inEvent.swapData.length != 0) {
+                return _AffiliateRelay(_revertError, _outEvent.initiator, inEvent, bytes(""));
             }
             // collect fee
             inEvent.amount = _collectFee(_outEvent.initiator, inEvent, false);
@@ -445,14 +453,15 @@ contract BridgeAndRelay is BridgeAbstract {
         }
     }
 
-    function _AffiliateRelay(bool _revertError, bytes memory _initiator, MessageInEvent memory _inEvent, bytes memory _retryMessage) internal {
+    function _AffiliateRelay(
+        bool _revertError,
+        bytes memory _initiator,
+        MessageInEvent memory _inEvent,
+        bytes memory _retryMessage
+    ) internal {
         uint256 gasLeft = gasleft();
-        try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, _retryMessage) returns (
-            address tokenOut,
-            uint256 amountOut,
-            bytes memory target,
-            bytes memory newMessage
-        ) {
+        try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, _retryMessage)
+        returns (address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage) {
             _inEvent.token = tokenOut;
             _inEvent.amount = amountOut;
             _inEvent.to = target;
@@ -467,7 +476,7 @@ contract BridgeAndRelay is BridgeAbstract {
                 revert bubbling(reason);
             }
             return _emitMessageIn(_initiator, _inEvent, false, gasLeft, reason);
-        } 
+        }
         _inEvent.amount = _collectFee(_initiator, _inEvent, false);
         if (_inEvent.amount == 0) {
             return _emitMessageIn(_initiator, _inEvent, false, 0, "InsufficientToken");
@@ -539,6 +548,7 @@ contract BridgeAndRelay is BridgeAbstract {
         inEvent.swapData = _outEvent.swapData;
     }
 
+    // emit MessageRelay and NotifyClient
     // messageType,orderId,fromChain,toChain,gasLimit,to,from,swapData
     function _emitMessageRelay(MessageInEvent memory _inEvent, bytes memory token, uint256 amount) internal {
         uint256 chainAndGasLimit = _getChainAndGasLimit(
@@ -586,16 +596,16 @@ contract BridgeAndRelay is BridgeAbstract {
         toAmount = tokenRegister.getToChainAmount(_token, _amount, _toChain);
     }
 
-    function _getChainTopic(ChainType _chainType) internal pure returns(bytes memory topic) {
-        if(_chainType == ChainType.TON){
+    function _getChainTopic(ChainType _chainType) internal pure returns (bytes memory topic) {
+        if (_chainType == ChainType.TON) {
             topic = NonEvmDecoder.TON_TOPIC;
-        } else if(_chainType == ChainType.SOLANA){
+        } else if (_chainType == ChainType.SOLANA) {
             topic = NonEvmDecoder.SOLANA_TOPIC;
         } else {
             topic = NonEvmDecoder.DEFAULT_NO_EVM_TOPIC;
         }
     }
-    
+
     function _swapRelay(MessageInEvent memory inEvent) internal {
         bytes memory toToken = tokenRegister.getToChainToken(inEvent.token, inEvent.toChain);
         if (Helper._checkBytes(toToken, bytes(""))) revert out_token_not_registered();

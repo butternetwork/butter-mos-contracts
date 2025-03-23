@@ -140,7 +140,7 @@
         "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
-        "name": "Klaytn",
+        "name": "Kaia",
         "chainId": "8217",
         "type": "evm",
         "wToken": "0x19aac5f612f524b754ca7e7c41cbfa2e981a4432",
@@ -174,5 +174,11 @@
         "chainId": "1360108768460801",
         "type": "solana",
         "mos": "9morDALTT4UKNtJtvv6bmQ4sp5Z19Ux7qPQUokzBozkR"
+    },
+    {
+        "name": "Btc",
+        "chainId": "1360095883558913",
+        "type": "btc",
+        "mos": "bc1p4tcdmy27zdnqmhp84lemzfwjcmzucs2awadgtlcd4hcna4wahmeqtsasha"
     }
 ]

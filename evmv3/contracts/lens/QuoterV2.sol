@@ -46,7 +46,7 @@ interface ISwap {
 }
 
 interface AffiliateFeeManager {
-    function getAffiliatesFee(uint256 amount, bytes calldata feeData) external view returns(uint256 totalFee);
+    function getAffiliatesFee(uint256 amount, bytes calldata feeData) external view returns (uint256 totalFee);
 }
 
 contract QuoterV2 is Ownable2Step {
@@ -58,11 +58,19 @@ contract QuoterV2 is Ownable2Step {
 
     event Set(ITokenRegister _tokenRegister, ISwap _swap, AffiliateFeeManager _affiliateFeeManager);
 
-    constructor(ITokenRegister _tokenRegister, ISwap _swap, AffiliateFeeManager _affiliateFeeManager) Ownable(msg.sender) {
+    constructor(
+        ITokenRegister _tokenRegister,
+        ISwap _swap,
+        AffiliateFeeManager _affiliateFeeManager
+    ) Ownable(msg.sender) {
         _set(_tokenRegister, _swap, _affiliateFeeManager);
     }
 
-    function set(ITokenRegister _tokenRegister, ISwap _swap, AffiliateFeeManager _affiliateFeeManager) external onlyOwner {
+    function set(
+        ITokenRegister _tokenRegister,
+        ISwap _swap,
+        AffiliateFeeManager _affiliateFeeManager
+    ) external onlyOwner {
         _set(_tokenRegister, _swap, _affiliateFeeManager);
     }
 
@@ -86,11 +94,27 @@ contract QuoterV2 is Ownable2Step {
     )
         external
         view
-        returns (uint256 bridgeInFee, uint256 bridgeOutFee, uint256 _bridgeOutOrInAmount, uint256 vaultBalance, uint256 affiliateFee)
+        returns (
+            uint256 bridgeInFee,
+            uint256 bridgeOutFee,
+            uint256 _bridgeOutOrInAmount,
+            uint256 vaultBalance,
+            uint256 affiliateFee
+        )
     {
         require(_toChain != _fromChain);
         require(_exactIn, "unsupported");
-        return exactIn(_caller, _fromChain, _toChain, _bridgeInToken, _bridgeOutToken, _bridgeAmount, _withSwap, _affiliateFee);
+        return
+            exactIn(
+                _caller,
+                _fromChain,
+                _toChain,
+                _bridgeInToken,
+                _bridgeOutToken,
+                _bridgeAmount,
+                _withSwap,
+                _affiliateFee
+            );
     }
 
     function exactIn(
@@ -105,16 +129,22 @@ contract QuoterV2 is Ownable2Step {
     )
         internal
         view
-        returns (uint256 bridgeInFee, uint256 bridgeOutFee, uint256 _bridgeOutOrInAmount, uint256 vaultBalance, uint256 affiliateFee)
+        returns (
+            uint256 bridgeInFee,
+            uint256 bridgeOutFee,
+            uint256 _bridgeOutOrInAmount,
+            uint256 vaultBalance,
+            uint256 affiliateFee
+        )
     {
         vaultBalance = tokenRegister.getVaultBalance(_bridgeOutToken, _toChain);
         if (_fromChain == selfChainId) {
             _bridgeOutOrInAmount = _bridgeAmount;
-            if(_affiliateFee.length != 0) {
+            if (_affiliateFee.length != 0) {
                 affiliateFee = affiliateFeeManager.getAffiliatesFee(_bridgeOutOrInAmount, _affiliateFee);
                 _bridgeOutOrInAmount = (_bridgeOutOrInAmount < affiliateFee) ? 0 : (_bridgeOutOrInAmount - affiliateFee);
             }
-            if(_bridgeOutOrInAmount != 0) {
+            if (_bridgeOutOrInAmount != 0) {
                 (bridgeOutFee, , ) = tokenRegister.getTransferFeeV3(
                     _caller,
                     _bridgeOutToken,
@@ -127,11 +157,11 @@ contract QuoterV2 is Ownable2Step {
             }
         } else if (_toChain == selfChainId) {
             _bridgeOutOrInAmount = _bridgeAmount;
-            if(_affiliateFee.length != 0) {
+            if (_affiliateFee.length != 0) {
                 affiliateFee = affiliateFeeManager.getAffiliatesFee(_bridgeOutOrInAmount, _affiliateFee);
                 _bridgeOutOrInAmount = (_bridgeOutOrInAmount < affiliateFee) ? 0 : (_bridgeOutOrInAmount - affiliateFee);
             }
-            if(_bridgeOutOrInAmount != 0) {
+            if (_bridgeOutOrInAmount != 0) {
                 (bridgeInFee, , ) = tokenRegister.getTransferFeeV3(
                     _caller,
                     _bridgeInToken,
@@ -145,7 +175,7 @@ contract QuoterV2 is Ownable2Step {
         } else {
             bridgeInFee = tokenRegister.getTransferInFee(_caller, _bridgeInToken, _bridgeAmount, _fromChain);
             _bridgeOutOrInAmount = (_bridgeAmount < bridgeInFee) ? 0 : (_bridgeAmount - bridgeInFee);
-            if((_bridgeOutOrInAmount != 0) && (_affiliateFee.length != 0)) {
+            if ((_bridgeOutOrInAmount != 0) && (_affiliateFee.length != 0)) {
                 affiliateFee = affiliateFeeManager.getAffiliatesFee(_bridgeOutOrInAmount, _affiliateFee);
                 _bridgeOutOrInAmount -= affiliateFee;
             }
@@ -165,6 +195,5 @@ contract QuoterV2 is Ownable2Step {
             bridgeOutFee = baseFee + proportionFee;
             _bridgeOutOrInAmount = (_bridgeOutOrInAmount < bridgeOutFee) ? 0 : (_bridgeOutOrInAmount - bridgeOutFee);
         }
-
     }
 }
