@@ -483,9 +483,9 @@ contract BridgeAndRelay is BridgeAbstract {
                 return;
             }
         }
-        _checkBridgeable(_inEvent.token, _inEvent.toChain);
-
-        // collect fee
+        //if bridge from relay chain _checkBridgeable
+        if(_inEvent.fromChain == selfChainId) _checkBridgeable(_inEvent.token, _inEvent.toChain);
+        // collect to chain fee
         _inEvent.amount = _collectFee(_initiator, _inEvent, true);
         if (_inEvent.amount == 0) {
             if (_revertError) {
