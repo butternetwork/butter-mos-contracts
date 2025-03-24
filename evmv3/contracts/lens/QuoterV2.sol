@@ -138,62 +138,26 @@ contract QuoterV2 is Ownable2Step {
         )
     {
         vaultBalance = tokenRegister.getVaultBalance(_bridgeOutToken, _toChain);
-        if (_fromChain == selfChainId) {
-            _bridgeOutOrInAmount = _bridgeAmount;
-            if (_affiliateFee.length != 0) {
-                affiliateFee = affiliateFeeManager.getAffiliatesFee(_bridgeOutOrInAmount, _affiliateFee);
-                _bridgeOutOrInAmount = (_bridgeOutOrInAmount < affiliateFee) ? 0 : (_bridgeOutOrInAmount - affiliateFee);
-            }
-            if (_bridgeOutOrInAmount != 0) {
-                (bridgeOutFee, , ) = tokenRegister.getTransferFeeV3(
-                    _caller,
-                    _bridgeOutToken,
-                    _bridgeOutOrInAmount,
-                    _fromChain,
-                    _toChain,
-                    _withSwap
-                );
-                _bridgeOutOrInAmount = (_bridgeOutOrInAmount < bridgeOutFee) ? 0 : (_bridgeOutOrInAmount - bridgeOutFee);
-            }
-        } else if (_toChain == selfChainId) {
-            _bridgeOutOrInAmount = _bridgeAmount;
-            if (_affiliateFee.length != 0) {
-                affiliateFee = affiliateFeeManager.getAffiliatesFee(_bridgeOutOrInAmount, _affiliateFee);
-                _bridgeOutOrInAmount = (_bridgeOutOrInAmount < affiliateFee) ? 0 : (_bridgeOutOrInAmount - affiliateFee);
-            }
-            if (_bridgeOutOrInAmount != 0) {
-                (bridgeInFee, , ) = tokenRegister.getTransferFeeV3(
-                    _caller,
-                    _bridgeInToken,
-                    _bridgeOutOrInAmount,
-                    _fromChain,
-                    _toChain,
-                    _withSwap
-                );
-                _bridgeOutOrInAmount = (_bridgeOutOrInAmount < bridgeInFee) ? 0 : (_bridgeOutOrInAmount - bridgeInFee);
-            }
-        } else {
-            bridgeInFee = tokenRegister.getTransferInFee(_caller, _bridgeInToken, _bridgeAmount, _fromChain);
-            _bridgeOutOrInAmount = (_bridgeAmount < bridgeInFee) ? 0 : (_bridgeAmount - bridgeInFee);
-            if ((_bridgeOutOrInAmount != 0) && (_affiliateFee.length != 0)) {
-                affiliateFee = affiliateFeeManager.getAffiliatesFee(_bridgeOutOrInAmount, _affiliateFee);
-                _bridgeOutOrInAmount -= affiliateFee;
-            }
-            if (_bridgeOutOrInAmount != 0 && _bridgeInToken != _bridgeOutToken) {
-                _bridgeOutOrInAmount = swap.getAmountOut(_bridgeInToken, _bridgeOutToken, _bridgeOutOrInAmount);
-            }
-            uint256 baseFee;
-            uint256 proportionFee;
-            (, baseFee, proportionFee) = tokenRegister.getTransferOutFee(
-                _caller,
-                _bridgeOutToken,
-                _bridgeOutOrInAmount,
-                _fromChain,
-                _toChain,
-                _withSwap
-            );
-            bridgeOutFee = baseFee + proportionFee;
-            _bridgeOutOrInAmount = (_bridgeOutOrInAmount < bridgeOutFee) ? 0 : (_bridgeOutOrInAmount - bridgeOutFee);
+        bridgeInFee = tokenRegister.getTransferInFee(_caller, _bridgeInToken, _bridgeAmount, _fromChain);
+        _bridgeOutOrInAmount = (_bridgeAmount < bridgeInFee) ? 0 : (_bridgeAmount - bridgeInFee);
+        if ((_bridgeOutOrInAmount != 0) && (_affiliateFee.length != 0)) {
+            affiliateFee = affiliateFeeManager.getAffiliatesFee(_bridgeOutOrInAmount, _affiliateFee);
+            _bridgeOutOrInAmount -= affiliateFee;
         }
+        if (_bridgeOutOrInAmount != 0 && _bridgeInToken != _bridgeOutToken) {
+            _bridgeOutOrInAmount = swap.getAmountOut(_bridgeInToken, _bridgeOutToken, _bridgeOutOrInAmount);
+        }
+        uint256 baseFee;
+        uint256 proportionFee;
+        (, baseFee, proportionFee) = tokenRegister.getTransferOutFee(
+            _caller,
+            _bridgeOutToken,
+            _bridgeOutOrInAmount,
+            _fromChain,
+            _toChain,
+            _withSwap
+        );
+        bridgeOutFee = baseFee + proportionFee;
+        _bridgeOutOrInAmount = (_bridgeOutOrInAmount < bridgeOutFee) ? 0 : (_bridgeOutOrInAmount - bridgeOutFee);
     }
 }
