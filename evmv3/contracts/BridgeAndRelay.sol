@@ -287,26 +287,22 @@ contract BridgeAndRelay is BridgeAbstract {
         // todo: add transfer limit check
         // _checkLimit(_amount, _toChain, _token);
 
+        // emit MessageOut
         // messageType,fromChain,toChain,gasLimit,token,amount,to
         inEvent.orderId = _messageOut(false, false, _initiator, sender, inEvent);
 
         inEvent.swapData = msgData.swapData;
         inEvent.from = Helper._toBytes(sender);
 
-        if (msgData.relay && inEvent.swapData.length != 0) {
-            (inEvent.token, inEvent.amount, inEvent.to, inEvent.swapData) = this.relayExecute(
-                inEvent.token,
-                inEvent.amount,
-                sender,
-                inEvent,
-                bytes("")
-            );
-        }
-        _checkBridgeable(inEvent.token, inEvent.toChain);
         address caller = (trustList[sender] == 0x01) ? _initiator : sender;
-        inEvent.amount = _collectFee(Helper._toBytes(caller), inEvent, false);
-        if (inEvent.amount == 0) revert in_amount_low();
-        _swapRelay(inEvent);
+        bytes memory initiator = Helper._toBytes(caller);
+
+        inEvent.amount = _collectFromFee(initiator, inEvent);
+        if (inEvent.amount == 0) {
+            revert in_amount_low();
+        }
+
+        _swapRelay(true, msgData.relay, initiator, inEvent, bytes(""));
 
         return inEvent.orderId;
     }
@@ -373,14 +369,11 @@ contract BridgeAndRelay is BridgeAbstract {
             _payload
         );
 
-        if (outEvent.messageType == uint8(MessageType.MESSAGE) && outEvent.toChain == selfChainId) {
-            _transferIn(outEvent, true, true);
-        } else if (outEvent.toChain == selfChainId) {
-            if (outEvent.amount != 0 && outEvent.swapData.length != 0)
-                _AffiliateRelay(true, initiator, outEvent, _retryMessage);
-        } else {
-            _messageRelay(true, true, initiator, outEvent, _retryMessage);
+        if (outEvent.messageType == uint8(MessageType.MESSAGE)) {
+            return _transferRelay(true, true, initiator, outEvent, _retryMessage);
         }
+
+        _swapRelay(true, true, initiator, outEvent, _retryMessage);
     }
 
     function relayExecute(
@@ -419,115 +412,104 @@ contract BridgeAndRelay is BridgeAbstract {
         if (_chainId != _outEvent.fromChain) revert invalid_chain_id();
 
         MessageInEvent memory inEvent = _swapInToken(_outEvent);
-        if (inEvent.toChain != selfChainId) {
-            if (inEvent.messageType != uint8(MessageType.MESSAGE)) {
-                inEvent.amount = _collectFromFee(_outEvent.initiator, inEvent);
-                if (inEvent.amount == 0) {
-                    return _emitMessageIn(_outEvent.initiator, inEvent, false, 0, "InsufficientToken");
-                }
-            }
-            return _messageRelay(_revertError, _outEvent.relay, _outEvent.initiator, inEvent, bytes(""));
-        }
-        // inEvent.toChain == selfChainId
         if (inEvent.messageType == uint8(MessageType.MESSAGE)) {
-            _transferIn(inEvent, true, _revertError);
+            return _transferRelay(_revertError, _outEvent.relay, _outEvent.initiator, inEvent, bytes(""));
         } else if (inEvent.messageType == uint8(MessageType.DEPOSIT)) {
-            _deposit(
-                inEvent.token,
-                inEvent.from,
-                Helper._fromBytes(inEvent.to),
-                inEvent.amount,
-                inEvent.orderId,
-                inEvent.fromChain
-            );
-        } else {
-            if (_outEvent.relay && inEvent.swapData.length != 0) {
-                return _AffiliateRelay(_revertError, _outEvent.initiator, inEvent, bytes(""));
-            }
-            // collect fee
-            inEvent.amount = _collectFee(_outEvent.initiator, inEvent, false);
-            if (inEvent.amount == 0) {
-                return _emitMessageIn(_outEvent.initiator, inEvent, false, 0, "InsufficientToken");
-            }
-            _swapIn(inEvent);
+            return
+                _deposit(
+                    inEvent.token,
+                    inEvent.from,
+                    Helper._fromBytes(inEvent.to),
+                    inEvent.amount,
+                    inEvent.orderId,
+                    inEvent.fromChain
+                );
         }
+
+        inEvent.amount = _collectFromFee(_outEvent.initiator, inEvent);
+        if (inEvent.amount == 0) {
+            if (_revertError) {
+                revert insufficient_token();
+            }
+            return _emitMessageIn(_outEvent.initiator, inEvent, false, 0, "InsufficientToken");
+        }
+
+        _swapRelay(_revertError, _outEvent.relay, _outEvent.initiator, inEvent, bytes(""));
     }
 
-    function _AffiliateRelay(
-        bool _revertError,
-        bytes memory _initiator,
-        MessageInEvent memory _inEvent,
-        bytes memory _retryMessage
-    ) internal {
-        uint256 gasLeft = gasleft();
-        try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, _retryMessage)
-        returns (address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage) {
-            _inEvent.token = tokenOut;
-            _inEvent.amount = amountOut;
-            _inEvent.to = target;
-            _inEvent.swapData = newMessage;
-        } catch Error(string memory reason) {
-            if (_revertError) {
-                revert(reason);
-            }
-            return _emitMessageIn(_initiator, _inEvent, false, gasLeft, bytes(reason));
-        } catch (bytes memory reason) {
-            if (_revertError) {
-                revert bubbling(reason);
-            }
-            return _emitMessageIn(_initiator, _inEvent, false, gasLeft, reason);
-        }
-        _inEvent.amount = _collectFee(_initiator, _inEvent, false);
-        if (_inEvent.amount == 0) {
-            return _emitMessageIn(_initiator, _inEvent, false, 0, "InsufficientToken");
-        }
-        _swapIn(_inEvent);
-    }
-
-    function _messageRelay(
+    // process message on relay chain
+    function _transferRelay(
         bool _revertError,
         bool _relay,
         bytes memory _initiator,
         MessageInEvent memory _inEvent,
         bytes memory _retryMessage
     ) internal {
+        if (_inEvent.toChain == selfChainId) {
+            return _transferIn(_inEvent, true, _revertError);
+        }
+
         if (_relay) {
-            uint256 gasLeft = gasleft();
-            try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, _retryMessage) returns (
-                address tokenOut,
-                uint256 amountOut,
-                bytes memory target,
-                bytes memory newMessage
-            ) {
-                _inEvent.token = tokenOut;
-                _inEvent.amount = amountOut;
-                _inEvent.to = target;
-                _inEvent.swapData = newMessage;
-            } catch Error(string memory reason) {
-                if (_revertError) {
-                    revert(reason);
-                }
-                return _emitMessageIn(_initiator, _inEvent, false, gasLeft, bytes(reason));
-            } catch (bytes memory reason) {
-                if (_revertError) {
-                    revert bubbling(reason);
-                }
-                return _emitMessageIn(_initiator, _inEvent, false, gasLeft, reason);
+            bool result;
+            (result, , , , _inEvent.swapData) = _relayExecute(_revertError, _initiator, _inEvent, _retryMessage);
+            if (!result) {
+                return;
             }
         }
 
-        if (_inEvent.messageType == uint8(MessageType.MESSAGE)) {
-            _emitMessageRelay(_inEvent, Helper._toBytes(ZERO_ADDRESS), 0);
-        } else {
-            _inEvent.amount = _collectFee(_initiator, _inEvent, true);
-            if (_inEvent.amount == 0) {
-                return _emitMessageIn(_initiator, _inEvent, false, 0, "InsufficientToken");
-            }
-
-            _swapRelay(_inEvent);
-        }
+        _emitMessageRelay(_inEvent, Helper._toBytes(ZERO_ADDRESS), 0);
     }
 
+    // swap process on relay chain
+    // a. check and relay execute
+    // b. collect to chain fee
+    // c. swapIn or swapRelay
+    function _swapRelay(
+        bool _revertError,
+        bool _relay,
+        bytes memory _initiator,
+        MessageInEvent memory _inEvent,
+        bytes memory _retryMessage
+    ) internal {
+        if (_relay && _inEvent.swapData.length != 0) {
+            bool result;
+            (result, _inEvent.token, _inEvent.amount, _inEvent.to, _inEvent.swapData) = _relayExecute(
+                _revertError,
+                _initiator,
+                _inEvent,
+                _retryMessage
+            );
+            if (!result) {
+                return;
+            }
+        }
+        _checkBridgeable(_inEvent.token, _inEvent.toChain);
+
+        // collect fee
+        _inEvent.amount = _collectFee(_initiator, _inEvent, true);
+        if (_inEvent.amount == 0) {
+            if (_revertError) {
+                revert insufficient_token();
+            } else {
+                return _emitMessageIn(_initiator, _inEvent, false, 0, "InsufficientToken");
+            }
+        }
+
+        if (_inEvent.toChain == selfChainId) {
+            return _swapIn(_inEvent);
+        }
+        bytes memory toToken = tokenRegister.getToChainToken(_inEvent.token, _inEvent.toChain);
+        if (Helper._checkBytes(toToken, bytes(""))) revert out_token_not_registered();
+
+        uint256 toAmount = tokenRegister.getToChainAmount(_inEvent.token, _inEvent.amount, _inEvent.toChain);
+
+        _checkAndBurn(_inEvent.token, _inEvent.amount);
+
+        // messageType,orderId,fromChain,toChain,gasLimit,to,from,swapData
+        _emitMessageRelay(_inEvent, toToken, toAmount);
+    }
+
+    // MessageOutEvent to MessageInEvent with relay chain token and amount
     function _swapInToken(MessageOutEvent memory _outEvent) internal returns (MessageInEvent memory inEvent) {
         if (_outEvent.messageType != uint8(MessageType.MESSAGE)) {
             inEvent.token = tokenRegister.getRelayChainToken(_outEvent.fromChain, _outEvent.token);
@@ -591,11 +573,6 @@ contract BridgeAndRelay is BridgeAbstract {
         _notifyLightClient(_inEvent.toChain);
     }
 
-    function _getToChainAmount(address _token, uint256 _amount, uint256 _toChain) internal returns (uint256 toAmount) {
-        _checkAndBurn(_token, _amount);
-        toAmount = tokenRegister.getToChainAmount(_token, _amount, _toChain);
-    }
-
     function _getChainTopic(ChainType _chainType) internal pure returns (bytes memory topic) {
         if (_chainType == ChainType.TON) {
             topic = NonEvmDecoder.TON_TOPIC;
@@ -606,16 +583,44 @@ contract BridgeAndRelay is BridgeAbstract {
         }
     }
 
-    function _swapRelay(MessageInEvent memory inEvent) internal {
-        bytes memory toToken = tokenRegister.getToChainToken(inEvent.token, inEvent.toChain);
-        if (Helper._checkBytes(toToken, bytes(""))) revert out_token_not_registered();
-
-        uint256 toAmount = tokenRegister.getToChainAmount(inEvent.token, inEvent.amount, inEvent.toChain);
-
-        _checkAndBurn(inEvent.token, inEvent.amount);
-
-        // messageType,orderId,fromChain,toChain,gasLimit,to,from,swapData
-        _emitMessageRelay(inEvent, toToken, toAmount);
+    function _relayExecute(
+        bool _revert,
+        bytes memory _initiator,
+        MessageInEvent memory _inEvent,
+        bytes memory _retryMessage
+    )
+        internal
+        returns (bool result, address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage)
+    {
+        if (_revert) {
+            (tokenOut, amountOut, target, newMessage) = this.relayExecute(
+                _inEvent.token,
+                _inEvent.amount,
+                msg.sender,
+                _inEvent,
+                _retryMessage
+            );
+            return (true, tokenOut, amountOut, target, newMessage);
+        }
+        uint256 gasLeft = gasleft();
+        try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, _retryMessage) returns (
+            address execTokenOut,
+            uint256 execAmountOut,
+            bytes memory execTarget,
+            bytes memory execMessage
+        ) {
+            tokenOut = execTokenOut;
+            amountOut = execAmountOut;
+            target = execTarget;
+            newMessage = execMessage;
+        } catch Error(string memory reason) {
+            _emitMessageIn(_initiator, _inEvent, false, gasLeft, bytes(reason));
+            return (false, tokenOut, amountOut, target, newMessage);
+        } catch (bytes memory reason) {
+            _emitMessageIn(_initiator, _inEvent, false, gasLeft, reason);
+            return (false, tokenOut, amountOut, target, newMessage);
+        }
+        return (true, tokenOut, amountOut, target, newMessage);
     }
 
     function _pack(
@@ -627,7 +632,15 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes memory swapData,
         uint256 amount
     ) internal pure returns (bytes memory packed) {
-        uint256 word = _getWord(uint256(messageType), token.length, mos.length, from.length, to.length, swapData.length, amount);
+        uint256 word = _getWord(
+            uint256(messageType),
+            token.length,
+            mos.length,
+            from.length,
+            to.length,
+            swapData.length,
+            amount
+        );
         packed = abi.encodePacked(word, token, mos, from, to, swapData);
     }
 
@@ -688,6 +701,9 @@ contract BridgeAndRelay is BridgeAbstract {
 
     function _collectFromFee(bytes memory _caller, MessageInEvent memory _event) internal returns (uint256 outAmount) {
         uint256 proportionFee = tokenRegister.getTransferInFee(_caller, _event.token, _event.amount, _event.fromChain);
+        if (proportionFee == 0) {
+            return _event.amount;
+        }
         if (_event.amount > proportionFee) {
             outAmount = _event.amount - proportionFee;
         } else {
@@ -698,6 +714,8 @@ contract BridgeAndRelay is BridgeAbstract {
         _collectBridgeFee(_event, 0, proportionFee, _event.amount, 0, true);
     }
 
+    // _toChainOnly: only collect toChain fee then when setting `true`,
+    //               as swapping on relay chain, fromChain token and toChain token are different
     function _collectFee(
         bytes memory _caller,
         MessageInEvent memory _event,

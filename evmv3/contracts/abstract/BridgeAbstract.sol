@@ -56,6 +56,7 @@ abstract contract BridgeAbstract is
     error invalid_bridge_log();
     error invalid_pack_version();
     error in_amount_low();
+    error insufficient_token();
 
     error token_not_registered();
     error zero_address();
@@ -217,6 +218,7 @@ abstract contract BridgeAbstract is
         feeList[receiverFeeAddress][_feeToken] += amount;
     }
 
+    // message in
     function _transferIn(MessageInEvent memory _inEvent, bool _gasleft, bool _revertError) internal {
         address to = Helper._fromBytes(_inEvent.to);
 
