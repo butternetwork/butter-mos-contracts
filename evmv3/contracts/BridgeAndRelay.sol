@@ -486,7 +486,7 @@ contract BridgeAndRelay is BridgeAbstract {
         //if bridge from relay chain _checkBridgeable
         if(_inEvent.fromChain == selfChainId) _checkBridgeable(_inEvent.token, _inEvent.toChain);
         // collect to chain fee
-        _inEvent.amount = _collectFee(_initiator, _inEvent, true);
+        _inEvent.amount = _collectTochainFee(_initiator, _inEvent);
         if (_inEvent.amount == 0) {
             if (_revertError) {
                 revert insufficient_token();
@@ -701,49 +701,35 @@ contract BridgeAndRelay is BridgeAbstract {
 
     function _collectFromFee(bytes memory _caller, MessageInEvent memory _event) internal returns (uint256 outAmount) {
         uint256 proportionFee = tokenRegister.getTransferInFee(_caller, _event.token, _event.amount, _event.fromChain);
-        if (proportionFee == 0) {
-            return _event.amount;
-        }
+        // if (proportionFee == 0) {
+        //     return _event.amount;
+        // }
         if (_event.amount > proportionFee) {
             outAmount = _event.amount - proportionFee;
         } else {
             proportionFee = _event.amount;
             outAmount = 0;
         }
-
-        _collectBridgeFee(_event, 0, proportionFee, _event.amount, 0, true);
+        uint256 fromAmount = (_event.fromChain == selfChainId) ? 0 : _event.amount;
+        _collectBridgeFee(_event, 0, proportionFee, fromAmount, 0, true);
     }
 
     // _toChainOnly: only collect toChain fee then when setting `true`,
     //               as swapping on relay chain, fromChain token and toChain token are different
-    function _collectFee(
+    function _collectTochainFee(
         bytes memory _caller,
-        MessageInEvent memory _event,
-        bool _toChainOnly
+        MessageInEvent memory _event
     ) internal returns (uint256 outAmount) {
         uint256 proportionFee;
         uint256 baseFee;
-
-        if (_toChainOnly) {
-            (, baseFee, proportionFee) = tokenRegister.getTransferOutFee(
-                _caller,
-                _event.token,
-                _event.amount,
-                _event.fromChain,
-                _event.toChain,
-                _event.swapData.length != 0
-            );
-        } else {
-            (, baseFee, proportionFee) = tokenRegister.getTransferFeeV3(
-                _caller,
-                _event.token,
-                _event.amount,
-                _event.fromChain,
-                _event.toChain,
-                _event.swapData.length != 0
-            );
-        }
-
+        (, baseFee, proportionFee) = tokenRegister.getTransferOutFee(
+            _caller,
+            _event.token,
+            _event.amount,
+            _event.fromChain,
+            _event.toChain,
+            _event.swapData.length != 0
+        );
         if (_event.amount > baseFee + proportionFee) {
             outAmount = _event.amount - baseFee - proportionFee;
         } else if (_event.amount >= baseFee) {
@@ -752,9 +738,7 @@ contract BridgeAndRelay is BridgeAbstract {
             baseFee = _event.amount;
             proportionFee = 0;
         }
-
-        uint256 fromAmount = _toChainOnly ? 0 : _event.amount;
-
+        uint256 fromAmount = (_event.fromChain == selfChainId) ? _event.amount : 0;
         _collectBridgeFee(_event, baseFee, proportionFee, fromAmount, outAmount, false);
     }
 
