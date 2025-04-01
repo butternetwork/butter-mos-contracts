@@ -1,0 +1,153 @@
+#include "imports/stdlib.fc";
+#include "imports/params.fc";
+#include "imports/message.fc";
+#include "imports/utils.fc";
+#include "imports/error_codes.fc";
+
+#include "data.fc";
+
+const slice BRIDGE_USDT_JETTON_WALLET = "kQBR3Bu987pUdhO1g514-B4XLeWHv5Td5zeB3oRx8KWvjPF5"a;
+
+(int) verify_signature(int expected_address, int sign_number, cell signs_cell, int hash) impure {
+    slice signs_slice = signs_cell.begin_parse();
+    cell sign_cell = signs_slice~load_ref();
+    slice sign_slice = sign_cell.begin_parse();
+
+    int pre_v = sign_slice~load_uint(8);
+    int v = (pre_v == 27) | (pre_v == 28) ? pre_v - 27 : pre_v;
+    int r = sign_slice~load_uint(256);
+    int s = sign_slice~load_uint(256);
+
+    int signed_hash = to_eth_signed_message_hash(hash);
+
+    (int success, int h, int x1, int x2) = ecrecover(signed_hash, v, r, s);
+    int recovered_address = pubkey_to_eth_address(h, x1);
+    return recovered_address == expected_address;
+}
+
+(int, int) verify_meta(cell meta_cell) impure {
+    slice meta_slice = meta_cell.begin_parse();
+    int receipt_root = meta_slice~load_uint(256);
+    int version = meta_slice~load_uint(256);
+    int block_num = meta_slice~load_uint(256);
+    int chain_id = meta_slice~load_uint(64);
+
+    int expected_hash = get_meta_hash(receipt_root, version, block_num, chain_id);
+    return (expected_hash, chain_id);
+}
+
+(slice, int, int, cell, int) parse_packed_data(cell packed_cell) impure {
+    slice packed_ds = packed_cell.begin_parse();
+    int addr = packed_ds~load_uint(256);
+    cell topics = packed_ds~load_ref();
+    slice topics_ds = topics.begin_parse();
+    topics_ds~skip_bits(512);
+    int chain_gas_limit = topics_ds~load_uint(256);
+    int gas_limit = chain_gas_limit & ((1 << 64) - 1);
+
+    slice target = addr_none();
+
+    cell message = packed_ds~load_ref();
+    slice message_ds = message.begin_parse();
+    cell mh = message_ds~load_ref();
+    cell token_mos = message_ds~load_ref();
+    cell from_to = message_ds~load_ref();
+    cell payload = message_ds~load_ref();
+
+    slice mh_ds = mh.begin_parse();
+    cell meta = mh_ds~load_ref();
+    cell header = mh_ds~load_ref();
+
+    slice header_ds = header.begin_parse();
+    int version = header_ds~load_uint(8);
+    int message_type = header_ds~load_uint(8);
+    int token_len = header_ds~load_uint(8);
+    int mos_len = header_ds~load_uint(8);
+    int from_len = header_ds~load_uint(8);
+    int to_len = header_ds~load_uint(8);
+    int payload_len = header_ds~load_uint(16);
+    int reserved = header_ds~load_uint(64);
+    int token_amount = header_ds~load_uint(128);
+
+    slice token_mos_ds = token_mos.begin_parse();
+    slice token_addr = token_mos_ds~load_bits(token_len * 8);
+    slice mos_addr = token_mos_ds~load_bits(mos_len * 8);
+
+    slice from_to_ds = from_to.begin_parse();
+    slice from_addr = from_to_ds~load_bits(from_len * 8);
+    slice to_addr = from_to_ds~load_bits(to_len * 8);
+
+    builder addr_builder = begin_cell()
+        .store_uint(2, 2)
+        .store_uint(0, 1)  ;; anycast
+        .store_slice(to_addr);     ;; workchain + address (264 bits)
+
+    slice full_addr = addr_builder.end_cell().begin_parse();
+
+    return (full_addr, message_type, gas_limit, payload, token_amount);
+}
+
+() call_mapo_execute(slice to_addr, int gas_limit, cell payload) impure {
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(to_addr)
+        .store_coins(gas_limit)
+        .store_msgbody_prefix_ref(
+            begin_cell()
+                .store_op(op::mapo_execute)
+                .store_query_id(0)
+                .store_uint(1, 64) ;; from chain id
+                .store_uint(56, 64) ;; to chain id
+                .store_slice(my_address()) ;; sender address
+                .store_uint(2, 256) ;; order id
+                .store_ref(payload) ;; message
+                .end_cell())
+        .end_cell();
+
+    send_raw_message(msg, 64);
+}
+
+() handle_message_in(slice in_msg_body) impure {
+    int hash = in_msg_body~load_uint(256);
+
+    ;; Verify the signature
+    int expected_address = in_msg_body~load_uint(160);
+    int sign_number = in_msg_body~load_uint(8);
+    cell signs_cell = in_msg_body~load_ref();
+    int success = verify_signature(expected_address, sign_number, signs_cell, hash);
+    throw_unless(error::wrong_signature, success);
+
+    ;; Verify the meta
+    cell meta_cell = in_msg_body~load_ref();
+    (int expected_hash, int chain_id) = verify_meta(meta_cell);
+    throw_unless(error::wrong_meta, expected_hash == hash);
+
+    cell packed_cell = in_msg_body~load_ref();
+    (slice to_addr, int message_type, int gas_limit, cell payload, int token_amount) = parse_packed_data(packed_cell);
+
+    ;;
+    if (message_type == 1) {
+        call_mapo_execute(to_addr, gas_limit, payload);
+    } elseif (message_type == 3) {
+        var msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_slice(BRIDGE_USDT_JETTON_WALLET)
+            .store_coins(0)
+            .store_msgbody_prefix_ref(
+                begin_cell()
+                    .store_op(op::transfer)
+                    .store_query_id(0)
+                    .store_coins(token_amount)
+                    .store_slice(to_addr)
+                    .store_slice(my_address())
+                    .store_uint(0, 1)
+                    .store_coins(0)
+                    .store_int(false, 1)
+                    .end_cell()
+            );
+
+        return send_raw_message(msg.end_cell(), 64);
+    }
+
+    return ();
+}

@@ -1,0 +1,52 @@
+#include "imports/stdlib.fc";
+#include "imports/params.fc";
+#include "imports/message.fc";
+#include "imports/utils.fc";
+
+#include "data.fc";
+
+() handle_message_out(slice in_msg_body, slice from, slice token, int token_amount) impure {
+    int relay = in_msg_body~load_uint(8);
+    int msg_type = in_msg_body~load_uint(8);
+    int to_chain = in_msg_body~load_uint(64);
+    slice initiator = in_msg_body~load_msg_addr();
+
+    int remaining_bits = slice_bits(in_msg_body) - 64;
+    slice target = in_msg_body~load_bits(remaining_bits);
+
+    int gas_limit = in_msg_body~load_uint(64);
+
+    cell payload = in_msg_body~load_ref();
+
+    (int order_nonce) = load_data();
+
+    int new_order_nonce = order_nonce + 1;
+    slice my_address = my_address();
+    int full_order_id = get_order_id(my_address, new_order_nonce, to_chain, from, target);
+
+    emit_log_simple(LOG_MESSAGE_OUT,
+        begin_cell()
+            .store_ref(begin_cell()
+                .store_uint(relay, 8)
+                .store_uint(msg_type, 8)
+                .store_uint(TON_CHAIN_ID, 64)
+                .store_uint(to_chain, 64)
+                .store_uint(gas_limit, 64)
+                .store_slice(initiator)
+                .store_slice(from) ;; from
+                .end_cell()
+            )
+            .store_ref(begin_cell().store_slice(target).end_cell())
+            .store_ref(payload)
+            .store_ref(begin_cell()
+                .store_uint(full_order_id, 256)
+                .store_uint(MOS_ADDRESS, 256) ;; mos
+                .store_slice(token) ;; token
+                .store_uint(token_amount, 128).end_cell() ;; token amount
+            )
+            .end_cell(), 0);
+
+    save_data(new_order_nonce);
+    ;; update_order_nonce(new_order_nonce);
+
+}

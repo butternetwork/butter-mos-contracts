@@ -1,0 +1,207 @@
+#include "imports/stdlib.fc";
+#include "../imports/params.fc";
+#include "imports/op-codes.fc";
+
+;; Storage
+;; storage#_ order_nonce:uint256 jetton_master_address:MsgAddress = Storage;
+
+(int, slice) load_data() impure {
+    var ds = get_data().begin_parse();
+    return (
+        ds~load_uint(256),    ;; order_nonce
+        ds~load_msg_addr()    ;; jetton_master_address
+    );
+}
+
+() save_data(int order_nonce, slice jetton_master_address) impure {
+    set_data(
+        begin_cell()
+            .store_uint(order_nonce, 256)
+            .store_slice(jetton_master_address)
+            .end_cell()
+    );
+}
+
+const int MAX_BITS_PER_CELL = 1016;  ;; Maximum bits per cell
+
+;; Helper to load large uint across multiple cells
+(slice, int) load_large_uint(slice s, int total_bits) {
+    slice current = s;
+    int result = 0;
+
+    ;; If we don't have enough bits in current cell, load next cell
+    if (slice_bits(current) < total_bits) {
+        throw_unless(35, current.slice_refs() > 0);
+        current = current~load_ref().begin_parse();
+    }
+
+    result = current~load_uint(total_bits);
+    return (current, result);
+}
+
+;; Helper to load large bytes across multiple cells
+(slice, slice) load_large_bytes(slice s, int byte_length) {
+    int total_bits = byte_length * 8;
+    builder result = begin_cell();
+    slice current = s;
+
+    while (total_bits > 0) {
+        int available_bits = slice_bits(current);
+        int bits_to_read = min(total_bits, available_bits);
+
+        slice bits = current~load_bits(bits_to_read);
+        result = store_slice(result, bits);
+        total_bits -= bits_to_read;
+
+        if (total_bits > 0) {
+            throw_unless(35, current.slice_refs() > 0);
+            current = current~load_ref().begin_parse();
+        }
+    }
+
+    return (current, result.end_cell().begin_parse());
+}
+
+;; Extract specific fields from payload
+(int, slice) extract_fields(cell payload) {
+    slice ps = payload.begin_parse();
+
+    ;; Move to second cell
+    ps = ps~load_ref().begin_parse();
+
+    ;; Skip remaining 264 bits from first 5 fields
+    ps~skip_bits(512);
+
+    ;; Read amount
+    int amount = ps~load_uint(256);
+    ;; amount~dump();
+
+    ;; Move to third cell
+    ps = ps~load_ref().begin_parse();
+
+    ;; Move to fourth cell
+    ps = ps~load_ref().begin_parse();
+    ps~skip_bits(256);
+
+    ;; Read to_address (33 bytes = 264 bits)
+    slice to_addr = ps~load_bits(264);
+    to_addr~dump();
+
+    builder addr_builder = begin_cell()
+        .store_uint(2, 2)
+        .store_uint(0, 1)  ;; anycast
+        .store_slice(to_addr);     ;; workchain + address (264 bits)
+
+    slice full_addr = addr_builder.end_cell().begin_parse();
+
+    return (amount, full_addr);
+}
+
+(slice, int) decode_to_address_and_amount(slice payload) {
+    payload~skip_bits(256); ;; Skip INTERCHAIN_TRANSFER
+    payload~skip_bits(160); ;; Skip fromAddress
+
+    slice to_addr = payload~load_bits(264);
+    int amount = payload~load_uint(256);
+
+    builder addr_builder = begin_cell()
+        .store_uint(2, 2)
+        .store_uint(0, 1)  ;; anycast
+        .store_slice(to_addr);     ;; workchain + address (264 bits)
+
+    slice full_addr = addr_builder.end_cell().begin_parse();
+
+    return (full_addr, amount);
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) {
+        return ();
+    }
+
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    if (flags & 1) {
+        return ();
+    }
+
+    slice sender_address = cs~load_msg_addr();
+    int op = in_msg_body~load_uint(32);
+    int query_id = in_msg_body~load_uint(64);
+
+    (int order_nonce, slice jetton_master_address) = load_data();
+
+    if (op == op::mapo_execute) {
+        ;; Parse cross-chain mint parameters
+        int from_id = in_msg_body~load_uint(64);
+        int to_id = in_msg_body~load_uint(64);
+        slice sender_address = in_msg_body~load_msg_addr();  ;; Recipient address
+        int order_id = in_msg_body~load_uint(256);      ;; Amount to mint
+        cell payload = in_msg_body~load_ref();          ;; Payload
+        order_id~dump();
+        ;; (slice to_user_address, int amount) = decode_to_address_and_amount(payload.begin_parse());
+        (int amount, slice to_user_address) = extract_fields(payload);
+        amount~dump();
+        to_user_address~dump();
+
+        ;; Prepare mint message for Jetton master
+        cell mint_msg = begin_cell()
+            .store_uint(op::mint, 32)           ;; op for minting
+            .store_uint(query_id, 64)             ;; query_id
+            .store_slice(to_user_address)              ;; destination address
+            .store_coins(30000000)                ;; amount of TONs to send with internal_transfer
+            .store_ref(                           ;; ref with internal_transfer message
+                begin_cell()
+                    .store_uint(op::internal_transfer, 32)
+                    .store_uint(query_id, 64)
+                    .store_coins(amount)          ;; amount of jettons to mint
+                    .store_slice(my_address())    ;; from address (this contract)
+                    .store_slice(sender_address)      ;; response destination address
+                    .store_coins(0)               ;; forward_ton_amount
+                    .store_uint(0, 1)             ;; forward_payload in this slice, not separate cell
+                    .end_cell()
+            )
+            .end_cell();
+
+        ;; Send mint message to Jetton master
+        var msg = begin_cell()
+            .store_uint(0x18, 6)                  ;; nobounce - int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 011000
+            .store_slice(jetton_master_address)
+            .store_coins(40000000)                ;; 0.04 TON for minting
+            .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)  ;; minimal header info
+            .store_ref(mint_msg);
+
+        send_raw_message(msg.end_cell(), 1);  ;; mode 1 to send excess gas back
+
+        ;; Update order nonce
+        order_nonce = order_nonce + 1;
+        save_data(order_nonce, jetton_master_address);
+        return ();
+    } elseif(op == op::upgrade) {
+        cell new_code = in_msg_body~load_ref();
+        set_code(new_code);
+        set_c3(new_code.begin_parse().bless());
+    } elseif (op == op::set_jetton_master) {
+        slice new_jetton_master = in_msg_body~load_msg_addr();
+        save_data(order_nonce, new_jetton_master);
+        return ();
+    } else {
+        throw(0xffff);
+    }
+}
+
+;; Get methods
+int get_order_nonce() method_id {
+    (int order_nonce, _) = load_data();
+    return order_nonce;
+}
+
+int get_order_nonce_5() method_id {
+    (int order_nonce, _) = load_data();
+    return order_nonce + 100;
+}
+
+slice get_jetton_master_address() method_id {
+    (_, slice jetton_master_address) = load_data();
+    return jetton_master_address;
+}

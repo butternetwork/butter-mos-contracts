@@ -1,0 +1,21 @@
+#include "imports/stdlib.fc";
+#include "imports/params.fc";
+#include "imports/error_codes.fc";
+
+#include "out.fc";
+#include "data.fc";
+
+;; This operation is called when the contract receives a notification about a token transfer
+() handle_transfer_notification(slice sender_address, slice in_msg_body) impure {
+    (int jetton_amount, slice from) = (in_msg_body~load_coins(), in_msg_body~load_msg_addr());
+
+    cell cs = in_msg_body~load_ref();
+    slice ds = cs.begin_parse();
+    int op = ds~load_uint(32);
+
+    if (op == op::message_out) {
+        handle_message_out(ds, from, sender_address, jetton_amount);
+    } else {
+        throw(0xffff); ;; if the message contains an op that is not known to this contract, we throw
+    }
+}

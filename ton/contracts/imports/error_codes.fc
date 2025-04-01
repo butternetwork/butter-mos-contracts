@@ -1,0 +1,6 @@
+
+const int error::wrong_signature = 600;
+const int error::wrong_meta = 601;
+const int error::token_not_whitelisted = 602;
+const int error::not_owner = 603;
+

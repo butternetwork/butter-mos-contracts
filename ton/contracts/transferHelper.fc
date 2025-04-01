@@ -1,0 +1,51 @@
+
+
+
+() handle_withdraw_jetton(slice jetton_wallet_address, int amount, slice owner_address) impure inline {
+    
+    cell msg = begin_cell()
+        .store_uint(0xf8a7ea5, 32)  ;; transfer op
+        .store_uint(0, 64)           ;; query id
+        .store_coins(amount)         ;; amount
+        .store_slice(owner_address)  ;; destination
+        .store_slice(owner_address)  ;; response destination
+        .store_uint(0, 1)           ;; no custom payload
+        .store_coins(0)             ;; forward amount
+        .store_uint(0, 1)           ;; no forward payload
+        .end_cell();
+
+    ;; 发送消息
+    send_raw_message(begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(jetton_wallet_address)
+        .store_coins(50000000)  ;; 0.05 TON for gas
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)       ;; we want to pay transfer fees separately
+        .store_ref(msg)
+        .end_cell(), 1);
+}
+
+;; () handle_withdraw_jetton(slice withdrawer, slice sender_address, int query_id, slice in_msg_body) impure {
+;;     throw_unless(error::unauthorized_withdraw, equal_slice_bits(withdrawer, sender_address));
+
+;;     slice child_wallet =  in_msg_body~load_msg_addr();
+;;     int amount =  in_msg_body~load_coins();
+;;     cell custom_payload = in_msg_body~load_maybe_ref();
+
+;;     var msg = begin_cell()
+;;         .store_uint(msg_flag::bounceable, 6)
+;;         .store_slice(child_wallet)
+;;         .store_coins(0)
+;;         .store_msgbody_prefix_ref(
+;;             begin_cell()
+;;                 .store_op(op::transfer)
+;;                 .store_query_id(query_id)
+;;                 .store_coins(amount)
+;;                 .store_slice(withdrawer)
+;;                 .store_slice(withdrawer)
+;;                 .store_maybe_ref(custom_payload)
+;;                 .store_coins(0)
+;;                 .store_int(false, 1)
+;;                 .end_cell()
+;;         );
+;;     send_raw_message(msg.end_cell(), 64);
+;; }

@@ -1,0 +1,103 @@
+#include "stdlib.fc";
+
+;;; Recovers public key from signature, identical to Bitcoin/Ethereum operations.
+;;; Takes 32-byte hash as uint256 hash;
+;;; 65-byte signature as uint8 v and uint256 r, s.
+;;; Returns 0 on failure, public key and -1 on success. 65-byte public key is returned as uint8 h, uint256 x1, x2.
+(int, int, int, int) ecrecover(int hash, int v, int r, int s) asm "ECRECOVER";
+
+int keccak256(slice s, int n) asm "HASHEXT_KECCAK256";
+int keccak256_2(slice s1, slice s2, int n) asm "HASHEXT_KECCAK256";
+
+(slice) convert_hash_to_hex_string(int hash, int hasPrefix) inline {
+    int length = 64; ;; 256 bits = 64 hex characters
+    builder result = begin_cell();
+
+    if (hasPrefix == 1) {
+        result = result.store_uint(0x3078, 16); ;; "0x" in ASCII
+    }
+
+    int i = 0;
+    repeat(length) {
+        int shift = (length - 1 - i) * 4;
+        int digit = (hash >> shift) & 0xF;
+        int ascii_code = digit + (digit < 10 ? 48 : 87); ;; 0-9 -> 48-57, a-f -> 97-102
+        result = result.store_uint(ascii_code, 8);
+        i = i + 1;
+    }
+
+    return result.end_cell().begin_parse();
+}
+
+int get_keccak256_hash() method_id {
+    cell data_cell = begin_cell()
+        .store_uint(1, 256)
+        .store_uint(2, 256)
+        .end_cell();
+
+    slice data_slice = data_cell.begin_parse();
+
+    return keccak256(data_slice, 512);
+}
+
+;;; Converts public key components to Ethereum address
+;; @param x1: first uint256 component of the public key
+;; @param x2: second uint256 component of the public key
+;; @returns: uint160 Ethereum address
+int pubkey_to_eth_address(int x1, int x2) {
+    ;; Combine x1 and x2 into a single slice
+    ;; slice prefix = begin_cell().store_uint(0x3078, 16).end_cell().begin_parse();
+    slice x1r = begin_cell().store_uint(x1, 256).end_cell().begin_parse();
+    slice x2r = begin_cell().store_uint(x2, 256).end_cell().begin_parse();
+    ;; slice x1 = convert_hash_to_hex_string(x1, 0);
+    ;; slice x2 = convert_hash_to_hex_string(x2, 0);
+    ;; prefix~dump();
+    ;; x1r~dump();
+    ;; x2r~dump();
+
+    slice pubkey = begin_cell().store_uint(x1, 256).store_uint(x2, 256).end_cell().begin_parse();
+
+    ;; Calculate Keccak-256 hash of the public key
+    int hash = keccak256(pubkey, 1);
+
+    ;; Take the last 20 bytes (160 bits) of the hash
+    return hash & ((1 << 160) - 1);
+}
+
+slice get_eth_prefix_precomputed() inline {
+    return begin_cell()
+        .store_uint(0x19457468, 32)
+        .store_uint(0x65726575, 32)
+        .store_uint(0x6d205369, 32)
+        .store_uint(0x676e6564, 32)
+        .store_uint(0x204d6573, 32)
+        .store_uint(0x73616765, 32)
+        .store_uint(0x3a0a, 16) ;; ":\n" in ASCII
+        .end_cell().begin_parse();
+}
+
+int to_eth_signed_message_hash(int hash) inline {
+    slice prefix = get_eth_prefix_precomputed();
+    slice len_str = begin_cell().store_uint(0x3332, 16).end_cell().begin_parse();
+    slice hex_string = convert_hash_to_hex_string(hash, 1);
+
+    cell full_message = begin_cell()
+        .store_slice(prefix)
+        .store_slice(len_str)
+        .store_slice(begin_cell().store_uint(hash, 256).end_cell().begin_parse())
+        .end_cell();
+
+    return keccak256(full_message.begin_parse(), 1);
+}
+
+int get_meta_hash(int receipt_root, int version, int block_num, int chain_id) inline  {
+    slice left = begin_cell()
+        .store_uint(receipt_root, 256)
+        .store_uint(version, 256)
+        .store_uint(block_num, 256)
+        .end_cell().begin_parse();
+
+    slice right = begin_cell().store_uint(chain_id, 256).end_cell().begin_parse();
+
+    return keccak256_2(left, right, 2);
+}

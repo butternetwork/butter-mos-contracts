@@ -1,0 +1,39 @@
+#include "stdlib.fc";
+
+builder store_msgbody_prefix_slice(builder b) inline {
+    return b.store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1);
+}
+builder store_msgbody_prefix_ref(builder b, cell ref) inline {
+    return b.store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1).store_ref(ref);
+}
+
+builder store_op(builder b, int op) inline { return b.store_uint(op, 32); }
+builder store_query_id(builder b, int query_id) inline { return b.store_uint(query_id, 64); }
+
+builder create_msg(int flags, slice to_address, int value) inline {
+    return begin_cell()
+        .store_uint(flags, 6)
+        .store_slice(to_address)
+        .store_coins(value)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1);
+}
+
+() emit_log_simple (int event_id, cell data, int need_separate_cell) impure inline {
+    ;; 1023 - (4+2+9+256+64+32+2) = 654 bit free
+
+    var msg = begin_cell()
+        .store_uint (12, 4)         ;; ext_out_msg_info$11 src:MsgAddressInt ()
+        .store_uint (1, 2)          ;; addr_extern$01
+        .store_uint (256, 9)        ;; len:(## 9)
+        .store_uint(event_id, 256); ;; external_address:(bits len)
+
+    if (need_separate_cell) {
+        msg = msg.store_uint(1, 64 + 32 + 2) ;; created_lt, created_at, init:Maybe, body:Either
+            .store_ref(data);
+    } else {
+        msg = msg.store_uint(0, 64 + 32 + 2) ;; created_lt, created_at, init:Maybe, body:Either
+            .store_slice(data.begin_parse());
+    }
+
+    send_raw_message(msg.end_cell(), 0);
+}
