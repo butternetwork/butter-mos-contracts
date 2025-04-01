@@ -1,0 +1,62 @@
+#include "imports/stdlib.fc";
+
+;; load_data populates storage variables using stored data
+(int) load_data() impure {
+    var ds = get_data().begin_parse();
+
+    ;; Order nonce, used to track bridge operations (ton -> other chain)
+    int order_nonce = ds~load_uint(256);
+    return (order_nonce);
+}
+
+;; save_data stores storage variables as a cell into persistent storage
+() save_data(int order_nonce) impure {
+    ;; set_data(
+    ;;     begin_cell()
+    ;;         .store_uint(order_nonce, 256)
+    ;;         .end_cell()
+    ;; );
+    slice ds = get_data().begin_parse();
+    ds~load_uint(256); 
+    cell whitelist_dict = ds~load_dict();
+    slice owner = ds~load_msg_addr();
+    
+    set_data(
+        begin_cell()
+            .store_uint(order_nonce, 256)
+            .store_dict(whitelist_dict)
+            .store_slice(owner)
+            .end_cell()
+    );
+}
+
+
+(int, cell, slice) load_storage_data() impure {
+    slice ds = get_data().begin_parse();
+    int nonce = ds~load_uint(256);
+    cell whitelist = ds~load_dict();
+    slice owner = ds~load_msg_addr();
+    return (nonce, whitelist, owner);
+}
+
+
+() save_storage_data(int order_nonce, cell whitelist_dict, slice owner_address) impure {
+    set_data(
+        begin_cell()
+            .store_uint(order_nonce, 256)
+            .store_dict(whitelist_dict)
+            .store_slice(owner_address)
+            .end_cell()
+    );
+}
+
+
+(cell) handle_add_to_whitelist(slice token_address, cell whitelist_dict) inline {
+    whitelist_dict~udict_set(267, slice_hash(token_address), begin_cell().end_cell().begin_parse());
+    return whitelist_dict;
+}
+
+(cell) handle_remove_from_whitelist(slice token_address, cell whitelist_dict) inline {
+    whitelist_dict~udict_delete?(267, slice_hash(token_address));
+    return whitelist_dict;
+}

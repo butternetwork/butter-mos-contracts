@@ -1,0 +1,96 @@
+#include "imports/stdlib.fc";
+#include "imports/crypto.fc";
+#include "imports/params.fc";
+#include "imports/message.fc";
+#include "imports/error_codes.fc";
+#include "imports/utils.fc";
+
+#include "data.fc";
+#include "in.func";
+#include "out.fc";
+#include "notification.fc";
+#include "transferHelper.fc";
+
+;; recv_internal is the main function of the contract and is called when it receives a message from other contracts
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { ;; ignore all empty messages
+        return ();
+    }
+
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    if (flags & 1) { ;; ignore all bounced messages
+        return ();
+    }
+
+    slice sender_address = cs~load_msg_addr();
+
+    var (order_nonce, whitelist_dict, owner) = load_storage_data();
+
+    int op = in_msg_body~load_uint(32); ;; by convention, the first 32 bits of incoming message is the op
+    int query_id = in_msg_body~load_uint(64); ;; also by convention, the next 64 bits contain the "query id", although this is not always the case
+
+    if (op == op::message_out) {
+        handle_message_out(in_msg_body, sender_address, addr_none(), 0);
+    } elseif (op == op::test_call_mapo_execute) {
+        slice to = in_msg_body~load_bits(267);
+        int gas_limit = in_msg_body~load_uint(64);
+        cell payload = in_msg_body~load_ref();
+        call_mapo_execute(to, gas_limit, payload);
+    } elseif (op == op::upgrade) {
+        throw_unless(603, equal_slices(sender_address, owner));
+        cell new_code = in_msg_body~load_ref();
+        set_code(new_code);
+        save_storage_data(order_nonce, whitelist_dict, owner);
+        set_c3(new_code.begin_parse().bless());
+        return ();
+    } elseif (op == op::message_in) {
+        handle_message_in(in_msg_body);
+    } elseif (op == op::transfer_notification) {
+        (_, int found) = whitelist_dict.udict_get?(267, slice_hash(sender_address));
+        throw_unless(602, found);
+        handle_transfer_notification(sender_address, in_msg_body);
+    } elseif (op == op::add_to_whitelist) {
+        throw_unless(603, equal_slices(sender_address, owner));
+        slice token_address = in_msg_body~load_msg_addr();
+        whitelist_dict = handle_add_to_whitelist(token_address, whitelist_dict);
+        save_storage_data(order_nonce, whitelist_dict, owner);
+        return ();
+    } elseif (op == op::remove_from_whitelist) {
+        throw_unless(603, equal_slices(sender_address, owner));
+        slice token_address = in_msg_body~load_msg_addr();
+        whitelist_dict = handle_remove_from_whitelist(token_address, whitelist_dict);
+        save_storage_data(order_nonce, whitelist_dict, owner);
+        return ();
+    } elseif (op == op::withdraw_jetton) {
+        slice jetton_wallet_address = in_msg_body~load_msg_addr();
+        (_, int found) = whitelist_dict.udict_get?(267, slice_hash(jetton_wallet_address));
+        throw_unless(602, found);
+        
+        int amount = in_msg_body~load_coins();
+        handle_withdraw_jetton(jetton_wallet_address, amount, owner);
+    } else {
+        throw(0xffff); ;; if the message contains an op that is not known to this contract, we throw
+    }
+}
+
+;; get methods are a means to conveniently read contract data using, for example, HTTP APIs
+;; they are marked with method_id
+;; note that unlike in many other smart contract VMs, get methods cannot be called by other contracts
+
+int get_order_nonce() method_id {
+    (int order_nonce)  = load_data();
+    return order_nonce;
+}
+
+;; Get contract owner
+(slice) get_owner() method_id {
+    (int order_nonce, cell whitelist_dict, slice owner) = load_storage_data();
+    return owner;
+}
+
+(int) is_whitelisted(slice token_address) method_id {
+    (_, cell whitelist_dict, _) = load_storage_data();
+    (_, int found) = whitelist_dict.udict_get?(267, slice_hash(token_address));
+    return found;
+}

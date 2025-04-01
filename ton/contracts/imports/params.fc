@@ -1,0 +1,24 @@
+
+;; const
+const int CHAIN_POOL_ID = 70;
+const TON_CHAIN_ID = 1360104473493506;
+const MOS_ADDRESS = 730755169160216306343173230460131865033014900808;
+
+;; op
+const int op::transfer = 0xf8a7ea5;
+const int op::message_in = "op::message_in"c;
+const int op::message_out = "op::message_out"c;
+const int op::mapo_execute = "op::mapo_execute"c;
+const int op::upgrade = "op::upgrade"c;
+const int op::test_call_mapo_execute = "op::test_call_mapo_execute"c;
+const int op::set_jetton_master = "op::set_jetton_master"c;
+
+const int op::add_to_whitelist = "op::add_to_whitelist"c;
+const int op::remove_from_whitelist = "op::remove_from_whitelist"c;
+
+const int op::withdraw_jetton = "op::withdraw_jetton"c;
+
+const int op::transfer_notification = 0x7362d09c;
+
+;; log
+const int LOG_MESSAGE_OUT = 0x34a7e0e8;

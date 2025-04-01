@@ -1,0 +1,56 @@
+#include "imports/stdlib.fc";
+#include "imports/params.fc";
+
+;; load_data populates storage variables using stored data
+(int) load_data() impure {
+    var ds = get_data().begin_parse();
+
+    ;; Order nonce, used to track bridge operations (ton -> other chain)
+    int order_nonce = ds~load_uint(256);
+    return (order_nonce);
+}
+
+;; save_data stores storage variables as a cell into persistent storage
+() save_data(int order_nonce) impure {
+    set_data(
+        begin_cell()
+            .store_uint(order_nonce, 256)
+            .end_cell()
+    );
+}
+
+;; recv_internal is the main function of the contract and is called when it receives a message from other contracts
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { ;; ignore all empty messages
+        return ();
+    }
+
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    if (flags & 1) { ;; ignore all bounced messages
+        return ();
+    }
+
+    slice sender_address = cs~load_msg_addr();
+
+    int op = in_msg_body~load_uint(32); ;; by convention, the first 32 bits of incoming message is the op
+    int query_id = in_msg_body~load_uint(64); ;; also by convention, the next 64 bits contain the "query id", although this is not always the case
+
+    int order_nonce = load_data();
+    if (op == op::mapo_execute) {
+        order_nonce = order_nonce + 1;
+        save_data(order_nonce);
+        return ();
+    } else {
+        throw(0xffff); ;; if the message contains an op that is not known to this contract, we throw
+    }
+}
+
+;; get methods are a means to conveniently read contract data using, for example, HTTP APIs
+;; they are marked with method_id
+;; note that unlike in many other smart contract VMs, get methods cannot be called by other contracts
+
+int get_order_nonce() method_id {
+    (int order_nonce)  = load_data();
+    return order_nonce;
+}

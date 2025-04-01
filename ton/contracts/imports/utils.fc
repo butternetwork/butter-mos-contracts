@@ -1,0 +1,57 @@
+#include "crypto.fc";
+#include "params.fc";
+#include "stdlib.fc";
+
+slice addr_none() asm "b{00} PUSHSLICE";
+
+;; keccak256(abi.encodePacked(address(this), nonce++, _fromChain, _toChain, _from, _to));
+(int) get_order_id(slice addr, int order_nonce, int to_chain, slice from, slice to) inline {
+    return keccak256(begin_cell()
+        .store_ref(begin_cell().store_slice(addr).end_cell())
+        .store_uint(order_nonce, 256)
+        .store_uint(TON_CHAIN_ID, 64)
+        .store_uint(to_chain, 64)
+        .store_ref(begin_cell().store_slice(from).end_cell())
+        .store_ref(begin_cell().store_slice(to).end_cell())
+        .end_cell().begin_parse(), 1);
+}
+
+;; Get total bits length in the cell chain
+int get_chain_bits_length(cell c) {
+    slice s = c.begin_parse();
+    int total = slice_bits(s);
+
+    if (slice_refs(s) > 0) {
+        total += get_chain_bits_length(s~load_ref());
+    }
+
+    return total;
+}
+
+;; Decode cell chain into a single slice
+;; Note: Make sure the total bits can fit in a single cell (<=1023 bits)
+slice decode_chain(cell c) {
+    int total_bits = get_chain_bits_length(c);
+    throw_if(37, total_bits > 1023); ;; Check if result will fit in a single cell
+
+    builder b = begin_cell();
+    slice s = c.begin_parse();
+
+    ;; Copy all bits from current cell
+    repeat (slice_bits(s)) {
+        b = b.store_uint(s~load_uint(1), 1);
+    }
+
+    ;; If there are refs, process next cell
+    if (slice_refs(s) > 0) {
+        cell next = s~load_ref();
+        slice next_data = decode_chain(next);
+
+        ;; Copy all bits from recursive result
+        repeat (slice_bits(next_data)) {
+            b = b.store_uint(next_data~load_uint(1), 1);
+        }
+    }
+
+    return b.end_cell().begin_parse();
+}
