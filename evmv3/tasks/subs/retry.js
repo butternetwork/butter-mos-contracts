@@ -45,7 +45,7 @@ task("retry:retry", "retry")
     );
     let token = decode[0];
     let amount = decode[1];
-    //let to = decode[2];
+    let to = decode[2];
     let from = decode[3];
     let payload = decode[4];
     let result = decode[5];
@@ -53,13 +53,30 @@ task("retry:retry", "retry")
     console.log("reason: ", reason);
     console.log("decode: ", decode);
     if (result === true) throw "relay not failed";
-    // let d = ethers.utils.defaultAbiCoder.decode(["uint8", "uint256", "bytes", "bytes", "bytes"], payload);
-    // let swapData = d[4];
-    // await (await bridge.retryMessageIn(chainAndGasLimit, orderId, token, amount, from, payload, "0x")).wait();
     let d = ethers.utils.defaultAbiCoder.decode(["uint8", "uint256", "bytes", "bytes", "bytes"], payload);
     let swapData = d[4];
-    let r1 = ethers.utils.defaultAbiCoder.decode(["address", "uint256", "bytes", "bytes"], swapData);
-    let minAmount = ""
-    let newSwap = ethers.utils.defaultAbiCoder.encode(["address", "uint256", "bytes", "bytes"], [r1[0], minAmount, r1[2], r1[3]]);
-    await (await bridge.retryMessageIn(chainAndGasLimit, orderId, token, amount, from, payload, newSwap)).wait();
+    if(to.toLowerCase() === "0x3B43FB37D1bDA3C1A5fC588b36362B8102aA0341".toLowerCase()){
+      let r1 = ethers.utils.defaultAbiCoder.decode(["address", "uint256", "bytes", "bytes"], swapData);
+      console.log("before min amount: ", r1[1])
+      let minAmount = BigNumber.from(r1[1]).mul(95).div(100);
+      console.log("new min amount:", minAmount);
+      let newSwap = ethers.utils.defaultAbiCoder.encode(["address", "uint256", "bytes", "bytes"], [r1[0], minAmount, r1[2], r1[3]]);
+      await (await bridge.retryMessageIn(chainAndGasLimit, orderId, token, amount, from, payload, newSwap)).wait();
+    } else {
+      let offset = 0;
+      let len = BigNumber.from(swapData.substring(offset, (offset += 4))).toNumber();
+      offset += len * 8;
+      let needSwap = BigNumber.from('0x' + swapData.substring(offset, (offset += 2))).toNumber();
+      if(needSwap > 0) {
+        let r1 = ethers.utils.defaultAbiCoder.decode(["address", "uint256", "bytes", "bytes"], ('0x' + swapData.substring(offset)));
+        console.log("before min amount: ", r1[1])
+        let minAmount = BigNumber.from(r1[1]).mul(95).div(100);
+        console.log("new min amount:", minAmount);
+        let newSwap = ethers.utils.defaultAbiCoder.encode(["address", "uint256", "bytes", "bytes"], [r1[0], minAmount, r1[2], r1[3]]);
+        await (await bridge.retryMessageIn(chainAndGasLimit, orderId, token, amount, from, payload, newSwap)).wait();
+      } else {
+        let newSwap = '0x' + swapData.substring(offset);
+        await (await bridge.retryMessageIn(chainAndGasLimit, orderId, token, amount, from, payload, newSwap)).wait();
+      }
+    }
   });

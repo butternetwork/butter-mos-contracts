@@ -5,6 +5,7 @@ const { BigNumber } = require("ethers");
 let mos_addr = "0x0000317Bec33Af037b5fAb2028f52d14658F6A56";
 let router_addr = "0xEE030ec6F4307411607E55aCD08e628Ae6655B86";
 let receiver_addr = "0xFF031cc2563988Bc4afA29E2cD7Bcc2d389900a5";
+let noAffiliatesFeeRelayExecutor = "0x3B43FB37D1bDA3C1A5fC588b36362B8102aA0341";
 let messageOut_topic = "0x469059a9fd182ad3741bdd67b925e15056d35262609ea83393db7e8fb5a05ab1";
 let messageRelay_topic = "0xf01fbdd2fdbc5c2f201d087d588789d600e38fe56427e813d9dced2cdb25bcac";
 
@@ -154,7 +155,7 @@ async function decodeSwapAndBridgeFun(data) {
         console.log("SwapAndBridge.bridge.data.gasLimit: ", bridge[3])
         if(bridge[4].length > 2){
           if(bridge[0] === true){
-            await decodeRelayExcuter(bridge[4]);
+            await decodeRelayExcuter(bridgeData[2], bridge[4]);
           } else {
             console.log("<-----------------------------SwapAndBridge > bridge > swapAndCall----------------------------------------------------->")
             await decodeSwapAndCallParam(bridge[4]);
@@ -197,7 +198,7 @@ async function decodeSwapOutTokenFun(data) {
         console.log("SwapOutToken.bridgeData.gasLimit: ", bridgeData[3])
         if(bridgeData[4].length > 2) {
           if(bridgeData[0] === true){
-            await decodeRelayExcuter(bridgeData[4]);
+            await decodeRelayExcuter(funcParam._to, bridgeData[4]);
           } else {
             console.log("<-----------------------------SwapOutTokenFun swapAndCall----------------------------------------------------->")
             await decodeSwapAndCallParam(bridgeData[4]);
@@ -209,8 +210,15 @@ async function decodeSwapOutTokenFun(data) {
       console.log("SwapOutToken.bridgeData.swapData: ", bridgeData[4])
     }
 }
+async function decodeRelayExcuter(to, data) {
+    if(to.toLowerCase() === noAffiliatesFeeRelayExecutor.toLowerCase()){
+       decodeRelayExcuterNoAffiliatesFee(data);
+    } else {
+       decodeRelayExcuterWithAffiliatesFee(data);
+    }
+}
 
-async function decodeRelayExcuter(data) {
+async function decodeRelayExcuterNoAffiliatesFee(data) {
    // (tokenOut, t.minOut, target, newMessage) = abi.decode(t.message, (address,uint256,bytes,bytes));
    let d = ethers.utils.defaultAbiCoder.decode(["address", "uint256", "bytes", "bytes"], data)
    console.log("RelayExcuter.tokenOut: ", d[0])
@@ -222,6 +230,44 @@ async function decodeRelayExcuter(data) {
    } else {
     console.log("RelayExcuter.newMessage: ", d[3])
    }
+}
+
+async function decodeRelayExcuterWithAffiliatesFee(data) {
+  console.log("relay swapData : ", data)
+  if(data.length <= 2) return;
+  let offset = 0;
+  let len = BigNumber.from(data.substring(offset, (offset += 4))).toNumber();
+  if(len > 0){
+      for (let i = 0; i < len; i++) {
+        let id = BigNumber.from('0x' + data.substring(offset, (offset += 4))).toNumber()
+        let rate = BigNumber.from('0x' + data.substring(offset, (offset += 4))).toNumber()
+        console.log(`AffiliatesFee ${i} AffiliateId: ${id}  rate: ${rate}`);
+      }       
+  }
+  let needSwap = BigNumber.from('0x' + data.substring(offset, (offset += 2))).toNumber();
+  if(needSwap > 0){
+      // (tokenOut, t.minOut, target, newMessage) = abi.decode(t.message, (address,uint256,bytes,bytes));
+      let d = ethers.utils.defaultAbiCoder.decode(["address", "uint256", "bytes", "bytes"], ('0x' + data.substring(offset)));
+      console.log("RelayExcuter.tokenOut: ", d[0])
+      console.log("RelayExcuter.minOut: ", d[1])
+      console.log("RelayExcuter.target: ", d[2])
+      if(d[3].length > 2){
+        console.log("<-----------------------------RelayExcuter swapAndCall----------------------------------------------------->")
+        await decodeSwapAndCallParam(d[3]);
+       } else {
+        console.log("RelayExcuter.newMessage: ", d[3])
+       } 
+  } else {
+      // (target, newMessage) = abi.decode(_message[offset:], (bytes,bytes));
+      let d = ethers.utils.defaultAbiCoder.decode(["bytes", "bytes"], ('0x' + data.substring(offset)))
+      console.log("RelayExcuter.target: ", d[0])
+      if(d[1].length > 2){
+        console.log("<-----------------------------RelayExcuter swapAndCall----------------------------------------------------->")
+        await decodeSwapAndCallParam(d[1]);
+      } else {
+        console.log("RelayExcuter.newMessage: ", d[1])
+      }
+  }
 }
 
 
@@ -244,7 +290,7 @@ async function decodeMessageOut(event) {
       return;
     } 
     if(relay === true){
-       await decodeRelayExcuter(d[7]);
+       await decodeRelayExcuter(d[6], d[7]);
     } else {
       console.log("<-----------------------------MessageOutEvent swapAndCall----------------------------------------------------->")
       await decodeSwapAndCallParam(d[7]);
@@ -295,7 +341,7 @@ async function decodeMessageIn(data,fromEvm) {
         return;
       }
       if(relay === true){
-        await decodeRelayExcuter(d[7])
+        await decodeRelayExcuter(d[6], d[7])
       } else {
         console.log("<-----------------------------MessageIn swapAndCall----------------------------------------------------->")
         await decodeSwapAndCallParam(d[7]);
@@ -333,7 +379,7 @@ async function decodeMessageIn(data,fromEvm) {
         return;
       }
       if(messageOut[0] === true){
-        await decodeRelayExcuter(messageOut[12])
+        await decodeRelayExcuter(messageOut[9], messageOut[12])
       } else {
         console.log("<-----------------------------MessageIn swapAndCall----------------------------------------------------->")
         await decodeSwapAndCallParam(messageOut[12]);
