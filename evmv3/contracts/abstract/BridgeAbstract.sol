@@ -71,6 +71,7 @@ abstract contract BridgeAbstract is
     error retry_verify_fail();
     error bubbling(bytes e);
     error tron_usdt_transfer_fail();
+    error insufficient_liquidity();
 
     event SetContract(uint256 t, address addr);
     event RegisterToken(address token, uint256 toChain, bool enable);
@@ -308,6 +309,11 @@ abstract contract BridgeAbstract is
         bool _unwrap,
         bool _checkMint
     ) internal {
+        if (_checkMint) {
+            _checkAndMint(_token, _amount);
+        }
+        uint256 balance = Helper._getBalance(_token, address(this));
+        if(_amount > balance) revert insufficient_liquidity();
         if (_token == ZERO_ADDRESS) {
             Helper._safeTransferNative(_receiver, _amount);
         } else if (_token == wToken && _unwrap) {
@@ -321,9 +327,6 @@ abstract contract BridgeAbstract is
                 uint256 balanceAfter = IERC20(_token).balanceOf(address(this));
                 if (balanceAfter >= balanceBefore) revert tron_usdt_transfer_fail();
             } else {
-                if (_checkMint) {
-                    _checkAndMint(_token, _amount);
-                }
                 Helper._safeTransfer(_token, _receiver, _amount);
             }
         }
