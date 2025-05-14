@@ -3,6 +3,7 @@ pragma solidity 0.8.25;
 
 //import "@openzeppelin/contracts/utils/Address.sol";
 //import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 library Helper {
     address internal constant ZERO_ADDRESS = address(0);
@@ -12,6 +13,14 @@ library Helper {
 
     function _isNative(address token) internal pure returns (bool) {
         return (token == ZERO_ADDRESS || token == NATIVE_ADDRESS);
+    }
+
+    function _getBalance(address _token, address _account) internal view returns(uint256 balance) {
+        if(_isNative(_token)) {
+            balance = _account.balance;
+        } else {
+            balance = IERC20(_token).balanceOf(_account);
+        }
     }
 
     function _checkBytes(bytes memory b1, bytes memory b2) internal pure returns (bool) {
