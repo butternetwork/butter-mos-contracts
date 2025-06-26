@@ -295,7 +295,10 @@ abstract contract BridgeAbstract is
                 inToken = wToken;
             }
         } else {
+            uint256 balanceBefore = Helper._getBalance(_token, address(this));
             Helper._safeTransferFrom(_token, _from, address(this), _amount);
+            uint256 balanceAfter = Helper._getBalance(_token, address(this));
+            if(balanceAfter < (balanceBefore + _amount)) revert in_amount_low();
             if (_checkBurn) {
                 _checkAndBurn(_token, _amount);
             }
