@@ -138,7 +138,7 @@ contract Bridge is BridgeAbstract {
         uint256 _amount
     ) external payable override nonReentrant whenNotPaused returns (bytes32 orderId) {
         if (_amount == 0) revert zero_amount();
-
+        if (_to == ZERO_ADDRESS) revert zero_address();
         address sender = msg.sender;
         MessageInEvent memory inEvent;
 
@@ -148,7 +148,8 @@ contract Bridge is BridgeAbstract {
         inEvent.to = Helper._toBytes(_to);
         inEvent.amount = _amount;
         inEvent.token = _tokenTransferIn(_token, sender, inEvent.amount, true, true);
-
+        (uint256 relayChainId, ) = _getRelay();
+        _checkBridgeable(inEvent.token, relayChainId);
         inEvent.gasLimit = DEPOSIT_GAS;
 
         // messageType,fromChain,toChain,gasLimit,mos,to,token,amount
