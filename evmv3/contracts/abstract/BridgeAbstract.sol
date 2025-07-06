@@ -70,7 +70,7 @@ abstract contract BridgeAbstract is
     error unsupported_message_type();
     error retry_verify_fail();
     error bubbling(bytes e);
-    error tron_usdt_transfer_fail();
+
     error insufficient_liquidity();
 
     event SetContract(uint256 t, address addr);
@@ -162,7 +162,7 @@ abstract contract BridgeAbstract is
     function withdrawFee(address receiver, address token) external payable {
         uint256 amount = feeList[receiver][token];
         if (amount > 0) {
-            _tokenTransferOut(token, receiver, amount, true, false);
+            _tokenTransferOut(token, receiver, amount, true);
             feeList[receiver][token] = 0;
         }
         emit WithdrawFee(receiver, token, amount);
@@ -255,13 +255,12 @@ abstract contract BridgeAbstract is
     }
 
     function _swapIn(MessageInEvent memory _inEvent) internal {
-        address outToken = _inEvent.token;
         address to = Helper._fromBytes(_inEvent.to);
-
         uint256 gasLeft = gasleft();
+
         if (_inEvent.swapData.length > 0 && Helper._isContract(to)) {
             // if swap params is not empty, then we need to do swap on current chain
-            _tokenTransferOut(_inEvent.token, to, _inEvent.amount, false, false);
+            _tokenTransferOut(_inEvent.token, to, _inEvent.amount, false);
             try
                 IButterReceiver(to).onReceived(
                     _inEvent.orderId,
@@ -274,8 +273,8 @@ abstract contract BridgeAbstract is
             {} catch {}
         } else {
             // transfer token if swap did not happen
-            _tokenTransferOut(_inEvent.token, to, _inEvent.amount, true, false);
-            if (_inEvent.token == wToken) outToken = ZERO_ADDRESS;
+            _inEvent.token = _tokenTransferOut(_inEvent.token, to, _inEvent.amount, true);
+            // if (_inEvent.token == wToken) outToken = ZERO_ADDRESS;
         }
         _emitMessageIn(_inEvent.from, _inEvent, true, gasLeft, "");
     }
@@ -309,12 +308,9 @@ abstract contract BridgeAbstract is
         address _token,
         address _receiver,
         uint256 _amount,
-        bool _unwrap,
-        bool _checkMint
-    ) internal {
-        if (_checkMint) {
-            _checkAndMint(_token, _amount);
-        }
+        bool _unwrap
+    ) internal returns (address token) {
+        token = _token;
         uint256 balance = Helper._getBalance(_token, address(this));
         if(_amount > balance) revert insufficient_liquidity();
         if (_token == ZERO_ADDRESS) {
@@ -322,16 +318,9 @@ abstract contract BridgeAbstract is
         } else if (_token == wToken && _unwrap) {
             Helper._safeWithdraw(wToken, _amount);
             Helper._safeTransferNative(_receiver, _amount);
+            token = ZERO_ADDRESS;
         } else {
-            if (block.chainid == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
-                uint256 balanceBefore = IERC20(_token).balanceOf(address(this));
-                // Tron USDT
-                _token.call(abi.encodeWithSelector(0xa9059cbb, _receiver, _amount));
-                uint256 balanceAfter = IERC20(_token).balanceOf(address(this));
-                if (balanceAfter >= balanceBefore) revert tron_usdt_transfer_fail();
-            } else {
-                Helper._safeTransfer(_token, _receiver, _amount);
-            }
+            Helper._safeTransfer(_token, _receiver, _amount);
         }
     }
 

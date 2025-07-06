@@ -10,6 +10,7 @@ library Helper {
     address internal constant NATIVE_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     error token_call_failed();
+    error tron_usdt_transfer_fail();
 
     function _isNative(address token) internal pure returns (bool) {
         return (token == ZERO_ADDRESS || token == NATIVE_ADDRESS);
@@ -37,10 +38,18 @@ library Helper {
         }
     }
 
-    function _safeTransfer(address token, address to, uint256 value) internal {
-        // bytes4(keccak256(bytes('transfer(address,uint256)')));
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, to, value));
-        _checkCallResult(success, data);
+    function _safeTransfer(address _token, address _to, uint256 _value) internal {
+        if (block.chainid == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
+            // Tron USDT
+            uint256 balanceBefore = IERC20(_token).balanceOf(address(this));
+            _token.call(abi.encodeWithSelector(0xa9059cbb, _to, _value));
+            uint256 balanceAfter = IERC20(_token).balanceOf(address(this));
+            if (balanceAfter >= balanceBefore) revert tron_usdt_transfer_fail();
+        } else {
+            // bytes4(keccak256(bytes('transfer(address,uint256)')));
+            (bool success, bytes memory data) = _token.call(abi.encodeWithSelector(0xa9059cbb, _to, _value));
+            _checkCallResult(success, data);
+        }
     }
 
     function _safeTransferFrom(address token, address from, address to, uint256 value) internal {

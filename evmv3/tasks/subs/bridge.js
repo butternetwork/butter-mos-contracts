@@ -1,10 +1,11 @@
 let { create, getTronContract } = require("../../utils/create.js");
 let { tronAddressToHex } = require("../../utils/address.js");
 let { verify } = require("../../utils/verify.js");
-let { stringToHex, isTron, isSolana } = require("../../utils/helper");
+let { stringToHex, isTron, isSolana, sleep } = require("../../utils/helper");
 let { getChain, getToken, getFeeList, getFeeInfo, getChainList, writeToFile } = require("../utils/utils.js");
 const { getDeployment, saveDeployment } = require("../utils/utils");
-const { solanaAddressToHex } = require("../../utils/address.js")
+const { solanaAddressToHex } = require("../../utils/address.js");
+
 let outputAddr = true;
 
 async function getBridge(network, abstract) {
@@ -596,6 +597,7 @@ task("bridge:tokenInfo", "list token info")
 
         // console.log(`native fee to ${chains[i].chain} (${chainId}) with gas limt [${taskArgs.gas}] when inter transfer:\t`, await bridge.getNativeFee(tokenAddr, taskArgs.gas, chainId));
       }
+      await sleep(500);
     }
     console.log("");
   });

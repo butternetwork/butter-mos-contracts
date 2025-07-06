@@ -239,6 +239,8 @@ task("relay:list", "List relay infos")
 
     let relay = await getRelay(hre.network.name);
 
+    console.log("Authority:\t", await relay.authority());
+
     let tokenmanager = await relay.tokenRegister();
     let selfChainId = await relay.selfChainId();
     console.log("selfChainId:\t", selfChainId.toString());
@@ -280,6 +282,7 @@ task("relay:tokenInfo", "List token infos")
   .addOptionalParam("token", "The token address, default wtoken", "wtoken", types.string)
   .setAction(async (taskArgs, hre) => {
     let relay = await getRelay(hre.network.name);
+
     let tokenManager = await relay.tokenRegister();
     let manager = await ethers.getContractAt("TokenRegisterV3", tokenManager);
     console.log("Token manager:\t", manager.address);

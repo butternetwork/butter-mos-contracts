@@ -494,7 +494,9 @@ task("register:setFromChainWhitelistFee", "set to chain token outFee")
     } else if(isSolana(fromChain.name)) {
       sender = solanaAddressToHex(taskArgs.sender);
     } else if(isBtc(fromChain.name)){
-      sender = btcAddressToHex(taskArgs.sender);
+      console.log(taskArgs.sender);
+      sender = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(taskArgs.sender));
+      // sender = btcAddressToHex(taskArgs.sender);
     }
 
     let info = await register.getFromChainCallerFeeRate(token, fromChain.chainId, sender);

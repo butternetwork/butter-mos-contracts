@@ -213,7 +213,7 @@ contract BridgeAndRelay is BridgeAbstract {
         if (_vaultToken != vaultToken) revert invalid_vault_token();
         uint256 amount = IVaultTokenV3(vaultToken).getTokenAmount(_vaultAmount);
         IVaultTokenV3(vaultToken).withdraw(selfChainId, _vaultAmount, msg.sender);
-        _tokenTransferOut(token, msg.sender, amount, true, false);
+        _tokenTransferOut(token, msg.sender, amount, true);
         emit Withdraw(token, msg.sender, _vaultAmount, amount);
     }
 
@@ -385,7 +385,7 @@ contract BridgeAndRelay is BridgeAbstract {
     ) external returns (address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage) {
         require(msg.sender == address(this));
         address to = Helper._fromBytes(_outEvent.to);
-        if (_amount > 0) _tokenTransferOut(_token, to, _amount, false, false);
+        if (_amount > 0) _tokenTransferOut(_token, to, _amount, false);
         (tokenOut, amountOut, target, newMessage) = IRelayExecutor(to).relayExecute(
             _outEvent.fromChain,
             _outEvent.toChain,
