@@ -148,8 +148,7 @@ contract Bridge is BridgeAbstract {
         inEvent.to = Helper._toBytes(_to);
         inEvent.amount = _amount;
         inEvent.token = _tokenTransferIn(_token, sender, inEvent.amount, true, true);
-        (uint256 relayChainId, ) = _getRelay();
-        _checkBridgeable(inEvent.token, relayChainId);
+        _checkBridgeable(inEvent.token, inEvent.toChain);
         inEvent.gasLimit = DEPOSIT_GAS;
 
         // messageType,fromChain,toChain,gasLimit,mos,to,token,amount

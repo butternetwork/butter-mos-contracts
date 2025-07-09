@@ -10,14 +10,13 @@ const {
   getTokenList,
 } = require("../utils/utils");
 const { verify } = require("../../utils/verify");
-const { deploy } = require("../../test/util");
 const { getTronContract } = require("../../utils/create");
 const {solanaAddressToHex, tronAddressToHex, btcAddressToHex} = require("../../utils/address");
 
 let outputAddr = true;
 
 async function getRelay(network) {
-  let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
+  let BridgeAndRelay = await hre.ethers.getContractFactory("BridgeAndRelay");
   let addr = await getDeployment(network, "bridgeProxy");
 
   let relay = BridgeAndRelay.attach(addr);
@@ -35,7 +34,7 @@ task("relay:deploy", "mos relay deploy")
   .addOptionalParam("auth", "auth address", "0xACC31A6756B60304C03d6626fc98c062E4539CCA", types.string)
   .addOptionalParam("fee", "fee service address", "", types.string)
   .setAction(async (taskArgs, hre) => {
-    const accounts = await ethers.getSigners();
+    const accounts = await hre.ethers.getSigners();
     const deployer = accounts[0];
     console.log("deployer address:", deployer.address);
 
@@ -49,7 +48,7 @@ task("relay:deploy", "mos relay deploy")
 
     let implAddr = await create(hre, deployer, "BridgeAndRelay", [], [], "");
 
-    let BridgeAndRelay = await ethers.getContractFactory("BridgeAndRelay");
+    let BridgeAndRelay = await hre.ethers.getContractFactory("BridgeAndRelay");
     let data = await BridgeAndRelay.interface.encodeFunctionData("initialize", [wrapped, authority]);
     let proxy_salt = process.env.BRIDGE_PROXY_SALT;
 
