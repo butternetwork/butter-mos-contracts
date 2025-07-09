@@ -20,6 +20,7 @@ task("token:transferOut", "Cross-chain transfer token")
     .addOptionalParam("receiver", "The receiver address", "", types.string)
     .addOptionalParam("chain", "The receiver chain", "22776", types.string)
     .addParam("value", "transfer out value, unit WEI")
+    .addOptionalParam("data", "swapdata", "", types.string)
     .setAction(async (taskArgs, hre) => {
         const accounts = await ethers.getSigners();
         const deployer = accounts[0];
@@ -78,7 +79,7 @@ task("token:transferOut", "Cross-chain transfer token")
                 await (await token.approve(mos.address, amount)).wait();
             }
         }
-        await mos.connect(deployer).swapOutToken(deployer.address, tokenAddr, receiver, amount, targetChainId, "0x", {
+        await mos.connect(deployer).swapOutToken(deployer.address, tokenAddr, receiver, amount, targetChainId, taskArgs.data, {
             value: value,
         });
 
@@ -358,6 +359,33 @@ task("token:mint", "mint token")
 
         console.log(`Mint '${taskArgs.token}' Token ${taskArgs.amount} `);
     });
+
+task("token:burn", "mint token")
+    .addParam("token", "token address")
+    .addParam("amount", "mint amount")
+    .setAction(async (taskArgs, hre) => {
+        const { deploy } = hre.deployments;
+        const accounts = await ethers.getSigners();
+        const deployer = accounts[0];
+
+        console.log("deployer address:", deployer.address);
+
+        let tokenAddr = taskArgs.token;
+        if (tokenAddr.substr(0, 2) !== "0x") {
+            tokenAddr = await getToken(hre.network.config.chainId, taskArgs.token);
+        }
+        let token = await ethers.getContractAt("MintableToken", tokenAddr);
+
+        console.log("Mintable Token address:", token.address);
+
+        let decimals = await token.decimals();
+        let amount = ethers.utils.parseUnits(taskArgs.amount, decimals);
+
+        await token.burn(amount);
+
+        console.log(`Burn '${taskArgs.token}' Token ${taskArgs.amount} `);
+    });
+
 
 task("token:transfer", "transfer token")
     .addParam("token", "token address")

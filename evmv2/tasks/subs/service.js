@@ -13,6 +13,7 @@ let {
     tronList,
 } = require("../utils/tron.js");
 const { getFeeList, getChainList } = require("../../utils/helper");
+// const {ethers} = require("ethers");
 
 task("mos:deploy", "mos service deploy")
     .addOptionalParam("wrapped", "native wrapped token address", "", types.string)
@@ -732,6 +733,10 @@ task("mos:list", "List mos  infos")
             }
 
             address = await getToken(hre.network.config.chainId, address);
+
+            let token = await ethers.getContractAt("MintableToken", address);
+
+            console.log("token balance:", ethers.utils.formatEther(await token.balanceOf(mos.address)));
 
             console.log("\ntoken address:", address);
             let mintable = await mos.isMintable(address);
