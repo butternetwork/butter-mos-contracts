@@ -42,7 +42,7 @@ module.exports = {
   // defaultNetwork: 'Eth',
   networks: {
     hardhat: {
-      chainId: 1,
+      chainId: 212,
       initialBaseFeePerGas: 0,
       allowUnlimitedContractSize: true
     },
@@ -59,7 +59,7 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Polygon: {
-      url: `https://polygon.blockpi.network/v1/rpc/public`,
+      url: `https://polygon.drpc.org`,
       chainId: 137,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
@@ -90,12 +90,12 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Base: {
-      url: `https://mainnet.base.org`,
+      url: `https://1rpc.io/base`,
       chainId: 8453,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Ainn: {
-      url: `https://mainnet-rpc.anvm.io`,
+      url: `https://mainnet-rpc.ailayer.xyz/`,
       chainId : 2649,
       gasPrice: 50000000,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
