@@ -5,6 +5,7 @@ pragma solidity 0.8.25;
 import "./interface/IVaultTokenV3.sol";
 import "./abstract/BridgeAbstract.sol";
 import "./interface/ITokenRegisterV3.sol";
+import "./interface/IDepositWhitelist.sol";
 import "./lib/NearDecoder.sol";
 import {NonEvmDecoder} from "./lib/NonEvmDecoder.sol";
 import "./interface/IRelayExecutor.sol";
@@ -13,6 +14,9 @@ import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightClientManager.sol";
 
 contract BridgeAndRelay is BridgeAbstract {
+    
+    // Replace this address after DepositWhitelsit deployment
+    address constant depositWhitelsit = 0x0000317Bec33Af037b5fAb2028f52d14658F6A56;
     struct Rate {
         uint64 rate;
         address receiver;
@@ -688,10 +692,16 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes32 _orderId,
         uint256 _fromChain
     ) internal {
-        address vaultToken = tokenRegister.getVaultToken(_token);
-        if (vaultToken == ZERO_ADDRESS) revert vault_token_not_registered();
-        IVaultTokenV3(vaultToken).deposit(_fromChain, _amount, _to);
-        emit DepositIn(_fromChain, _token, _orderId, _from, _to, _amount);
+        if(IDepositWhitelist(depositWhitelsit).checkTokenAmountAndWhitelist(_token, _to, _amount)){
+            address vaultToken = tokenRegister.getVaultToken(_token);
+            if (vaultToken == ZERO_ADDRESS) revert vault_token_not_registered();
+            IVaultTokenV3(vaultToken).deposit(_fromChain, _amount, _to);
+            emit DepositIn(_fromChain, _token, _orderId, _from, _to, _amount);
+        } else {
+            //if deposit from relay chain revert
+            require(_orderId != bytes32(""));
+            _tokenTransferOut(_token, _to, _amount, true);
+        }
 
         uint256 chainAndGasLimit = _getChainAndGasLimit(_fromChain, selfChainId, 0);
         if (_orderId != bytes32("")) {
