@@ -42,6 +42,9 @@ contract BridgeAndRelay is BridgeAbstract {
     mapping(uint256 => ChainType) public chainTypes;
     //id : 0 VToken  1:relayer
     mapping(uint256 => Rate) public distributeRate;
+    
+    // add 2025-11-13
+    address private failedReceiver;
 
     error invalid_chain_id();
     error invalid_chain();
@@ -93,6 +96,16 @@ contract BridgeAndRelay is BridgeAbstract {
         }
         emit SetContract(_t, _addr);
     }
+    function setFailedReceiver(address _failedReceiver) external restricted {
+        require(_failedReceiver != address(0));
+        failedReceiver = _failedReceiver;
+        emit SetFailedReceiver(_failedReceiver);
+    }
+
+    function getTransferOutFailedReceiver() public view override returns(address) {
+        return failedReceiver;
+    }
+
 
     function registerChain(
         uint256[] calldata _chainIds,

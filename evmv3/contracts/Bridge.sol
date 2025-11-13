@@ -10,6 +10,9 @@ contract Bridge is BridgeAbstract {
     uint256 internal relaySlot;
 
     ILightVerifier internal lightNode;
+    
+    // add 2025-11-13
+    address private failedReceiver;
 
     error invalid_relay_chain();
     error invalid_relay_contract();
@@ -31,6 +34,16 @@ contract Bridge is BridgeAbstract {
         }
 
         emit SetContract(_t, _addr);
+    }
+
+    function setFailedReceiver(address _failedReceiver) external restricted {
+        require(_failedReceiver != address(0));
+        failedReceiver = _failedReceiver;
+        emit SetFailedReceiver(_failedReceiver);
+    }
+
+    function getTransferOutFailedReceiver() public view override returns(address) {
+        return failedReceiver;
     }
 
     function setRelay(uint256 _chainId, address _relay) external restricted {

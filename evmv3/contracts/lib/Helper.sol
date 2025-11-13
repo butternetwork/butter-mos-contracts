@@ -38,19 +38,9 @@ library Helper {
         }
     }
 
-    function _safeTransfer(address _token, address _to, uint256 _value) internal {
-        if (block.chainid == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
-            // Tron USDT
-            uint256 balanceBefore = IERC20(_token).balanceOf(address(this));
-            _token.call(abi.encodeWithSelector(0xa9059cbb, _to, _value));
-            uint256 balanceAfter = IERC20(_token).balanceOf(address(this));
-            if (balanceAfter >= balanceBefore) revert tron_usdt_transfer_fail();
-        } else {
-            // bytes4(keccak256(bytes('transfer(address,uint256)')));
-            (bool success, bytes memory data) = _token.call(abi.encodeWithSelector(0xa9059cbb, _to, _value));
-            _checkCallResult(success, data);
-        }
-    }
+    // function _safeTransfer(address _token, address _to, uint256 _value) internal {
+    //     if(!_handleTransfer(_token, _to, _value)) revert token_call_failed();
+    // }
 
     function _safeTransferFrom(address token, address from, address to, uint256 value) internal {
         // bytes4(keccak256(bytes('transferFrom(address,address,uint256)')));
@@ -58,9 +48,26 @@ library Helper {
         _checkCallResult(success, data);
     }
 
-    function _safeTransferNative(address to, uint256 value) internal {
-        (bool success, ) = to.call{value: value}(bytes(""));
-        _checkCallResult(success, bytes(""));
+    // function _safeTransferNative(address to, uint256 value) internal {
+    //     if(!_handleTransferNative(to, value))  revert token_call_failed();
+    // }
+
+    function _transferNativeCatch(address to, uint256 value) internal returns(bool result) {
+        (result, ) = to.call{value: value}(bytes(""));
+    }
+
+    function _transferCatch(address _token, address _to, uint256 _value) internal returns(bool result) { 
+        if (block.chainid == 728126428 && _token == 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C) {
+            // Tron USDT
+            uint256 balanceBefore = IERC20(_token).balanceOf(address(this));
+            _token.call(abi.encodeWithSelector(0xa9059cbb, _to, _value));
+            uint256 balanceAfter = IERC20(_token).balanceOf(address(this));
+            result = (balanceBefore > balanceAfter);
+        } else {
+            // bytes4(keccak256(bytes('transfer(address,uint256)')));
+            (bool success, bytes memory data) = _token.call(abi.encodeWithSelector(0xa9059cbb, _to, _value));
+            result = _getCallResult(success, data);
+        }
     }
 
     function _safeWithdraw(address _wToken, uint _value) internal {
@@ -74,7 +81,11 @@ library Helper {
     }
 
     function _checkCallResult(bool _success, bytes memory _data) internal pure {
-        if (!_success || (_data.length != 0 && !abi.decode(_data, (bool)))) revert token_call_failed();
+        if (!_getCallResult(_success, _data)) revert token_call_failed();
+    }
+
+    function _getCallResult(bool _success, bytes memory _data) internal pure returns(bool) {
+        return (_success && (_data.length == 0 || abi.decode(_data, (bool))));
     }
 
     function _isContract(address _addr) internal view returns (bool) {
