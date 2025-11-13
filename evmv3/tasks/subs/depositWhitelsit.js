@@ -18,6 +18,9 @@ task("depositWhitelsit:deploy", "Deploy the depositWhitelsit")
 
 task("depositWhitelsit:upgrade", "upgrade depositWhitelsit")
   .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
     let addr = await getDeployment(hre.network.name, "DepositWhitelist");
 
     if (!addr) throw "DepositWhitelist not deployed";
@@ -37,6 +40,9 @@ task("depositWhitelsit:upgrade", "upgrade depositWhitelsit")
 
 task("depositWhitelsit:updateTokenLimit", "update Token Limit")
   .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
     let addr = await getDeployment(hre.network.name, "DepositWhitelist");
 
     if (!addr) throw "DepositWhitelist not deployed";
@@ -53,7 +59,7 @@ task("depositWhitelsit:updateTokenLimit", "update Token Limit")
       ethers.utils.parseUnits("5000", 18),
     ]
 
-    await(await d.updateTokenLimit(tokens, limits)).waits();
+    await(await d.updateTokenLimit(tokens, limits)).wait();
 
     for (let index = 0; index < tokens.length; index++) {
       const element = tokens[index];
@@ -64,6 +70,9 @@ task("depositWhitelsit:updateTokenLimit", "update Token Limit")
 
 task("depositWhitelsit:updateWhitelist", "update Whitelist")
   .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
     let addr = await getDeployment(hre.network.name, "DepositWhitelist");
 
     if (!addr) throw "DepositWhitelist not deployed";
@@ -82,7 +91,7 @@ task("depositWhitelsit:updateWhitelist", "update Whitelist")
       throw("users is empty");
 
     }
-    await(await d.updateWhitelist(users, flag)).waits();
+    await(await d.updateWhitelist(users, flag)).wait();
     for (let index = 0; index < users.length; index++) {
       const element = users[index];
       console.log(`user(${element}) whitelist status is:`, await d.inWhitelist(element));

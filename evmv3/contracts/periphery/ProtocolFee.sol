@@ -39,7 +39,7 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
     EnumerableSet.AddressSet private tokenList;
 
     // fee info from last share reset
-    mapping(address token => uint256) public totalClaimed;
+    // mapping(address token => uint256) public totalClaimed;
     mapping(address token => mapping(FeeType => uint256)) public claimed;
 
     // accumulated fee info from start
@@ -141,11 +141,13 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
         for (uint256 i = 0; i < len; i++) {
             address token = tokens[i];
             _withdrawFromTreasurySingleToken(token);
-            uint256 claimable = accumulated[token][feeType];
-            totalClaimed[token] += claimable;
-            claimed[token][feeType] += claimable;
-            _release(token, feeShares[feeType].receiver, claimable);
-            emit ClaimFee(feeType, token, claimable);
+            uint256 claimable = accumulated[token][feeType] - claimed[token][feeType];
+            if(claimable > 0) {
+                // totalClaimed[token] += claimable;
+                claimed[token][feeType] += claimable;
+                _release(token, feeShares[feeType].receiver, claimable);
+                emit ClaimFee(feeType, token, claimable);
+            }
         }
     }
 
@@ -155,9 +157,9 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
         for (uint256 i = 0; i < len; i++) {
             address token = tokens[i];
             _withdrawFromTreasurySingleToken(token);
-            uint256 claimable = accumulated[token][feeType];
+            uint256 claimable = accumulated[token][feeType] - claimed[token][feeType];
             if(claimable > 0) {
-                totalClaimed[token] += claimable;
+                // totalClaimed[token] += claimable;
                 claimed[token][feeType] += claimable;
                 if(token != targetToken) {
                     SafeERC20.forceApprove(IERC20(token), address(swap), claimable);
