@@ -131,8 +131,13 @@ contract SwapDataValidatorV2 {
         } else if(dstChain == 1360108768460801){
              return _checkBytes(hex'069b8857feab8184fb687f634618c035dac439dc1aeb3b5598a0f00000000001', dstTokenBytes);
         } else if(dstChain == 1360095883558913) {
-            return _checkBytes(hex'425443', dstTokenBytes);
-        } else {
+            return _checkBytes(hex'425443', dstTokenBytes); // BTC
+        } else if(dstChain == 1360117358395393) {
+            return _checkBytes(hex'585250', dstTokenBytes); // xrp
+        } else if(dstChain == 1360121653362689) {
+            return _checkBytes(hex'444f4745', dstTokenBytes); // DOGE
+        } 
+        else {
             return false;
         }
     }

@@ -194,6 +194,27 @@ task("bridge:setRelay", "set relay")
     console.log("relay address", relay[1]);
   });
 
+task("bridge:setFailedReceiver", "set Failed Receiver")
+  .addParam("receiver", "receiver address")
+  .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+
+    console.log("deployer address is:", deployer.address);
+
+    let bridge = await getBridge(hre.network.name, false);
+
+    let receiver;
+    if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
+      await bridge.setFailedReceiver(tronAddressToHex(taskArgs.receiver)).send();
+      receiver = await bridge.getTransferOutFailedReceiver().call();
+    } else {
+      await (await bridge.setFailedReceiver(taskArgs.receiver)).wait();
+      receiver = await bridge.getTransferOutFailedReceiver();
+    }
+    console.log("failed receiver address is:", receiver);
+  });
+
 task("bridge:registerTokenChains", "register token Chains")
   .addParam("token", "token address")
   .addParam("chains", "chains list")

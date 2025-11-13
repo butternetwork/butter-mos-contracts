@@ -18,6 +18,9 @@ task("ProtocolFee:deploy", "Deploy the ProtocolFee")
 
 task("ProtocolFee:upgrade", "upgrade ProtocolFee")
   .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
     let addr = await getDeployment(hre.network.name, "ProtocolFee");
 
     if (!addr) throw "ProtocolFee not deployed";
@@ -28,15 +31,18 @@ task("ProtocolFee:upgrade", "upgrade ProtocolFee")
 
     let implAddr = await create(hre, deployer, "ProtocolFee", [], [], "");
 
-    console.log("pre impl", await d.getImplementation());
+    console.log("pre impl", await p.getImplementation());
     await(await p.upgradeToAndCall(implAddr, "0x")).wait();
-    console.log("new impl", await d.getImplementation());
+    console.log("new impl", await p.getImplementation());
 
   });
 
 
 task("ProtocolFee:set", "set swap and relay address")
   .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
     let addr = await getDeployment(hre.network.name, "ProtocolFee");
 
     if (!addr) throw "ProtocolFee not deployed";
@@ -62,6 +68,9 @@ task("ProtocolFee:set", "set swap and relay address")
 
 task("ProtocolFee:updateTokens", "update Tokens")
   .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
     let addr = await getDeployment(hre.network.name, "ProtocolFee");
 
     if (!addr) throw "ProtocolFee not deployed";
@@ -82,6 +91,9 @@ task("ProtocolFee:updateTokens", "update Tokens")
 
 task("ProtocolFee:updateShares", "update Shares")
   .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
     let addr = await getDeployment(hre.network.name, "ProtocolFee");
 
     if (!addr) throw "ProtocolFee not deployed";
@@ -119,6 +131,9 @@ task("ProtocolFee:updateShares", "update Shares")
   
 task("ProtocolFee:updateReceivers", "update Shares")
   .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
     let addr = await getDeployment(hre.network.name, "ProtocolFee");
 
     if (!addr) throw "ProtocolFee not deployed";

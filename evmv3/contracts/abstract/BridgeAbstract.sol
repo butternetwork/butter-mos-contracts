@@ -72,8 +72,10 @@ abstract contract BridgeAbstract is
     error bubbling(bytes e);
 
     error insufficient_liquidity();
+    error token_transfer_fail();
 
     event SetContract(uint256 t, address addr);
+    event SetFailedReceiver(address _failedreceiver);
     event RegisterToken(address token, uint256 toChain, bool enable);
     event UpdateToken(address token, uint256 feature);
     event UpdateTrust(address trustAddress, bool enable);
@@ -257,24 +259,32 @@ abstract contract BridgeAbstract is
     function _swapIn(MessageInEvent memory _inEvent) internal {
         address to = Helper._fromBytes(_inEvent.to);
         uint256 gasLeft = gasleft();
-
+        _checkLiquidity(_inEvent.token, _inEvent.amount);
         if (_inEvent.swapData.length > 0 && Helper._isContract(to)) {
             // if swap params is not empty, then we need to do swap on current chain
-            _tokenTransferOut(_inEvent.token, to, _inEvent.amount, false);
-            try
-                IButterReceiver(to).onReceived(
-                    _inEvent.orderId,
-                    _inEvent.token,
-                    _inEvent.amount,
-                    _inEvent.fromChain,
-                    _inEvent.from,
-                    _inEvent.swapData
-                )
-            {} catch {}
+            bool result;
+            (_inEvent.token, result) = _tokenTransferOutCatch(_inEvent.token, to, _inEvent.amount, false);
+            if(result) {
+                try
+                    IButterReceiver(to).onReceived(
+                        _inEvent.orderId,
+                        _inEvent.token,
+                        _inEvent.amount,
+                        _inEvent.fromChain,
+                        _inEvent.from,
+                        _inEvent.swapData
+                    )
+                {} catch {}
+            } else {
+                _tokenTransferOut(_inEvent.token, _getTransferOutFailedReceiverAndCheck(), _inEvent.amount, false);
+            }
         } else {
             // transfer token if swap did not happen
-            _inEvent.token = _tokenTransferOut(_inEvent.token, to, _inEvent.amount, true);
-            // if (_inEvent.token == wToken) outToken = ZERO_ADDRESS;
+            bool result; 
+            (_inEvent.token, result) = _tokenTransferOutCatch(_inEvent.token, to, _inEvent.amount, true);
+            if(!result) {
+                _tokenTransferOut(_inEvent.token, _getTransferOutFailedReceiverAndCheck(), _inEvent.amount, true);
+            }
         }
         _emitMessageIn(_inEvent.from, _inEvent, true, gasLeft, "");
     }
@@ -310,18 +320,32 @@ abstract contract BridgeAbstract is
         uint256 _amount,
         bool _unwrap
     ) internal returns (address token) {
+        bool result;
+        (token, result) = _tokenTransferOutCatch(_token, _receiver, _amount, _unwrap);
+        if(!result) revert token_transfer_fail();
+    }
+
+    function _tokenTransferOutCatch(
+        address _token,
+        address _receiver,
+        uint256 _amount,
+        bool _unwrap
+    ) internal returns (address token, bool result) {
         token = _token;
-        uint256 balance = Helper._getBalance(_token, address(this));
-        if(_amount > balance) revert insufficient_liquidity();
         if (_token == ZERO_ADDRESS) {
-            Helper._safeTransferNative(_receiver, _amount);
+            result = Helper._transferNativeCatch(_receiver, _amount);
         } else if (_token == wToken && _unwrap) {
             Helper._safeWithdraw(wToken, _amount);
-            Helper._safeTransferNative(_receiver, _amount);
             token = ZERO_ADDRESS;
+            result = Helper._transferNativeCatch(_receiver, _amount);
         } else {
-            Helper._safeTransfer(_token, _receiver, _amount);
+            result = Helper._transferCatch(_token,_receiver, _amount);
         }
+    }
+
+    function _checkLiquidity(address _token, uint256 _amount) internal view {
+        uint256 balance = Helper._getBalance(_token, address(this));
+        if(_amount > balance) revert insufficient_liquidity();
     }
 
     function _notifyLightClient(uint256 _chainId) internal virtual {}
@@ -483,6 +507,13 @@ abstract contract BridgeAbstract is
     ) internal returns (bytes32) {
         return keccak256(abi.encodePacked(address(this), nonce++, _fromChain, _toChain, _from, _to));
     }
+    function _getTransferOutFailedReceiverAndCheck() internal view returns(address failedReceiver) {
+        failedReceiver = getTransferOutFailedReceiver();
+        require(failedReceiver != address(0)); 
+    }
+
+    function getTransferOutFailedReceiver() public view virtual returns(address) {}
+
 
     function _getMessageFee(
         uint256 _toChain,
