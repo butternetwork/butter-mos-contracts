@@ -14,7 +14,7 @@ import "@mapprotocol/protocol/contracts/interface/ILightVerifier.sol";
 import "@mapprotocol/protocol/contracts/interface/ILightClientManager.sol";
 
 contract BridgeAndRelay is BridgeAbstract {
-    
+
     address constant depositWhitelsit = 0x27172dA6b48DB586B5261ff90D6D1D5F2C1c1363;
     struct Rate {
         uint64 rate;
@@ -41,8 +41,7 @@ contract BridgeAndRelay is BridgeAbstract {
     mapping(uint256 => ChainType) public chainTypes;
     //id : 0 VToken  1:relayer
     mapping(uint256 => Rate) public distributeRate;
-    
-    // add 2025-11-13
+
     address private failedReceiver;
 
     error invalid_chain_id();
@@ -95,6 +94,7 @@ contract BridgeAndRelay is BridgeAbstract {
         }
         emit SetContract(_t, _addr);
     }
+
     function setFailedReceiver(address _failedReceiver) external restricted {
         require(_failedReceiver != address(0));
         failedReceiver = _failedReceiver;
@@ -778,7 +778,7 @@ contract BridgeAndRelay is BridgeAbstract {
 
         if (_proportionFee > 0) {
             address receiver;
-            // messenger fee
+            // messenger fee (bridge fee)
             (messageFee, receiver) = _getFee(1, _proportionFee);
             if (messageFee != 0 && receiver != ZERO_ADDRESS) {
                 feeList[receiver][_event.token] += messageFee;

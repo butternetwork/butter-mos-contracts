@@ -210,7 +210,7 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
             accumulated[token][FeeType.BUYBACK] += _getShareAmount(FeeType.BUYBACK, amount);
             accumulated[token][FeeType.RESERVE] += _getShareAmount(FeeType.RESERVE, amount);
             accumulated[token][FeeType.STAKER] += _getShareAmount(FeeType.STAKER, amount);
-        }  
+        }
     }
 
     function _getUnCumulativeFee(FeeType feeType, address token) internal view returns(uint256) {

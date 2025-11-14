@@ -265,7 +265,7 @@ abstract contract BridgeAbstract is
             // if swap params is not empty, then we need to do swap on current chain
             bool result;
             (_inEvent.token, result) = _tokenTransferOutCatch(_inEvent.token, to, _inEvent.amount, false);
-            if(result) {
+            if (result) {
                 try
                     IButterReceiver(to).onReceived(
                         _inEvent.orderId,
@@ -281,9 +281,9 @@ abstract contract BridgeAbstract is
             }
         } else {
             // transfer token if swap did not happen
-            bool result; 
+            bool result;
             (_inEvent.token, result) = _tokenTransferOutCatch(_inEvent.token, to, _inEvent.amount, true);
-            if(!result) {
+            if (!result) {
                 _tokenTransferOut(_inEvent.token, _getTransferOutFailedReceiverAndCheck(), _inEvent.amount, true);
             }
         }
@@ -510,7 +510,7 @@ abstract contract BridgeAbstract is
     }
     function _getTransferOutFailedReceiverAndCheck() internal view returns(address failedReceiver) {
         failedReceiver = getTransferOutFailedReceiver();
-        if(failedReceiver == address(0)) revert failed_receiver_not_set(); 
+        if(failedReceiver == address(0)) revert failed_receiver_not_set();
     }
 
     function getTransferOutFailedReceiver() public view virtual returns(address) {}
