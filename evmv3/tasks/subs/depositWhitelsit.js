@@ -1,5 +1,6 @@
 let { saveDeployment, getDeployment, getToken} = require("../utils/utils");
 let { create, getTronContract } = require("../../utils/create.js");
+let { verify } = require("../../utils/verify.js");
 
 task("depositWhitelsit:deploy", "Deploy the depositWhitelsit")
   .addParam("authority")
@@ -14,6 +15,14 @@ task("depositWhitelsit:deploy", "Deploy the depositWhitelsit")
     let data = await DepositWhitelist.interface.encodeFunctionData("initialize", [taskArgs.authority]);
     let proxy = await create(hre, deployer, "OmniServiceProxy", ["address", "bytes"], [implAddr, data], "");
     await saveDeployment(hre.network.name, "DepositWhitelist", proxy);
+    await verify(implAddr, [], "contracts/periphery/DepositWhitelist.sol:DepositWhitelist", hre.network.config.chainId, true);
+    await verify(
+      proxy,
+      [implAddr, data],
+      "contracts/OmniServiceProxy.sol:OmniServiceProxy",
+      hre.network.config.chainId,
+      false,
+    );
   });
 
 task("depositWhitelsit:upgrade", "upgrade depositWhitelsit")
@@ -34,6 +43,29 @@ task("depositWhitelsit:upgrade", "upgrade depositWhitelsit")
     console.log("pre impl", await d.getImplementation());
     await (await d.upgradeToAndCall(implAddr, "0x")).wait();
     console.log("new impl", await d.getImplementation());
+
+    await verify(implAddr, [], "contracts/periphery/DepositWhitelist.sol:DepositWhitelist", hre.network.config.chainId, true);
+
+  });
+
+task("depositWhitelsit:switchToggle", "switch Toggle")
+  .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
+    let addr = await getDeployment(hre.network.name, "DepositWhitelist");
+
+    if (!addr) throw "DepositWhitelist not deployed";
+
+    let DepositWhitelist = await ethers.getContractFactory("DepositWhitelist");
+
+    let d = DepositWhitelist.attach(addr);
+
+    console.log(`pre switch status is`, await d.whitelistSwitch());
+
+    await(await d.switchToggle()).wait();
+
+    console.log(`after switch status is`, await d.whitelistSwitch());
 
   });
 

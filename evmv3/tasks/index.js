@@ -9,3 +9,6 @@ require("./subs/quoter.js");
 require("./subs/retry.js");
 require("./subs/swapDataValidator.js");
 require("./subs/decode.js");
+require("./subs/flatten.js");
+require("./subs/depositWhitelsit.js");
+require("./subs/protocolFee.js");
