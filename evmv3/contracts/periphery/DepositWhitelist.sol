@@ -14,10 +14,17 @@ contract DepositWhitelist is BaseImplementation, IDepositWhitelist {
 
     mapping (address => bool) private whitelist;
 
+    address public relay;
+    
+    // user -> token - depositAmount;
+    mapping (address => mapping (address => uint256)) public userTokenTotalDeposit;
+
+
+    error only_relay();
     event UpdateTokenLimit(address[] tokens, uint256[] limits);
     event UpdateWhitelist(address[] users, bool flag);
     event SwitchToggle(bool _whitelistSwitch);
-
+    event SetRelayAddress(address _relay);
     function initialize(address _defaultAdmin) public initializer {
         __BaseImplementation_init(_defaultAdmin);
     }
@@ -25,6 +32,12 @@ contract DepositWhitelist is BaseImplementation, IDepositWhitelist {
     function switchToggle() external restricted {
         whitelistSwitch = !whitelistSwitch;
         emit SwitchToggle(whitelistSwitch);
+    }
+
+    function setRelayAddress(address _relay) external restricted {
+        require(_relay != address(0));
+        relay = _relay;
+        emit SetRelayAddress(_relay);
     }
 
     function updateTokenLimit(address[] calldata tokens, uint256[] calldata limits) external restricted {
@@ -55,9 +68,16 @@ contract DepositWhitelist is BaseImplementation, IDepositWhitelist {
         return whitelist[user];
     }
 
-    function checkTokenAmountAndWhitelist(address token, address user, uint256 amount) external view override returns(bool) {
-        if(whitelistSwitch) return whitelist[user] && (amount <= tokenLimit[token]);
-        else return true;
+    function checkTokenAmountAndWhitelist(address token, address user, uint256 amount) external override returns(bool) {
+        if(msg.sender != relay) revert only_relay();
+        if(whitelistSwitch) {
+            if(whitelist[user] && (userTokenTotalDeposit[user][token] + amount) <= tokenLimit[token]) {
+                userTokenTotalDeposit[user][token] += amount;
+                return true;
+            }
+            return false;
+        }
+        return true;
     }
     
 }

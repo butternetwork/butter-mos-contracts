@@ -70,6 +70,26 @@ task("depositWhitelsit:switchToggle", "switch Toggle")
   });
 
 
+  task("depositWhitelsit:setRelayAddress", "set Relay Address")
+  .setAction(async (taskArgs, hre) => {
+    const accounts = await ethers.getSigners();
+    const deployer = accounts[0];
+    console.log("deployer address:", deployer.address);
+    let addr = await getDeployment(hre.network.name, "DepositWhitelist");
+
+    if (!addr) throw "DepositWhitelist not deployed";
+
+    let DepositWhitelist = await ethers.getContractFactory("DepositWhitelist");
+
+    let d = DepositWhitelist.attach(addr);
+    
+    let relay = "0x0000317Bec33Af037b5fAb2028f52d14658F6A56";
+    console.log(`pre relay address is`, await d.relay());
+    await (await d.setRelayAddress(relay)).wait();
+    console.log(`after relay address is`, await d.relay());
+
+  });
+
 task("depositWhitelsit:updateTokenLimit", "update Token Limit")
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
@@ -114,7 +134,8 @@ task("depositWhitelsit:updateWhitelist", "update Whitelist")
     let d = DepositWhitelist.attach(addr);
 
     let users = [
-
+        "0xeb36b4c16b7d4fa4a8c242672b55b638ff16f93c",
+        "0x766f3377497C66c31a5692A435cF3E72Dcc2d4Fc"
     ]
 
     let flag = true;
