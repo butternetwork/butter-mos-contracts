@@ -68,6 +68,16 @@ contract DepositWhitelist is BaseImplementation, IDepositWhitelist {
         return whitelist[user];
     }
 
+    function checkTokenAmountAndWhitelistView(address token, address user, uint256 amount) external view returns(bool) {
+        if(whitelistSwitch) {
+            if(whitelist[user] && (userTokenTotalDeposit[user][token] + amount) <= tokenLimit[token]) {
+                return true;
+            }
+            return false;
+        }
+        return true;
+    }
+
     function checkTokenAmountAndWhitelist(address token, address user, uint256 amount) external override returns(bool) {
         if(msg.sender != relay) revert only_relay();
         if(whitelistSwitch) {
