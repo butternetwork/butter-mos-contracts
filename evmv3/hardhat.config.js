@@ -59,7 +59,7 @@ module.exports = {
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     Polygon: {
-      url: `https://polygon.drpc.org`,
+      url: `https://1rpc.io/matic`,
       chainId: 137,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
@@ -128,6 +128,11 @@ module.exports = {
       chainId : 59144,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
+    Unichain: {
+      url: `https://mainnet.unichain.org`,
+      chainId : 130,
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
     Scroll: {
       url: `https://rpc.scroll.io`,
       chainId : 534352,
@@ -136,6 +141,11 @@ module.exports = {
     Mantle: {
       url: `https://rpc.mantle.xyz`,
       chainId : 5000,
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+    XLayer: {
+      url: `https://rpc.xlayer.tech`,
+      chainId : 196,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
 
@@ -204,6 +214,8 @@ module.exports = {
       Sepolia: process.env.API_KEY_ETH,
       BscTest: process.env.API_KEY_BSC,
       ArbitrumSepolia: process.env.API_KEY_ARBITRUM,
+      Unichain:process.env.API_KEY_ETH,
+      Mapo:''
     },
     customChains: [
       {
@@ -326,6 +338,22 @@ module.exports = {
           browserURL: "https://sepolia.arbiscan.io/",
         },
       },
+      {
+        network: "Unichain",
+        chainId: 130,
+        urls: {
+          apiURL: "https://api.etherscan.io/v2/api?chainid=130",
+          browserURL: "https://uniscan.xyz/",
+        },
+      },
+      {
+        network: "Mapo",
+        chainId: 22776,
+        urls: {
+          apiURL: "https://explorer-api.chainservice.io/api",
+          browserURL: "https://explorer.mapprotocol.io"
+        },
+      }
     ],
   },
 };

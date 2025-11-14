@@ -435,7 +435,18 @@ task("register:setToChainWhitelistFee", "set to chain token outFee")
     let token = await getToken(hre.network.name, taskArgs.token);
     let rate = ethers.utils.parseUnits(taskArgs.rate, 6);
 
-    let info = await register.getToChainCallerFeeRate(token, fromChain.chainId, toChain.chainId, taskArgs.sender);
+    let sender = taskArgs.sender;
+    if (fromChain.name === "Tron") {
+      sender = tronAddressToHex(taskArgs.sender);
+    } else if(isSolana(fromChain.name)) {
+      sender = solanaAddressToHex(taskArgs.sender);
+    } else if(isBtc(fromChain.name)){
+      console.log(taskArgs.sender);
+      sender = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(taskArgs.sender));
+      // sender = btcAddressToHex(taskArgs.sender);
+    }
+
+    let info = await register.getToChainCallerFeeRate(token, fromChain.chainId, toChain.chainId, sender);
     if (taskArgs.whitelist === info[0] && rate.eq(info[1])) {
       console.log(
         `caller [${taskArgs.sender}] token[${taskArgs.token}] from [${fromChain.name}] to [${toChain.name}] rate no update`,
@@ -457,7 +468,7 @@ task("register:setToChainWhitelistFee", "set to chain token outFee")
         token,
         fromChain.chainId,
         toChain.chainId,
-        taskArgs.sender,
+        sender,
         rate,
         taskArgs.whitelist,
         { gasLimit: 100000 },

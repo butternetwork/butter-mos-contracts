@@ -5,6 +5,7 @@ let { verify } = require("../../utils/verify.js");
 
 task("ProtocolFee:deploy", "Deploy the ProtocolFee")
   .addParam("authority")
+  .addOptionalParam("salt", "salt", "", types.string)
   .setAction(async (taskArgs, hre) => {
     const { deploy } = hre.deployments;
     const accounts = await ethers.getSigners();
@@ -12,7 +13,7 @@ task("ProtocolFee:deploy", "Deploy the ProtocolFee")
 
     console.log("deployer address:", deployer.address);
     let ProtocolFee = await ethers.getContractFactory("ProtocolFee");
-    let implAddr = await create(hre, deployer, "ProtocolFee", [], [], "");
+    let implAddr = await create(hre, deployer, "ProtocolFee", [], [], taskArgs.salt);
     let data = await ProtocolFee.interface.encodeFunctionData("initialize", [taskArgs.authority]);
     let proxy = await create(hre, deployer, "OmniServiceProxy", ["address", "bytes"], [implAddr, data], "");
     await saveDeployment(hre.network.name, "ProtocolFee", proxy);
@@ -60,7 +61,7 @@ task("ProtocolFee:set", "set swap and relay address")
     let ProtocolFee = await ethers.getContractFactory("ProtocolFee");
 
     let p = ProtocolFee.attach(addr);
-    
+
     let swap = "0x828aBe0885c28274749c8C012Da10BF0F94fa78b";
 
     let relay = "0x0000317Bec33Af037b5fAb2028f52d14658F6A56"
@@ -88,7 +89,7 @@ task("ProtocolFee:updateTokens", "update Tokens")
     let ProtocolFee = await ethers.getContractFactory("ProtocolFee");
 
     let p = ProtocolFee.attach(addr);
-    
+
     let tokens = [
       "0x33daba9618a75a7aff103e53afe530fbacf4a3dd", // usdt
       "0x05ab928d446d8ce6761e368c8e7be03c3168a9ec", // eth
@@ -111,7 +112,7 @@ task("ProtocolFee:updateShares", "update Shares")
     let ProtocolFee = await ethers.getContractFactory("ProtocolFee");
 
     let p = ProtocolFee.attach(addr);
-    
+
     let feeTypes = [
         0, // dev
         1, // buyback
@@ -120,10 +121,10 @@ task("ProtocolFee:updateShares", "update Shares")
     ]
 
     let shares = [
-        250,
-        250,
-        250,
-        250
+        2000,
+        4000,
+        1500,
+        2500
     ]
 
 
@@ -138,7 +139,7 @@ task("ProtocolFee:updateShares", "update Shares")
   });
 
 
-  
+
 task("ProtocolFee:updateReceivers", "update Shares")
   .setAction(async (taskArgs, hre) => {
     const accounts = await ethers.getSigners();
@@ -151,7 +152,7 @@ task("ProtocolFee:updateReceivers", "update Shares")
     let ProtocolFee = await ethers.getContractFactory("ProtocolFee");
 
     let p = ProtocolFee.attach(addr);
-    
+
     let feeTypes = [
         0, // dev
         1, // buyback
@@ -160,10 +161,10 @@ task("ProtocolFee:updateReceivers", "update Shares")
     ]
 
     let receivers = [
-        "",
-        "",
-        "",
-        ""
+        "0xeE41C4f7b4099A761Ca2884eB2527C7D17307d1c",
+        "0x07c3DCa7d2998FC43b0Ab7988BfA8C571731A6Ba",
+        "0x137abb129AC802E62b9fB209945c49Cb4ad746c1",
+        "0xea00E664DCd2ae708d06474B6C5f2E014b2EAD1f"
     ]
 
     await(await p.updateReceivers(feeTypes, receivers)).wait();

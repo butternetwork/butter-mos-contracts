@@ -370,10 +370,15 @@ task("bridge:setTrust", "set relay")
 
     if (hre.network.name === "Tron" || hre.network.name === "TronTest") {
       await bridge.setTrustAddress(taskArgs.addr, taskArgs.enable).send();
+
+      console.log(`address ${taskArgs.addr} is trust: ${await bridge.trustList(taskArgs.addr).call()}`);
     } else {
       await (await bridge.setTrustAddress(taskArgs.addr, taskArgs.enable)).wait();
+
+      console.log(`address ${taskArgs.addr} is trust: ${await bridge.trustList(taskArgs.addr)}`);
     }
   });
+
 
 task("bridge:withdraw", "update token to target chain")
   .addParam("token", "token name")
