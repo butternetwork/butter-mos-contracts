@@ -1,5 +1,7 @@
 let { saveDeployment, getDeployment, getToken} = require("../utils/utils");
 let { create, getTronContract } = require("../../utils/create.js");
+let { verify } = require("../../utils/verify.js");
+
 
 task("ProtocolFee:deploy", "Deploy the ProtocolFee")
   .addParam("authority")
@@ -14,6 +16,14 @@ task("ProtocolFee:deploy", "Deploy the ProtocolFee")
     let data = await ProtocolFee.interface.encodeFunctionData("initialize", [taskArgs.authority]);
     let proxy = await create(hre, deployer, "OmniServiceProxy", ["address", "bytes"], [implAddr, data], "");
     await saveDeployment(hre.network.name, "ProtocolFee", proxy);
+    await verify(implAddr, [], "contracts/periphery/ProtocolFee.sol:ProtocolFee", hre.network.config.chainId, true);
+    await verify(
+      proxy,
+      [implAddr, data],
+      "contracts/OmniServiceProxy.sol:OmniServiceProxy",
+      hre.network.config.chainId,
+      false,
+    );
   });
 
 task("ProtocolFee:upgrade", "upgrade ProtocolFee")
@@ -34,7 +44,7 @@ task("ProtocolFee:upgrade", "upgrade ProtocolFee")
     console.log("pre impl", await p.getImplementation());
     await(await p.upgradeToAndCall(implAddr, "0x")).wait();
     console.log("new impl", await p.getImplementation());
-
+    await verify(implAddr, [], "contracts/periphery/ProtocolFee.sol:ProtocolFee", hre.network.config.chainId, true);
   });
 
 

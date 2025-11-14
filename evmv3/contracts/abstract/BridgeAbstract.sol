@@ -73,6 +73,7 @@ abstract contract BridgeAbstract is
 
     error insufficient_liquidity();
     error token_transfer_fail();
+    error failed_receiver_not_set();
 
     event SetContract(uint256 t, address addr);
     event SetFailedReceiver(address _failedreceiver);
@@ -509,7 +510,7 @@ abstract contract BridgeAbstract is
     }
     function _getTransferOutFailedReceiverAndCheck() internal view returns(address failedReceiver) {
         failedReceiver = getTransferOutFailedReceiver();
-        require(failedReceiver != address(0)); 
+        if(failedReceiver == address(0)) revert failed_receiver_not_set(); 
     }
 
     function getTransferOutFailedReceiver() public view virtual returns(address) {}

@@ -15,8 +15,7 @@ import "@mapprotocol/protocol/contracts/interface/ILightClientManager.sol";
 
 contract BridgeAndRelay is BridgeAbstract {
     
-    // Replace this address after DepositWhitelsit deployment
-    address constant depositWhitelsit = 0x0000317Bec33Af037b5fAb2028f52d14658F6A56;
+    address constant depositWhitelsit = 0x27172dA6b48DB586B5261ff90D6D1D5F2C1c1363;
     struct Rate {
         uint64 rate;
         address receiver;

@@ -8,16 +8,23 @@ import {BaseImplementation} from "./base/BaseImplementation.sol";
 
 contract DepositWhitelist is BaseImplementation, IDepositWhitelist { 
 
+    bool public whitelistSwitch = true;
+
     mapping (address => uint256) private tokenLimit;
 
     mapping (address => bool) private whitelist;
 
     event UpdateTokenLimit(address[] tokens, uint256[] limits);
     event UpdateWhitelist(address[] users, bool flag);
-
+    event SwitchToggle(bool _whitelistSwitch);
 
     function initialize(address _defaultAdmin) public initializer {
         __BaseImplementation_init(_defaultAdmin);
+    }
+
+    function switchToggle() external restricted {
+        whitelistSwitch = !whitelistSwitch;
+        emit SwitchToggle(whitelistSwitch);
     }
 
     function updateTokenLimit(address[] calldata tokens, uint256[] calldata limits) external restricted {
@@ -49,7 +56,8 @@ contract DepositWhitelist is BaseImplementation, IDepositWhitelist {
     }
 
     function checkTokenAmountAndWhitelist(address token, address user, uint256 amount) external view override returns(bool) {
-        return whitelist[user] && (amount <= tokenLimit[token]);
+        if(whitelistSwitch) return whitelist[user] && (amount <= tokenLimit[token]);
+        else return true;
     }
     
 }
