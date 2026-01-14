@@ -57,6 +57,8 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
     event CollectProtocolFee(address indexed token, uint256 amount);
     event ClaimFee(FeeType feeType, address token, uint256 amount);
 
+    event RemoveFeeTreasury();
+
 
     function initialize(address _defaultAdmin) public initializer {
         __BaseImplementation_init(_defaultAdmin);
@@ -70,6 +72,11 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
         swap = IFlashSwap(_swap);
         feeTreasury = IFeeTreasury(_feeTreasury);
         emit Set(_swap, _feeTreasury);
+    }
+
+    function removeFeeTreasury() external restricted {
+        feeTreasury = IFeeTreasury(address(0));
+        emit RemoveFeeTreasury();
     }
 
     // function updateProtocolFee(uint256 feeRate) external restricted {
@@ -94,7 +101,7 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
         uint256 length = types.length;
         require (length > 0 && length == shares.length);
 
-        _withdrawFromTreasury();
+        _keepAccount();
 
         for (uint256 i = 0; i < length; i++) {
             FeeShare storage feeShare = feeShares[types[i]];
@@ -140,7 +147,7 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
         uint256 len = tokens.length;
         for (uint256 i = 0; i < len; i++) {
             address token = tokens[i];
-            _withdrawFromTreasurySingleToken(token);
+            _keepAccountSingleToken(token);
             uint256 claimable = accumulated[token][feeType] - claimed[token][feeType];
             if(claimable > 0) {
                 // totalClaimed[token] += claimable;
@@ -156,7 +163,7 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
         uint256 totalAmount;
         for (uint256 i = 0; i < len; i++) {
             address token = tokens[i];
-            _withdrawFromTreasurySingleToken(token);
+            _keepAccountSingleToken(token);
             uint256 claimable = accumulated[token][feeType] - claimed[token][feeType];
             if(claimable > 0) {
                 // totalClaimed[token] += claimable;
@@ -194,32 +201,49 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
         }
     }
 
-    function _withdrawFromTreasury() internal {
+    function _keepAccount() internal {
         uint256 length = tokenList.length();
         for (uint256 i = 0; i < length; i++) {
             address token = tokenList.at(i);
-            _withdrawFromTreasurySingleToken(token);
+            _keepAccountSingleToken(token);
         }
     }
 
-    function _withdrawFromTreasurySingleToken(address token) internal {
-        uint256 amount = feeTreasury.feeList(address(this), token);
-        if(amount > 0) {
-            feeTreasury.withdrawFee(address(this), token);
-            accumulated[token][FeeType.DEV] += _getShareAmount(FeeType.DEV, amount);
-            accumulated[token][FeeType.BUYBACK] += _getShareAmount(FeeType.BUYBACK, amount);
-            accumulated[token][FeeType.RESERVE] += _getShareAmount(FeeType.RESERVE, amount);
-            accumulated[token][FeeType.STAKER] += _getShareAmount(FeeType.STAKER, amount);
+    function _keepAccountSingleToken(address token) internal {
+        uint256 unAccount = _getUnAccount(token);
+        uint256 treasuryAmount;
+        if(address(feeTreasury) != address(0)) {
+            treasuryAmount = feeTreasury.feeList(address(this), token);
+            if(treasuryAmount > 0) feeTreasury.withdrawFee(address(this), token);
+        }
+        uint256 total = treasuryAmount + unAccount;
+        if(total > 0){
+            accumulated[token][FeeType.DEV] += _getShareAmount(FeeType.DEV, total);
+            accumulated[token][FeeType.BUYBACK] += _getShareAmount(FeeType.BUYBACK, total);
+            accumulated[token][FeeType.RESERVE] += _getShareAmount(FeeType.RESERVE, total);
+            accumulated[token][FeeType.STAKER] += _getShareAmount(FeeType.STAKER, total);
         }
     }
 
     function _getUnCumulativeFee(FeeType feeType, address token) internal view returns(uint256) {
-        uint256 amount = feeTreasury.feeList(address(this), token);
-        return _getShareAmount(feeType, amount);
+        uint256 treasuryAmount;
+        if(address(feeTreasury) != address(0)){
+            treasuryAmount = feeTreasury.feeList(address(this), token);
+        }
+        uint256 total = treasuryAmount + _getUnAccount(token);
+        return _getShareAmount(feeType, total);
     }
 
     function _getShareAmount(FeeType feeType, uint256 amount) internal view returns(uint256) {
        return amount * feeShares[feeType].share / totalShare;
+    }
+
+    function _getUnAccount(address token) internal view returns(uint256 unAccount) {
+        uint256 account = accumulated[token][FeeType.DEV] - claimed[token][FeeType.DEV];
+        account += accumulated[token][FeeType.BUYBACK] - claimed[token][FeeType.BUYBACK];
+        account += accumulated[token][FeeType.RESERVE] - claimed[token][FeeType.RESERVE];
+        account += accumulated[token][FeeType.STAKER] - claimed[token][FeeType.STAKER];
+        unAccount = IERC20(token).balanceOf(address(this)) - account;
     }
 
 }
