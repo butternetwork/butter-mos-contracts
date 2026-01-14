@@ -57,6 +57,8 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
     event CollectProtocolFee(address indexed token, uint256 amount);
     event ClaimFee(FeeType feeType, address token, uint256 amount);
 
+    event RemoveFeeTreasury();
+
 
     function initialize(address _defaultAdmin) public initializer {
         __BaseImplementation_init(_defaultAdmin);
@@ -70,6 +72,11 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
         swap = IFlashSwap(_swap);
         feeTreasury = IFeeTreasury(_feeTreasury);
         emit Set(_swap, _feeTreasury);
+    }
+
+    function removeFeeTreasury() external restricted {
+        feeTreasury = IFeeTreasury(address(0));
+        emit RemoveFeeTreasury();
     }
 
     // function updateProtocolFee(uint256 feeRate) external restricted {
@@ -203,10 +210,13 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
     }
 
     function _keepAccountSingleToken(address token) internal {
-        uint256 amount = feeTreasury.feeList(address(this), token);
         uint256 unAccount = _getUnAccount(token);
-        if(amount > 0) feeTreasury.withdrawFee(address(this), token);
-        uint256 total = amount + unAccount;
+        uint256 treasuryAmount;
+        if(address(feeTreasury) != address(0)) {
+            treasuryAmount = feeTreasury.feeList(address(this), token);
+            if(treasuryAmount > 0) feeTreasury.withdrawFee(address(this), token);
+        }
+        uint256 total = treasuryAmount + unAccount;
         if(total > 0){
             accumulated[token][FeeType.DEV] += _getShareAmount(FeeType.DEV, total);
             accumulated[token][FeeType.BUYBACK] += _getShareAmount(FeeType.BUYBACK, total);
@@ -216,8 +226,12 @@ contract ProtocolFee is BaseImplementation, IProtocolFee {
     }
 
     function _getUnCumulativeFee(FeeType feeType, address token) internal view returns(uint256) {
-        uint256 amount = feeTreasury.feeList(address(this), token) + _getUnAccount(token);
-        return _getShareAmount(feeType, amount);
+        uint256 treasuryAmount;
+        if(address(feeTreasury) != address(0)){
+            treasuryAmount = feeTreasury.feeList(address(this), token);
+        }
+        uint256 total = treasuryAmount + _getUnAccount(token);
+        return _getShareAmount(feeType, total);
     }
 
     function _getShareAmount(FeeType feeType, uint256 amount) internal view returns(uint256) {
