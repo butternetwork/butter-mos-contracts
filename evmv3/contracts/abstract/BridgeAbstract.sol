@@ -368,8 +368,8 @@ abstract contract BridgeAbstract is
 
         uint256 chainAndGasLimit = _getChainAndGasLimit(_inEvent.fromChain, _inEvent.toChain, _inEvent.gasLimit);
 
-        orderId = _getOrderId(_inEvent.fromChain, _inEvent.toChain, _sender, _inEvent.to);
-
+        if(_inEvent.orderId == bytes32(0)) orderId = _getOrderId(_inEvent.fromChain, _inEvent.toChain, _sender, _inEvent.to);
+        else orderId = _inEvent.orderId;
         bytes memory payload = abi.encode(
             header,
             _inEvent.mos,

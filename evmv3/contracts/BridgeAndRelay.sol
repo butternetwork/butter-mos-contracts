@@ -16,6 +16,8 @@ import "@mapprotocol/protocol/contracts/interface/ILightClientManager.sol";
 contract BridgeAndRelay is BridgeAbstract {
 
     address constant depositWhitelsit = 0x27172dA6b48DB586B5261ff90D6D1D5F2C1c1363;
+    // repalce with FusionReceiver address
+    address constant fusionReceiver = 0x0000000000000000000000000000000000000000;
     struct Rate {
         uint64 rate;
         address receiver;
@@ -270,7 +272,6 @@ contract BridgeAndRelay is BridgeAbstract {
         address token = _tokenTransferIn(_token, from, _amount, true, false);
         _deposit(token, Helper._toBytes(from), _to, _amount, orderId, selfChainId);
     }
-
     function swapOutToken(
         address _initiator, // initiator address
         address _token, // src token
@@ -279,11 +280,36 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _toChain, // target chain id
         bytes calldata _bridgeData
     ) external payable override nonReentrant whenNotPaused returns (bytes32) {
+        return _swapOutToken(bytes32(0), _initiator, _token, _to, _amount, _toChain, _bridgeData);
+    }
+
+    function swapOutTokenWithOrderId(
+        address _initiator, // initiator address
+        address _token, // src token
+        bytes memory _to,
+        uint256 _amount,
+        uint256 _toChain, // target chain id
+        bytes32 orderId,
+        bytes calldata _bridgeData
+    ) external payable nonReentrant whenNotPaused returns (bytes32) {
+        // check only FusionReceiver;
+        require(msg.sender == fusionReceiver);
+        return _swapOutToken(orderId, _initiator, _token, _to, _amount, _toChain, _bridgeData);
+    }
+    function _swapOutToken(
+        bytes32 _orderId,
+        address _initiator, // initiator address
+        address _token, // src token
+        bytes memory _to,
+        uint256 _amount,
+        uint256 _toChain, // target chain id
+        bytes calldata _bridgeData
+    ) internal  returns (bytes32) {
         if (_amount == 0) revert zero_amount();
 
         address sender = msg.sender;
         MessageInEvent memory inEvent;
-
+        inEvent.orderId = _orderId;
         inEvent.messageType = uint8(MessageType.BRIDGE);
         inEvent.fromChain = selfChainId;
         inEvent.toChain = _toChain;
