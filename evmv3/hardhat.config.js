@@ -45,6 +45,13 @@ module.exports = {
       chainId: 212,
       initialBaseFeePerGas: 0,
       allowUnlimitedContractSize: true,
+      // Default (10000 ETH/account) runs dry when the full test suite - many
+      // files, each funding test accounts from `deployer` in beforeEach - is
+      // run together in one process; bump it well above anything a single
+      // run could plausibly spend.
+      accounts: {
+        accountsBalance: "100000000000000000000000000", // 100,000,000 ETH
+      },
     },
     Eth: {
       url: "https://eth-mainnet.public.blastapi.io",

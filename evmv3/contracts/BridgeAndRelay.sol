@@ -51,6 +51,7 @@ contract BridgeAndRelay is BridgeAbstract {
     //error unknown_log();
     error chain_type_error();
     error invalid_rate_id();
+    error executor_not_whitelisted();
     error vault_token_not_registered();
     error invalid_vault_token();
     error invalid_rate_value();
@@ -92,7 +93,7 @@ contract BridgeAndRelay is BridgeAbstract {
         } else if (_t == 4) {
             tokenRegister = ITokenRegisterV3(_addr);
         } else if (_t == 5) {
-            swapLimit = ISwapOutLimit(_addr);
+            bridgeLimit = IBridgeLimit(_addr);
         }
         emit SetContract(_t, _addr);
     }
@@ -144,7 +145,7 @@ contract BridgeAndRelay is BridgeAbstract {
         } else if (_type == 4) {
             return address(tokenRegister);
         } else if (_type == 5) {
-            return address(swapLimit);
+            return address(bridgeLimit);
         }
         return ZERO_ADDRESS;
     }
@@ -326,8 +327,10 @@ contract BridgeAndRelay is BridgeAbstract {
         }
         inEvent.gasLimit = msgData.gasLimit;
         // _checkBridgeable(inEvent.token, inEvent.toChain);
-        // todo: add transfer limit check
-        // _checkLimit(_amount, _toChain, _token);
+        // outbound limit (Transit/MapoOut) is enforced once in _swapRelay,
+        // right before the burn, regardless of whether this call came from a
+        // direct user swap or from _messageIn - see _swapRelay's
+        // _consumeLimit call.
 
         // emit MessageOut
         // messageType,fromChain,toChain,gasLimit,token,amount,to
@@ -354,7 +357,7 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _logParam,
         bytes32 _orderId,
         bytes memory _receiptProof
-    ) external nonReentrant whenNotPaused {
+    ) external restricted nonReentrant whenNotPaused {
         _checkOrder(_orderId);
 
         uint256 logIndex = _logParam & 0xFFFF;
@@ -423,11 +426,25 @@ contract BridgeAndRelay is BridgeAbstract {
         uint256 _amount,
         address _caller,
         MessageInEvent calldata _outEvent,
-        bytes calldata _retryMessage
+        bytes calldata _retryMessage,
+        IBridgeLimit.BucketKind _kind,
+        bytes calldata _initiator
     ) external returns (address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage) {
         require(msg.sender == address(this));
         address to = Helper._fromBytes(_outEvent.to);
-        if (_amount > 0) _tokenTransferOut(_token, to, _amount, false);
+        _checkExecutorWhitelist(to);
+        // Meter the leg handed to the executor itself, not only whatever it
+        // claims to send back afterwards (metered separately by the caller
+        // once it has tokenOut/amountOut) - e.g. ETH in, USDT out: _token/
+        // _amount here is the pre-swap ETH leg, a real custody movement in
+        // its own right, on its own bucket. Without this, a buggy or
+        // compromised executor could under-report (or zero out) amountOut
+        // and drain _token past the cap the bucket is meant to enforce,
+        // since nothing else ever checks this leg.
+        if (_amount > 0) {
+            _consumeLimit(_token, _kind, _amount, _initiator);
+            _tokenTransferOut(_token, to, _amount, false);
+        }
         (tokenOut, amountOut, target, newMessage) = IRelayExecutor(to).relayExecute(
             _outEvent.fromChain,
             _outEvent.toChain,
@@ -443,6 +460,28 @@ contract BridgeAndRelay is BridgeAbstract {
     }
 
     // --------------------------------------------- internal ----------------------------------------------
+
+    // Which bucket a flow belongs to depends only on where it started/ends up
+    // (fromChain/toChain), never on the token itself - a swap inside
+    // relayExecute can change the token, but not fromChain/toChain, so this
+    // stays valid for both the pre-swap and post-swap leg of the same flow.
+    function _classifyKind(MessageInEvent memory _inEvent) internal view returns (IBridgeLimit.BucketKind) {
+        if (_inEvent.toChain == selfChainId) return IBridgeLimit.BucketKind.MapoIn;
+        return _inEvent.fromChain == selfChainId ? IBridgeLimit.BucketKind.MapoOut : IBridgeLimit.BucketKind.Transit;
+    }
+
+    // Gate for relayExecute's message-specified target contract: both legs of
+    // the hand-off are metered (see relayExecute), but what the target does
+    // with the funds in between isn't, so the target itself must be
+    // pre-approved as a contract known to actually hand the funds back to
+    // the bridge. No-op when no BridgeLimit is configured, matching every
+    // other limit check.
+    function _checkExecutorWhitelist(address _executor) internal view {
+        if (address(bridgeLimit) != ZERO_ADDRESS && !bridgeLimit.isExecutorWhitelisted(_executor)) {
+            revert executor_not_whitelisted();
+        }
+    }
+
     function _messageIn(
         bool _revertError,
         bytes32 _orderId,
@@ -538,12 +577,18 @@ contract BridgeAndRelay is BridgeAbstract {
         }
 
         if (_inEvent.toChain == selfChainId) {
+            // value handed out locally on the relay chain itself
+            _consumeLimit(_inEvent.token, _classifyKind(_inEvent), _inEvent.amount, _initiator);
             return _swapIn(_inEvent);
         }
         bytes memory toToken = tokenRegister.getToChainToken(_inEvent.token, _inEvent.toChain);
         if (Helper._checkBytes(toToken, bytes(""))) revert out_token_not_registered();
 
         uint256 toAmount = tokenRegister.getToChainAmount(_inEvent.token, _inEvent.amount, _inEvent.toChain);
+
+        // value leaving the relay toward another chain: accounted as MapoOut
+        // when it originated here (fromChain == self), otherwise Transit
+        _consumeLimit(_inEvent.token, _classifyKind(_inEvent), _inEvent.amount, _initiator);
 
         _checkAndBurn(_inEvent.token, _inEvent.amount);
 
@@ -558,6 +603,11 @@ contract BridgeAndRelay is BridgeAbstract {
             if (inEvent.token == ZERO_ADDRESS) revert token_not_registered();
             inEvent.amount = tokenRegister.getRelayChainAmount(inEvent.token, _outEvent.fromChain, _outEvent.amount);
 
+            // Minting itself is not a metered checkpoint: value that passes
+            // straight through (fromChain != self, toChain != self) is burnt
+            // again in the same transaction via _swapRelay's Transit bucket,
+            // and value delivered on the relay chain is metered where it's
+            // actually handed out - see _swapIn / _deposit's MapoIn checks.
             _checkAndMint(inEvent.token, inEvent.amount);
         }
 
@@ -634,18 +684,26 @@ contract BridgeAndRelay is BridgeAbstract {
         internal
         returns (bool result, address tokenOut, uint256 amountOut, bytes memory target, bytes memory newMessage)
     {
+        // toChain/fromChain never change across the swap, so the same
+        // classification used for the post-swap leg below also applies to
+        // the pre-swap leg handed to the executor.
+        IBridgeLimit.BucketKind kind = _classifyKind(_inEvent);
         if (_revert) {
             (tokenOut, amountOut, target, newMessage) = this.relayExecute(
                 _inEvent.token,
                 _inEvent.amount,
                 msg.sender,
                 _inEvent,
-                _retryMessage
+                _retryMessage,
+                kind,
+                _initiator
             );
             return (true, tokenOut, amountOut, target, newMessage);
         }
         uint256 gasLeft = gasleft();
-        try this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, _retryMessage) returns (
+        try
+            this.relayExecute(_inEvent.token, _inEvent.amount, msg.sender, _inEvent, _retryMessage, kind, _initiator)
+        returns (
             address execTokenOut,
             uint256 execAmountOut,
             bytes memory execTarget,
@@ -730,6 +788,10 @@ contract BridgeAndRelay is BridgeAbstract {
         bytes32 _orderId,
         uint256 _fromChain
     ) internal {
+        // value handed out on the relay chain, either as vault shares or as
+        // a direct payout below - both are "MapoIn" the same as _swapIn
+        _consumeLimit(_token, IBridgeLimit.BucketKind.MapoIn, _amount, _from);
+
         if(IDepositWhitelist(depositWhitelsit).checkTokenAmountAndWhitelist(_token, _to, _amount)){
             address vaultToken = tokenRegister.getVaultToken(_token);
             if (vaultToken == ZERO_ADDRESS) revert vault_token_not_registered();
