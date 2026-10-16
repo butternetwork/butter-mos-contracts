@@ -114,6 +114,40 @@ async function getFeeInfo(chain, token) {
   return feeList[token];
 }
 
+// Reads constants/bridgeLimit.json (or the testnet variant), keyed the same
+// way as fee.json: chain name => token symbol => { decimals, out, in }, where
+// out/in each have a "global" bucket and a "chain" map keyed by destination
+// (out) or source (in) chain name. Values are decimal strings in the token's
+// own units, same convention as fee.json's base/fee amounts.
+async function getBridgeLimitList(chain) {
+  let p;
+  if (isTestnet(chain)) {
+    p = path.join(__dirname, "../../constants/testnet/bridgeLimit.json");
+  } else {
+    p = path.join(__dirname, "../../constants/bridgeLimit.json");
+  }
+  if (!fs.existsSync(p)) {
+    throw "no bridgeLimit file ..";
+  }
+  let rawdata = fs.readFileSync(p);
+  let limits = JSON.parse(rawdata);
+  if (!limits[chain]) {
+    throw `no bridgeLimit config at chain ${chain} ..`;
+  }
+
+  return limits[chain];
+}
+
+async function getBridgeLimitInfo(chain, token) {
+  let limitList = await getBridgeLimitList(chain);
+
+  if (!limitList[token]) {
+    throw "no bridgeLimit config for token ..";
+  }
+
+  return limitList[token];
+}
+
 async function getFeeConfig(subject) {
   let configFile = "../../constants/" + subject + ".json";
   let p = path.join(__dirname, configFile);
@@ -270,6 +304,8 @@ module.exports = {
   getFeeList,
   getFeeConfig,
   getFeeInfo,
+  getBridgeLimitList,
+  getBridgeLimitInfo,
   getMessageFee,
   getMessageFeeList,
   getMessageConfigList,

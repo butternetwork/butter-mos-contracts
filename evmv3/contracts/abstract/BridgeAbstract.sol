@@ -6,7 +6,7 @@ import {IButterBridgeV3} from "../interface/IButterBridgeV3.sol";
 import {IMOSV3} from "../interface/IMOSV3.sol";
 import {IMintableToken} from "../interface/IMintableToken.sol";
 import {IMapoExecutor} from "../interface/IMapoExecutor.sol";
-import {ISwapOutLimit} from "../interface/ISwapOutLimit.sol";
+import {IBridgeLimit} from "../interface/IBridgeLimit.sol";
 import {IButterReceiver} from "../interface/IButterReceiver.sol";
 import {IFeeService} from "../interface/IFeeService.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
@@ -37,7 +37,7 @@ abstract contract BridgeAbstract is
 
     address internal wToken;
     IFeeService internal feeService;
-    ISwapOutLimit internal swapLimit;
+    IBridgeLimit internal bridgeLimit;
 
     mapping(address => uint256) public trustList;
 
@@ -547,8 +547,22 @@ abstract contract BridgeAbstract is
         return (tokenFeatureList[_token] & MINTABLE_TOKEN) == MINTABLE_TOKEN;
     }
 
-    function _checkLimit(uint256 amount, uint256 tochain, address token) internal {
-        if (address(swapLimit) != ZERO_ADDRESS) swapLimit.checkLimit(amount, tochain, token);
+    // Rate-limit a flow against one of the token's three buckets (Transit /
+    // MapoOut / MapoIn - the caller decides which, since only it knows
+    // fromChain/toChain/messageType). No-op when no BridgeLimit is configured
+    // (service slot 5), so this is safe to call unconditionally from any
+    // bridge implementation. `_initiator` is passed through as raw bytes (the
+    // same representation already used for cross-chain addressing elsewhere)
+    // so BridgeLimit can exempt the bridge's own trusted/operational
+    // addresses, and match non-EVM identifiers (e.g. a 32-byte Solana
+    // pubkey), without any lossy conversion - see BridgeLimit.exempt.
+    function _consumeLimit(
+        address _token,
+        IBridgeLimit.BucketKind _kind,
+        uint256 _amount,
+        bytes memory _initiator
+    ) internal {
+        if (address(bridgeLimit) != ZERO_ADDRESS) bridgeLimit.consume(_token, _kind, _amount, _initiator);
     }
 
     function _checkOrder(bytes32 _orderId) internal {

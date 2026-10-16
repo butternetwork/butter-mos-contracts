@@ -433,7 +433,10 @@ async function deployRelayOnly(customConfig = {}) {
     const mockMosContract = await MockReceiver.deploy();
     
     // Register chain with MOS contract for target chain (97)
-    await relay.connect(deployer).registerChain([97], [ethers.utils.hexZeroPad(mockMosContract.address, 32)], 1);
+    // NOTE: Helper._fromBytes() decodes abi.encodePacked(address) (exactly 20 bytes),
+    // not a 32-byte zero-padded value - pass the raw address, matching how the real
+    // deployment tasks (tasks/subs/relay.js) encode EVM mos addresses.
+    await relay.connect(deployer).registerChain([97], [mockMosContract.address], 1);
 
     return {
         relay,
