@@ -79,6 +79,7 @@ abstract contract BridgeAbstract is
 
     event SetContract(uint256 t, address addr);
     event SetFailedReceiver(address _failedreceiver);
+    event EmergencyWithdraw(address indexed token, address indexed to, uint256 amount);
     event RegisterToken(address token, uint256 toChain, bool enable);
     event UpdateToken(address token, uint256 feature);
     event UpdateTrust(address trustAddress, bool enable);
@@ -562,6 +563,19 @@ abstract contract BridgeAbstract is
         uint256 _gasLimit
     ) internal pure returns (uint256 chainAndGasLimit) {
         chainAndGasLimit = ((_fromChain << 192) | (_toChain << 128) | _gasLimit);
+    }
+
+    /** Emergency ***************************************************/
+    // Rescue assets held by this contract. Restricted to the admin (multisig) via AccessManager.
+    // `_token` = address(0) or 0xEeee..EeE for native token.
+    function emergencyWithdraw(address _token, address _to, uint256 _amount) external restricted nonReentrant {
+        _checkAddress(_to);
+        if (_amount == 0) revert zero_amount();
+        bool result = Helper._isNative(_token)
+            ? Helper._transferNativeCatch(_to, _amount)
+            : Helper._transferCatch(_token, _to, _amount);
+        if (!result) revert token_transfer_fail();
+        emit EmergencyWithdraw(_token, _to, _amount);
     }
 
     /** UUPS *********************************************************/
