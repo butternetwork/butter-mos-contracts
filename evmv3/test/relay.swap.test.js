@@ -91,7 +91,9 @@ describe("Relay Swap Tests", function () {
         await feeService.connect(deployer).setTokenDecimals(ethers.constants.AddressZero, 18);
 
         // Register chain 97 (relay is on chain 212, bridge is on chain 97)
-        await relay.connect(deployer).registerChain([97], [ethers.utils.hexZeroPad(mockReceiver.address, 32)], 1);
+        // NOTE: Helper._fromBytes() decodes abi.encodePacked(address) (20 bytes),
+        // not a 32-byte zero-padded value - pass the raw address.
+        await relay.connect(deployer).registerChain([97], [mockReceiver.address], 1);
 
         // Configure token register - first register tokens, then register chains
         await tokenRegister.connect(deployer).registerToken(wtoken.address, vaultWToken.address, true);
@@ -433,6 +435,117 @@ describe("Relay Swap Tests", function () {
             await expect(
                 relay.messageIn(chainId, logParam, orderId, receiptProof)
             ).to.be.reverted;
+        });
+    });
+
+    // Integration tests proving BridgeLimit is wired into BridgeAndRelay's
+    // MapoOut outbound (burn) path via _consumeLimit, using the same
+    // swapOutToken call already proven to work end-to-end above.
+    describe("Outbound burn limit (BridgeLimit wired via service slot 5)", function () {
+        let limit;
+        const toChain = 97;
+        const MapoOut = 1; // IBridgeLimit.BucketKind.MapoOut - swapOutToken always has fromChain == self
+
+        beforeEach(async function () {
+            const BridgeLimit = await ethers.getContractFactory("BridgeLimit");
+            const limitImpl = await BridgeLimit.deploy(relay.address);
+            const initData = BridgeLimit.interface.encodeFunctionData("initialize", [authority.address]);
+
+            const OmniServiceProxy = await ethers.getContractFactory("OmniServiceProxy");
+            const limitProxy = await OmniServiceProxy.deploy(limitImpl.address, initData);
+            limit = BridgeLimit.attach(limitProxy.address);
+
+            await relay.connect(deployer).setServiceContract(5, limit.address);
+        });
+
+        function swapOut(amount) {
+            const amountWei = ethers.utils.parseEther(amount.toString());
+            const bridgeData = ethers.utils.defaultAbiCoder.encode(
+                ["tuple(bool,address,bytes32,uint256,bytes)"],
+                [[false, other.address, ethers.utils.keccak256(ethers.utils.toUtf8Bytes(`transfer-${amount}`)), 100000, "0x"]]
+            );
+            return relay.swapOutToken(owner.address, usdt.address, other.address, amountWei, toChain, bridgeData);
+        }
+
+        it("Should have no effect when no bucket is configured", async function () {
+            await usdt.approve(relay.address, ethers.utils.parseEther("1"));
+            await expect(swapOut(1)).to.emit(relay, "MessageOut");
+        });
+
+        it("Should revert swapOutToken with limit_exceeded once the outbound bucket is exhausted", async function () {
+            await limit.connect(deployer).setBucket(usdt.address, MapoOut, 0, 0, true);
+
+            await usdt.approve(relay.address, ethers.utils.parseEther("1"));
+            await expect(swapOut(1)).to.be.revertedWithCustomError(limit, "limit_exceeded");
+        });
+
+        it("Should decrement the MapoOut bucket by the actual post-fee burned amount on success", async function () {
+            // _collectFromFee / _collectTochainFee deduct fees before the burn,
+            // so the amount consumed from the bucket is <= the input amount,
+            // not necessarily equal to it - assert the bucket moved, and by no
+            // more than the raw input, without hard-coding this fixture's fees.
+            const capacity = ethers.utils.parseEther("1000");
+            const inputAmount = ethers.utils.parseEther("1");
+            await limit.connect(deployer).setBucket(usdt.address, MapoOut, capacity, 0, true);
+
+            await usdt.approve(relay.address, inputAmount);
+            await expect(swapOut(1)).to.emit(relay, "MessageOut");
+
+            const bucket = await limit.buckets(usdt.address, MapoOut);
+            expect(bucket.remaining).to.be.lt(capacity);
+            expect(bucket.remaining).to.be.gte(capacity.sub(inputAmount));
+        });
+
+        it("Should revert relayExecute with executor_not_whitelisted when BridgeLimit is configured and the target isn't whitelisted", async function () {
+            const amount = ethers.utils.parseEther("1");
+            await usdt.approve(relay.address, amount);
+
+            // relay=true + non-empty swapData triggers _relayExecute, whose
+            // "to" is the relay-execution target itself (here: an arbitrary
+            // address standing in for an executor contract - the whitelist
+            // check must fire before anything tries to actually call it).
+            const BridgeParam = {
+                relay: true,
+                referrer: other.address,
+                transferId: ethers.utils.keccak256(ethers.utils.toUtf8Bytes("test_transfer")),
+                gasLimit: 100000,
+                swapData: ethers.utils.defaultAbiCoder.encode(["string", "string"], ["key", "value"])
+            };
+            const bridgeData = ethers.utils.defaultAbiCoder.encode(
+                ["tuple(bool,address,bytes32,uint256,bytes)"],
+                [[BridgeParam.relay, BridgeParam.referrer, BridgeParam.transferId, BridgeParam.gasLimit, BridgeParam.swapData]]
+            );
+
+            await expect(relay.swapOutToken(owner.address, usdt.address, other.address, amount, toChain, bridgeData))
+                .to.be.revertedWithCustomError(relay, "executor_not_whitelisted");
+        });
+
+        it("Should let a whitelisted target pass the executor gate (fails afterward for an unrelated mock-contract reason, not the whitelist check)", async function () {
+            const Echo = await ethers.getContractFactory("Echo");
+            const echo = await Echo.deploy();
+
+            await limit.connect(deployer).setExecutorWhitelist(echo.address, true);
+
+            const amount = ethers.utils.parseEther("1");
+            await usdt.approve(relay.address, amount);
+
+            const BridgeParam = {
+                relay: true,
+                referrer: other.address,
+                transferId: ethers.utils.keccak256(ethers.utils.toUtf8Bytes("test_transfer")),
+                gasLimit: 100000,
+                swapData: ethers.utils.defaultAbiCoder.encode(["string", "string"], ["key", "value"])
+            };
+            const bridgeData = ethers.utils.defaultAbiCoder.encode(
+                ["tuple(bool,address,bytes32,uint256,bytes)"],
+                [[BridgeParam.relay, BridgeParam.referrer, BridgeParam.transferId, BridgeParam.gasLimit, BridgeParam.swapData]]
+            );
+
+            // Echo isn't a fully wired-up executor (it doesn't approve tokens
+            // back to the bridge), so this still reverts - but it must NOT be
+            // executor_not_whitelisted, proving the gate itself let it through.
+            await expect(relay.swapOutToken(owner.address, usdt.address, echo.address, amount, toChain, bridgeData))
+                .to.not.be.revertedWithCustomError(relay, "executor_not_whitelisted");
         });
     });
 }); 

@@ -1,0 +1,27 @@
+{
+    "Mapo": {
+        "_exemptNote": "Deliberately left empty for launch: balancer/arbitrage traffic may be a large share of real volume, so exempting it would hide most of what the buckets are meant to measure. Revisit once there's real data on how much headroom the buckets actually need.",
+        "exempt": [],
+        "executorWhitelist": [
+            { "note": "official RelayExecutor", "value": "0x1ee5711d1eaf0bd48bdd32a01f0311a74cdb4155" }
+        ],
+        "usdt": {
+            "decimals": 18,
+            "transit": { "capacity": "300000", "rate": "3.472", "enabled": false },
+            "mapoOut": { "capacity": "300000", "rate": "3.472", "enabled": false },
+            "mapoIn": { "capacity": "300000", "rate": "3.472", "enabled": false }
+        },
+        "usdc": {
+            "decimals": 18,
+            "transit": { "capacity": "150000", "rate": "1.736", "enabled": false },
+            "mapoOut": { "capacity": "150000", "rate": "1.736", "enabled": false },
+            "mapoIn": { "capacity": "150000", "rate": "1.736", "enabled": false }
+        },
+        "eth": {
+            "decimals": 18,
+            "transit": { "capacity": "50", "rate": "0.000579", "enabled": false },
+            "mapoOut": { "capacity": "50", "rate": "0.000579", "enabled": false },
+            "mapoIn": { "capacity": "50", "rate": "0.000579", "enabled": false }
+        }
+    }
+}

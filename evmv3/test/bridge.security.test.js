@@ -199,6 +199,93 @@ describe("Bridge Security Tests", function () {
         });
     });
 
+    // Regression tests for the access-control hardening added to messageIn after the
+    // forged-receipt-proof incident: this entry point must now be gated by
+    // AccessManaged's `restricted` modifier, not callable by arbitrary addresses.
+    // retryMessageIn deliberately stays permissionless: it only replays an already
+    // verified, already-stored message (integrity-checked via a committed hash in
+    // _getStoredMessage), not a new proof - restricting it would just lock users out
+    // of self-service recovery for no additional safety benefit.
+    describe("MessageIn / RetryMessageIn Access Control Tests", function () {
+        it("Should revert messageIn called by a non-authorized user before any proof is checked", async function () {
+            const chainId = 97;
+            const logParam = 0;
+            const orderId = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+            const receiptProof = ethers.utils.hexlify(ethers.utils.randomBytes(128));
+
+            // Even with garbage proof data, an unauthorized caller must be rejected
+            // by the `restricted` modifier before verifyProofData is ever invoked.
+            await expect(bridge.connect(owner).messageIn(chainId, logParam, orderId, receiptProof))
+                .to.be.revertedWithCustomError(bridge, "AccessManagedUnauthorized");
+        });
+
+        it("Should revert messageIn called by the deployer's own EOA-level attacker impersonation attempt", async function () {
+            const chainId = 97;
+            const logParam = 0;
+            const orderId = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+            const receiptProof = ethers.utils.hexlify(ethers.utils.randomBytes(128));
+
+            await expect(bridge.connect(user1).messageIn(chainId, logParam, orderId, receiptProof))
+                .to.be.revertedWithCustomError(bridge, "AccessManagedUnauthorized");
+        });
+
+        it("Should let an authorized caller reach proof verification (fail for a different reason than access control)", async function () {
+            const chainId = 97;
+            const logParam = 0;
+            const orderId = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+            const receiptProof = ethers.utils.hexlify(ethers.utils.randomBytes(128));
+
+            // Still reverts further down the call (mock log does not match the
+            // registered relay/mos contract), but it must NOT be the access-control
+            // error - proving the deployer actually passed the `restricted` gate.
+            await expect(bridge.connect(deployer).messageIn(chainId, logParam, orderId, receiptProof))
+                .to.not.be.revertedWithCustomError(bridge, "AccessManagedUnauthorized");
+        });
+
+        it("Should NOT gate retryMessageIn by access control - any caller reaches its business logic", async function () {
+            const chainAndGas = 0;
+            const orderId = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+            const fromAddress = ethers.utils.hexlify(ethers.utils.randomBytes(20));
+            const payload = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+            const retryMessage = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+
+            // Still reverts (no stored message matches this orderId), but it must NOT
+            // be the access-control error - retryMessageIn is intentionally left
+            // permissionless so users can self-service recover failed messages.
+            await expect(
+                bridge.connect(owner).retryMessageIn(
+                    chainAndGas,
+                    orderId,
+                    wtoken.address,
+                    ethers.utils.parseEther("1"),
+                    fromAddress,
+                    payload,
+                    retryMessage
+                )
+            ).to.not.be.revertedWithCustomError(bridge, "AccessManagedUnauthorized");
+        });
+
+        it("Should let an authorized (or unauthorized) caller alike reach retryMessageIn's business logic", async function () {
+            const chainAndGas = 0;
+            const orderId = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+            const fromAddress = ethers.utils.hexlify(ethers.utils.randomBytes(20));
+            const payload = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+            const retryMessage = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+
+            await expect(
+                bridge.connect(deployer).retryMessageIn(
+                    chainAndGas,
+                    orderId,
+                    wtoken.address,
+                    ethers.utils.parseEther("1"),
+                    fromAddress,
+                    payload,
+                    retryMessage
+                )
+            ).to.not.be.revertedWithCustomError(bridge, "AccessManagedUnauthorized");
+        });
+    });
+
     describe("Upgrade Tests", function () {
         it("Should allow deployer to upgrade bridge implementation", async function () {
             const Bridge = await ethers.getContractFactory("Bridge");

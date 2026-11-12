@@ -200,6 +200,26 @@
       "lightNode": "0x0001805c0b57dbd48b5c5c26e237a135ddc678ae"
     },
     {
+      "name": "Robinhood",
+      "chainId": "4663",
+      "type": "evm",
+      "wToken": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+      "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
+      "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+      "feeService": "",
+      "lightNode": ""
+    },
+    {
+      "name": "Arc",
+      "chainId": "5042",
+      "type": "evm",
+      "wToken": "0x444289f87293CEc2A70fC785D126FD14e01bF591",
+      "mos": "0x0000317Bec33Af037b5fAb2028f52d14658F6A56",
+      "auth": "0xACC31A6756B60304C03d6626fc98c062E4539CCA",
+      "feeService": "",
+      "lightNode": ""
+    },
+    {
         "name": "Solana",
         "chainId": "1360108768460801",
         "type": "solana",

@@ -30,7 +30,7 @@ contract Bridge is BridgeAbstract {
         } else if (_t == 2) {
             feeService = IFeeService(_addr);
         } else if (_t == 5) {
-            swapLimit = ISwapOutLimit(_addr);
+            bridgeLimit = IBridgeLimit(_addr);
         }
 
         emit SetContract(_t, _addr);
@@ -63,7 +63,7 @@ contract Bridge is BridgeAbstract {
         } else if (_type == 2) {
             return address(feeService);
         } else if (_type == 5) {
-            return address(swapLimit);
+            return address(bridgeLimit);
         }
         return ZERO_ADDRESS;
     }
@@ -139,8 +139,7 @@ contract Bridge is BridgeAbstract {
         inEvent.gasLimit = msgData.gasLimit;
         inEvent.swapData = msgData.swapData;
         _checkBridgeable(inEvent.token, msgData.relay ? relayChainId : inEvent.toChain);
-        // todo: add transfer limit check
-        // _checkLimit(_amount, _toChain, _token);
+        // todo: wire up _consumeLimit here once a BridgeLimit is deployed for spoke chains
         // messageType,fromChain,toChain,gasLimit,mos,to,token,amount,swapData
         orderId = _messageOut(true, msgData.relay, _initiator, sender, inEvent);
     }
@@ -173,7 +172,7 @@ contract Bridge is BridgeAbstract {
         uint256 _logParam,
         bytes32 _orderId,
         bytes calldata _receiptProof
-    ) external nonReentrant whenNotPaused {
+    ) external restricted nonReentrant whenNotPaused {
         _checkOrder(_orderId);
         (uint256 relayChainId, address mosRelay) = _getRelay();
         if (relayChainId != _chainId) revert invalid_relay_chain();

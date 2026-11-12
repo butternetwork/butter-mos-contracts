@@ -287,17 +287,27 @@ describe("TokenRegisterV3 Comprehensive Tests", function () {
         });
 
         it("Should revert setFromChainFee with excessive rate", async function () {
-            const rate = 1000001; // > MAX_RATE_UNI (1000000)
-            
+            // setFromChainFee caps the proportional rate at MAX_RATE_UNI / 2
+            // (50%), not MAX_RATE_UNI (100%) itself - see TokenRegisterV3.sol's
+            // `require(_rate < (MAX_RATE_UNI / 2), ...)`.
+            const rate = 1000001; // comfortably above the real 500000 cap too
+
             await expect(register.connect(owner).setFromChainFee(usdt.address, 56, 1000, 2000, rate))
                 .to.be.revertedWith("register: invalid proportion value");
         });
 
-        it("Should allow maximum rate", async function () {
-            const rate = 1000000; // MAX_RATE_UNI
-            
+        it("Should allow the maximum from-chain rate (just under 50%)", async function () {
+            const rate = 1000000 / 2 - 1; // MAX_RATE_UNI / 2, exclusive upper bound
+
             await expect(register.connect(owner).setFromChainFee(usdt.address, 56, 1000, 2000, rate))
                 .to.not.be.reverted;
+        });
+
+        it("Should revert setFromChainFee at exactly 50% (the bound is exclusive)", async function () {
+            const rate = 1000000 / 2; // MAX_RATE_UNI / 2 itself is rejected
+
+            await expect(register.connect(owner).setFromChainFee(usdt.address, 56, 1000, 2000, rate))
+                .to.be.revertedWith("register: invalid proportion value");
         });
 
         it("Should set to chain fee rates", async function () {
